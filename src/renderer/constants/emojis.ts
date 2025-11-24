@@ -41,7 +41,7 @@ export const GROUP_EMOJIS: Array<{ emoji: string; name: string }> = [
   { emoji: '⭐', name: 'star' }, { emoji: '🌟', name: 'glowing star' }, { emoji: '✨', name: 'sparkles' }, { emoji: '💫', name: 'dizzy' },
   { emoji: '🔥', name: 'fire' }, { emoji: '💧', name: 'droplet' }, { emoji: '🌊', name: 'wave' }, { emoji: '☀️', name: 'sun' },
   // Nature
-  { emoji: '🌙', name: 'moon' }, { emoji: '⭐', name: 'star' }, { emoji: '🌈', name: 'rainbow' }, { emoji: '☁️', name: 'cloud' },
+  { emoji: '🌙', name: 'moon' }, { emoji: '🌈', name: 'rainbow' }, { emoji: '☁️', name: 'cloud' },
   { emoji: '⛅', name: 'partly cloudy' }, { emoji: '⛈️', name: 'storm' }, { emoji: '🌩️', name: 'lightning cloud' }, { emoji: '❄️', name: 'snowflake' },
   { emoji: '☃️', name: 'snowman' }, { emoji: '🌸', name: 'cherry blossom' }, { emoji: '🌺', name: 'hibiscus' }, { emoji: '🌻', name: 'sunflower' },
   // Animals

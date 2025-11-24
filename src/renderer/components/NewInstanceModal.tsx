@@ -40,12 +40,12 @@ export function NewInstanceModal({ isOpen, onClose, onCreate, theme, defaultAgen
     }
   };
 
-  const handleSelectFolder = async () => {
+  const handleSelectFolder = React.useCallback(async () => {
     const folder = await window.maestro.dialog.selectFolder();
     if (folder) {
       setWorkingDir(folder);
     }
-  };
+  }, []);
 
   const handleCreate = React.useCallback(() => {
     const name = instanceName || agents.find(a => a.id === selectedAgent)?.name || 'New Agent';
@@ -77,11 +77,20 @@ export function NewInstanceModal({ isOpen, onClose, onCreate, theme, defaultAgen
           handleCreate();
         }
       }
+      // 'O' key to open folder picker
+      if ((e.key === 'o' || e.key === 'O') && !e.metaKey && !e.ctrlKey && !e.altKey && isOpen) {
+        // Don't trigger if user is typing in an input field
+        if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
+          return;
+        }
+        e.preventDefault();
+        handleSelectFolder();
+      }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, onClose, selectedAgent, agents, handleCreate]);
+  }, [isOpen, onClose, selectedAgent, agents, handleCreate, handleSelectFolder]);
 
   if (!isOpen) return null;
 
@@ -195,7 +204,7 @@ export function NewInstanceModal({ isOpen, onClose, onCreate, theme, defaultAgen
                 onClick={handleSelectFolder}
                 className="p-2 rounded border hover:bg-opacity-10"
                 style={{ borderColor: theme.colors.border, color: theme.colors.textMain }}
-                title="Browse folders"
+                title="Browse folders (O)"
               >
                 <Folder className="w-5 h-5" />
               </button>

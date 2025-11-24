@@ -109,3 +109,19 @@ export interface AgentConfig {
   available: boolean;
   path?: string;
 }
+
+// Process spawning configuration
+export interface ProcessConfig {
+  sessionId: string;
+  toolType: string;
+  cwd: string;
+  command: string;
+  args: string[];
+}
+
+// Directory entry from fs:readDir
+export interface DirectoryEntry {
+  name: string;
+  isDirectory: boolean;
+  path: string;
+}

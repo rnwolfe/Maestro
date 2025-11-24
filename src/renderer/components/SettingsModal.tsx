@@ -1,12 +1,12 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { X, Key, Moon, Sun, Keyboard, Check } from 'lucide-react';
-import type { AgentConfig } from '../types';
+import type { AgentConfig, Theme, Shortcut } from '../types';
 
 interface SettingsModalProps {
   isOpen: boolean;
   onClose: () => void;
-  theme: any;
-  themes: Record<string, any>;
+  theme: Theme;
+  themes: Record<string, Theme>;
   activeThemeId: string;
   setActiveThemeId: (id: string) => void;
   llmProvider: string;
@@ -19,8 +19,8 @@ interface SettingsModalProps {
   setTunnelProvider: (provider: string) => void;
   tunnelApiKey: string;
   setTunnelApiKey: (key: string) => void;
-  shortcuts: Record<string, any>;
-  setShortcuts: (shortcuts: Record<string, any>) => void;
+  shortcuts: Record<string, Shortcut>;
+  setShortcuts: (shortcuts: Record<string, Shortcut>) => void;
   defaultAgent: string;
   setDefaultAgent: (agentId: string) => void;
   fontFamily: string;
@@ -300,11 +300,11 @@ export function SettingsModal(props: SettingsModalProps) {
   const ThemePicker = () => {
     const themePickerRef = React.useRef<HTMLDivElement>(null);
 
-    const grouped = Object.values(themes).reduce((acc: any, t: any) => {
+    const grouped = Object.values(themes).reduce((acc: Record<string, Theme[]>, t: Theme) => {
       if (!acc[t.mode]) acc[t.mode] = [];
       acc[t.mode].push(t);
       return acc;
-    }, {});
+    }, {} as Record<string, Theme[]>);
 
     // Ensure focus when component mounts
     React.useEffect(() => {
@@ -317,7 +317,7 @@ export function SettingsModal(props: SettingsModalProps) {
         e.stopPropagation();
         // Create ordered array: dark themes first (left-to-right, top-to-bottom), then light themes
         const allThemes = [...(grouped['dark'] || []), ...(grouped['light'] || [])];
-        const currentIndex = allThemes.findIndex((t: any) => t.id === props.activeThemeId);
+        const currentIndex = allThemes.findIndex((t: Theme) => t.id === props.activeThemeId);
 
         if (e.shiftKey) {
           // Shift+Tab: go backwards
@@ -345,7 +345,7 @@ export function SettingsModal(props: SettingsModalProps) {
               {mode} Mode
             </div>
             <div className="grid grid-cols-2 gap-3">
-              {grouped[mode]?.map((t: any) => (
+              {grouped[mode]?.map((t: Theme) => (
                 <button
                   key={t.id}
                   onClick={() => props.setActiveThemeId(t.id)}
@@ -729,8 +729,8 @@ export function SettingsModal(props: SettingsModalProps) {
               />
               <div className="space-y-2 max-h-[350px] overflow-y-auto pr-2">
                 {Object.values(props.shortcuts)
-                  .filter((sc: any) => sc.label.toLowerCase().includes(shortcutsFilter.toLowerCase()))
-                  .map((sc: any) => (
+                  .filter((sc: Shortcut) => sc.label.toLowerCase().includes(shortcutsFilter.toLowerCase()))
+                  .map((sc: Shortcut) => (
                     <div key={sc.id} className="flex items-center justify-between p-3 rounded border" style={{ borderColor: theme.colors.border, backgroundColor: theme.colors.bgMain }}>
                       <span className="text-sm font-medium" style={{ color: theme.colors.textMain }}>{sc.label}</span>
                       <button

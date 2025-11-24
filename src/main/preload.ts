@@ -1,18 +1,40 @@
 import { contextBridge, ipcRenderer } from 'electron';
 
+// Type definitions that match renderer types
+interface ProcessConfig {
+  sessionId: string;
+  toolType: string;
+  cwd: string;
+  command: string;
+  args: string[];
+}
+
+interface AgentConfig {
+  id: string;
+  name: string;
+  available: boolean;
+  path?: string;
+}
+
+interface DirectoryEntry {
+  name: string;
+  isDirectory: boolean;
+  path: string;
+}
+
 // Expose protected methods that allow the renderer process to use
 // the ipcRenderer without exposing the entire object
 contextBridge.exposeInMainWorld('maestro', {
   // Settings API
   settings: {
     get: (key: string) => ipcRenderer.invoke('settings:get', key),
-    set: (key: string, value: any) => ipcRenderer.invoke('settings:set', key, value),
+    set: (key: string, value: unknown) => ipcRenderer.invoke('settings:set', key, value),
     getAll: () => ipcRenderer.invoke('settings:getAll'),
   },
 
   // Process/Session API
   process: {
-    spawn: (config: any) => ipcRenderer.invoke('process:spawn', config),
+    spawn: (config: ProcessConfig) => ipcRenderer.invoke('process:spawn', config),
     write: (sessionId: string, data: string) => ipcRenderer.invoke('process:write', sessionId, data),
     kill: (sessionId: string) => ipcRenderer.invoke('process:kill', sessionId),
     resize: (sessionId: string, cols: number, rows: number) =>
@@ -77,12 +99,12 @@ contextBridge.exposeInMainWorld('maestro', {
 // Type definitions for TypeScript
 export interface MaestroAPI {
   settings: {
-    get: (key: string) => Promise<any>;
-    set: (key: string, value: any) => Promise<boolean>;
-    getAll: () => Promise<any>;
+    get: (key: string) => Promise<unknown>;
+    set: (key: string, value: unknown) => Promise<boolean>;
+    getAll: () => Promise<Record<string, unknown>>;
   };
   process: {
-    spawn: (config: any) => Promise<{ pid: number; success: boolean }>;
+    spawn: (config: ProcessConfig) => Promise<{ pid: number; success: boolean }>;
     write: (sessionId: string, data: string) => Promise<boolean>;
     kill: (sessionId: string) => Promise<boolean>;
     resize: (sessionId: string, cols: number, rows: number) => Promise<boolean>;
@@ -95,15 +117,15 @@ export interface MaestroAPI {
     isRepo: (cwd: string) => Promise<boolean>;
   };
   fs: {
-    readDir: (dirPath: string) => Promise<any[]>;
+    readDir: (dirPath: string) => Promise<DirectoryEntry[]>;
     readFile: (filePath: string) => Promise<string>;
   };
   webserver: {
     getUrl: () => Promise<string>;
   };
   agents: {
-    detect: () => Promise<any[]>;
-    get: (agentId: string) => Promise<any>;
+    detect: () => Promise<AgentConfig[]>;
+    get: (agentId: string) => Promise<AgentConfig | null>;
   };
   dialog: {
     selectFolder: () => Promise<string | null>;

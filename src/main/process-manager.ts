@@ -379,43 +379,47 @@ export class ProcessManager extends EventEmitter {
     return new Promise((resolve) => {
       console.log('[ProcessManager] runCommand():', { sessionId, command, cwd, shell });
 
-      // Build shell-specific args to ensure user's config files are sourced
+      // Build the command with shell config sourcing
       // This ensures PATH, aliases, and functions are available
-      let shellArgs: string[];
-      const shellName = shell.split('/').pop() || shell; // Get shell name from path
+      const shellName = shell.split('/').pop() || shell;
+      let wrappedCommand: string;
 
       if (shellName === 'fish') {
-        // Fish uses different syntax - it auto-sources config.fish
-        // Use -c for command execution (fish doesn't use -i -l the same way)
-        shellArgs = ['-c', command];
+        // Fish auto-sources config.fish, just run the command
+        wrappedCommand = command;
       } else if (shellName === 'zsh') {
-        // For zsh: source .zshrc to load aliases, then run the command
-        // We use -l for login shell (sources .zprofile) but also explicitly source .zshrc
-        // because .zprofile doesn't always source .zshrc, and aliases are usually in .zshrc
-        // Note: We avoid -i (interactive) because it tries to initialize zle/readline
-        // which fails without a real TTY and produces errors like "can't change option: zle"
-        const wrappedCommand = `source ~/.zshrc 2>/dev/null; ${command}`;
-        shellArgs = ['-l', '-c', wrappedCommand];
+        // Source .zshrc for aliases, then use eval to parse command AFTER aliases are loaded
+        // Without eval, the shell parses the command before .zshrc is sourced, so aliases aren't available
+        const escapedCommand = command.replace(/'/g, "'\\''");
+        wrappedCommand = `source ~/.zshrc 2>/dev/null; eval '${escapedCommand}'`;
       } else if (shellName === 'bash') {
-        // For bash: source .bashrc to load aliases
-        // -l sources .bash_profile, but aliases are usually in .bashrc
-        const wrappedCommand = `source ~/.bashrc 2>/dev/null; ${command}`;
-        shellArgs = ['-l', '-c', wrappedCommand];
+        // Source .bashrc for aliases, use eval for same reason as zsh
+        const escapedCommand = command.replace(/'/g, "'\\''");
+        wrappedCommand = `source ~/.bashrc 2>/dev/null; eval '${escapedCommand}'`;
       } else {
-        // Other POSIX-compatible shells (sh, tcsh, etc.)
-        // Just use -l -c and hope for the best
-        shellArgs = ['-l', '-c', command];
+        // Other POSIX-compatible shells
+        wrappedCommand = command;
       }
 
-      // Use shell: true to work around ENOENT issues in Electron's sandboxed environment
-      // The shell executable path is still used, but spawn delegates to the system shell
-      const fullCommand = `${shell} ${shellArgs.map(arg => `'${arg.replace(/'/g, "'\\''")}'`).join(' ')}`;
-      console.log('[ProcessManager] runCommand fullCommand:', fullCommand);
+      // Ensure PATH includes standard binary locations
+      // Electron's main process may have a stripped-down PATH
+      const env = { ...process.env };
+      const standardPaths = '/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin';
+      if (env.PATH) {
+        // Prepend standard paths if not already present
+        if (!env.PATH.includes('/bin')) {
+          env.PATH = `${standardPaths}:${env.PATH}`;
+        }
+      } else {
+        env.PATH = standardPaths;
+      }
 
-      const childProcess = spawn(fullCommand, [], {
+      console.log('[ProcessManager] runCommand spawning:', { shell, wrappedCommand, cwd, PATH: env.PATH?.substring(0, 100) });
+
+      const childProcess = spawn(wrappedCommand, [], {
         cwd,
-        env: process.env,
-        shell: true, // Use system shell to execute
+        env,
+        shell: shell, // Use specified shell to interpret command
       });
 
       let stdoutBuffer = '';
@@ -462,10 +466,11 @@ export class ProcessManager extends EventEmitter {
         resolve({ exitCode: code || 0 });
       });
 
-      // Handle errors
+      // Handle errors (e.g., spawn failures)
       childProcess.on('error', (error) => {
         console.error('[ProcessManager] runCommand error:', error);
         this.emit('stderr', sessionId, `Error: ${error.message}`);
+        this.emit('command-exit', sessionId, 1);
         resolve({ exitCode: 1 });
       });
     });

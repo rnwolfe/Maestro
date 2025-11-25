@@ -195,7 +195,7 @@ export function MainPanel(props: MainPanelProps) {
           <div className="h-16 border-b flex items-center justify-between px-6 shrink-0" style={{ borderColor: theme.colors.border, backgroundColor: theme.colors.bgSidebar }}>
             <div className="flex items-center gap-4">
               <div className="flex items-center gap-2 text-sm font-medium">
-                {(activeSession.inputMode === 'terminal' ? (activeSession.shellCwd || activeSession.cwd) : activeSession.cwd).split('/').pop() || '/'} /
+                {activeSession.name}
                 <span className={`text-xs px-2 py-0.5 rounded-full border ${activeSession.isGitRepo ? 'border-orange-500/30 text-orange-500 bg-orange-500/10' : 'border-blue-500/30 text-blue-500 bg-blue-500/10'}`}>
                   {activeSession.isGitRepo ? 'GIT' : 'LOCAL'}
                 </span>

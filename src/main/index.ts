@@ -345,49 +345,21 @@ function setupIpcHandlers() {
     if (!processManager) throw new Error('Process manager not initialized');
 
     // Get the shell from settings if not provided
-    const shellId = config.shell || store.get('defaultShell', 'zsh');
-
-    // Resolve shell ID to full path using 'which' command
-    // This ensures we can find the shell even if it's not in Node's default PATH
-    let shellPath = shellId;
-    try {
-      const whichResult = await execFileNoThrow('which', [shellId]);
-      if (whichResult.exitCode === 0 && whichResult.stdout.trim()) {
-        shellPath = whichResult.stdout.trim().split('\n')[0];
-      } else {
-        // Fallback: try common paths
-        const commonPaths = [
-          `/bin/${shellId}`,
-          `/usr/bin/${shellId}`,
-          `/usr/local/bin/${shellId}`,
-          `/opt/homebrew/bin/${shellId}`
-        ];
-        for (const path of commonPaths) {
-          try {
-            await fs.access(path);
-            shellPath = path;
-            break;
-          } catch {
-            // Path doesn't exist, try next
-          }
-        }
-      }
-    } catch (error) {
-      logger.warn(`Could not resolve shell path for ${shellId}, using as-is`, 'ProcessManager');
-    }
+    // Use just the shell name (e.g., 'zsh') - not the full path
+    // This matches how PTY spawns shells successfully
+    const shell = config.shell || store.get('defaultShell', 'zsh');
 
     logger.debug(`Running command: ${config.command}`, 'ProcessManager', {
       sessionId: config.sessionId,
       cwd: config.cwd,
-      shellId,
-      shellPath
+      shell
     });
 
     return processManager.runCommand(
       config.sessionId,
       config.command,
       config.cwd,
-      shellPath
+      shell
     );
   });
 

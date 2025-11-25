@@ -1385,12 +1385,18 @@ export default function MaestroConsole() {
     let newShellCwd = activeSession.shellCwd;
     let cwdChanged = false;
     if (currentMode === 'terminal') {
-      const cdMatch = inputValue.trim().match(/^cd\s+(.+)$/);
+      const trimmedInput = inputValue.trim();
+      // Handle bare "cd" command - go to session's original directory
+      if (trimmedInput === 'cd') {
+        cwdChanged = true;
+        newShellCwd = activeSession.cwd;
+      }
+      const cdMatch = trimmedInput.match(/^cd\s+(.+)$/);
       if (cdMatch) {
         cwdChanged = true;
         const targetPath = cdMatch[1].trim().replace(/^['"]|['"]$/g, ''); // Remove quotes
         if (targetPath === '~') {
-          // Navigate to home directory (simplified, could use actual home)
+          // Navigate to session's original directory
           newShellCwd = activeSession.cwd;
         } else if (targetPath.startsWith('/')) {
           // Absolute path

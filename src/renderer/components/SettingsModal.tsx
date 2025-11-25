@@ -502,7 +502,12 @@ export function SettingsModal(props: SettingsModalProps) {
         <div className="flex border-b" style={{ borderColor: theme.colors.border }}>
           <button onClick={() => setActiveTab('general')} className={`px-6 py-4 text-sm font-bold border-b-2 ${activeTab === 'general' ? 'border-indigo-500' : 'border-transparent'}`} tabIndex={-1}>General</button>
           <button onClick={() => setActiveTab('llm')} className={`px-6 py-4 text-sm font-bold border-b-2 ${activeTab === 'llm' ? 'border-indigo-500' : 'border-transparent'}`} tabIndex={-1}>LLM</button>
-          <button onClick={() => setActiveTab('shortcuts')} className={`px-6 py-4 text-sm font-bold border-b-2 ${activeTab === 'shortcuts' ? 'border-indigo-500' : 'border-transparent'}`} tabIndex={-1}>Shortcuts</button>
+          <button onClick={() => setActiveTab('shortcuts')} className={`px-6 py-4 text-sm font-bold border-b-2 ${activeTab === 'shortcuts' ? 'border-indigo-500' : 'border-transparent'} flex items-center gap-2`} tabIndex={-1}>
+            Shortcuts
+            <span className="text-xs px-1.5 py-0.5 rounded" style={{ backgroundColor: theme.colors.bgActivity, color: theme.colors.textDim }}>
+              {Object.values(props.shortcuts).length}
+            </span>
+          </button>
           <button onClick={() => setActiveTab('theme')} className={`px-6 py-4 text-sm font-bold border-b-2 ${activeTab === 'theme' ? 'border-indigo-500' : 'border-transparent'}`} tabIndex={-1}>Themes</button>
           <button onClick={() => setActiveTab('network')} className={`px-6 py-4 text-sm font-bold border-b-2 ${activeTab === 'network' ? 'border-indigo-500' : 'border-transparent'}`} tabIndex={-1}>Network</button>
           <div className="flex-1 flex justify-end items-center pr-4">
@@ -1247,21 +1252,32 @@ export function SettingsModal(props: SettingsModalProps) {
             </div>
           )}
 
-          {activeTab === 'shortcuts' && (
-            <div className="space-y-3">
-              <input
-                ref={shortcutsFilterRef}
-                type="text"
-                value={shortcutsFilter}
-                onChange={(e) => setShortcutsFilter(e.target.value)}
-                placeholder="Filter shortcuts..."
-                className="w-full px-3 py-2 rounded border bg-transparent outline-none text-sm"
-                style={{ borderColor: theme.colors.border, color: theme.colors.textMain }}
-              />
-              <div className="space-y-2 max-h-[350px] overflow-y-auto pr-2">
-                {Object.values(props.shortcuts)
-                  .filter((sc: Shortcut) => sc.label.toLowerCase().includes(shortcutsFilter.toLowerCase()))
-                  .map((sc: Shortcut) => (
+          {activeTab === 'shortcuts' && (() => {
+            const totalShortcuts = Object.values(props.shortcuts).length;
+            const filteredShortcuts = Object.values(props.shortcuts)
+              .filter((sc: Shortcut) => sc.label.toLowerCase().includes(shortcutsFilter.toLowerCase()));
+            const filteredCount = filteredShortcuts.length;
+
+            return (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <input
+                    ref={shortcutsFilterRef}
+                    type="text"
+                    value={shortcutsFilter}
+                    onChange={(e) => setShortcutsFilter(e.target.value)}
+                    placeholder="Filter shortcuts..."
+                    className="flex-1 px-3 py-2 rounded border bg-transparent outline-none text-sm"
+                    style={{ borderColor: theme.colors.border, color: theme.colors.textMain }}
+                  />
+                  {shortcutsFilter && (
+                    <span className="ml-3 text-xs px-2 py-1 rounded" style={{ backgroundColor: theme.colors.bgActivity, color: theme.colors.textDim }}>
+                      {filteredCount} / {totalShortcuts}
+                    </span>
+                  )}
+                </div>
+                <div className="space-y-2 max-h-[350px] overflow-y-auto pr-2">
+                  {filteredShortcuts.map((sc: Shortcut) => (
                     <div key={sc.id} className="flex items-center justify-between p-3 rounded border" style={{ borderColor: theme.colors.border, backgroundColor: theme.colors.bgMain }}>
                       <span className="text-sm font-medium" style={{ color: theme.colors.textMain }}>{sc.label}</span>
                       <button
@@ -1291,9 +1307,10 @@ export function SettingsModal(props: SettingsModalProps) {
                       </button>
                     </div>
                   ))}
+                </div>
               </div>
-            </div>
-          )}
+            );
+          })()}
 
           {activeTab === 'theme' && <ThemePicker />}
         </div>

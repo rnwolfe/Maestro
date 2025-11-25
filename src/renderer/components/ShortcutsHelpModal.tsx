@@ -52,6 +52,13 @@ export function ShortcutsHelpModal({ theme, shortcuts, onClose }: ShortcutsHelpM
     containerRef.current?.focus();
   }, []);
 
+  const totalShortcuts = Object.values(shortcuts).length;
+  const filteredShortcuts = Object.values(shortcuts).filter(sc =>
+    fuzzyMatch(sc.label, searchQuery) ||
+    fuzzyMatch(sc.keys.join(' '), searchQuery)
+  );
+  const filteredCount = filteredShortcuts.length;
+
   return (
     <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-[9999] animate-in fade-in duration-200">
       <div
@@ -64,7 +71,12 @@ export function ShortcutsHelpModal({ theme, shortcuts, onClose }: ShortcutsHelpM
         style={{ backgroundColor: theme.colors.bgSidebar, borderColor: theme.colors.border }}>
         <div className="p-4 border-b" style={{ borderColor: theme.colors.border }}>
           <div className="flex items-center justify-between mb-3">
-            <h2 className="text-sm font-bold" style={{ color: theme.colors.textMain }}>Keyboard Shortcuts</h2>
+            <div className="flex items-center gap-2">
+              <h2 className="text-sm font-bold" style={{ color: theme.colors.textMain }}>Keyboard Shortcuts</h2>
+              <span className="text-xs px-2 py-0.5 rounded" style={{ backgroundColor: theme.colors.bgActivity, color: theme.colors.textDim }}>
+                {searchQuery ? `${filteredCount} / ${totalShortcuts}` : totalShortcuts}
+              </span>
+            </div>
             <button onClick={onClose} style={{ color: theme.colors.textDim }}>
               <X className="w-4 h-4" />
             </button>
@@ -80,10 +92,7 @@ export function ShortcutsHelpModal({ theme, shortcuts, onClose }: ShortcutsHelpM
           />
         </div>
         <div className="p-4 space-y-2 max-h-[400px] overflow-y-auto">
-          {Object.values(shortcuts).filter(sc =>
-            fuzzyMatch(sc.label, searchQuery) ||
-            fuzzyMatch(sc.keys.join(' '), searchQuery)
-          ).map((sc, i) => (
+          {filteredShortcuts.map((sc, i) => (
             <div key={i} className="flex justify-between items-center text-sm">
               <span style={{ color: theme.colors.textDim }}>{sc.label}</span>
               <kbd className="px-2 py-1 rounded border font-mono text-xs font-bold" style={{ backgroundColor: theme.colors.bgActivity, borderColor: theme.colors.border, color: theme.colors.textMain }}>
@@ -91,10 +100,7 @@ export function ShortcutsHelpModal({ theme, shortcuts, onClose }: ShortcutsHelpM
               </kbd>
             </div>
           ))}
-          {Object.values(shortcuts).filter(sc =>
-            fuzzyMatch(sc.label, searchQuery) ||
-            fuzzyMatch(sc.keys.join(' '), searchQuery)
-          ).length === 0 && (
+          {filteredCount === 0 && (
             <div className="text-center text-sm opacity-50" style={{ color: theme.colors.textDim }}>
               No shortcuts found
             </div>

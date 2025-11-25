@@ -40,8 +40,9 @@ export function LayerStackProvider({ children }: LayerStackProviderProps) {
           e.preventDefault();
           e.stopPropagation();
 
-          // Close the top layer
-          stack.closeTopLayer();
+          // Close the top layer (async but we don't need to await here since
+          // we've already prevented default - the modal will close asynchronously)
+          void stack.closeTopLayer();
         }
       }
     };

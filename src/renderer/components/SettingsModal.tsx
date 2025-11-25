@@ -80,6 +80,10 @@ export function SettingsModal(props: SettingsModalProps) {
     }
   }, [isOpen, initialTab]);
 
+  // Store onClose in a ref to avoid re-registering layer when onClose changes
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+
   // Register layer when modal opens
   useEffect(() => {
     if (!isOpen) return;
@@ -96,7 +100,7 @@ export function SettingsModal(props: SettingsModalProps) {
         if (recordingId) {
           setRecordingId(null);
         } else {
-          onClose();
+          onCloseRef.current();
         }
       }
     });
@@ -108,7 +112,7 @@ export function SettingsModal(props: SettingsModalProps) {
         unregisterLayer(layerIdRef.current);
       }
     };
-  }, [isOpen, registerLayer, unregisterLayer, onClose]);
+  }, [isOpen, registerLayer, unregisterLayer]); // Removed onClose from deps
 
   // Update handler when dependencies change
   useEffect(() => {
@@ -119,10 +123,10 @@ export function SettingsModal(props: SettingsModalProps) {
       if (recordingId) {
         setRecordingId(null);
       } else {
-        onClose();
+        onCloseRef.current();
       }
     });
-  }, [isOpen, recordingId, onClose, updateLayerHandler]);
+  }, [isOpen, recordingId, updateLayerHandler]); // Use ref for onClose
 
   // Tab navigation with Cmd+Shift+[ and ]
   useEffect(() => {

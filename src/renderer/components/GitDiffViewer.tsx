@@ -20,6 +20,10 @@ export function GitDiffViewer({ diffText, cwd, theme, onClose }: GitDiffViewerPr
   const { registerLayer, unregisterLayer, updateLayerHandler } = useLayerStack();
   const layerIdRef = useRef<string>();
 
+  // Store onClose in ref to avoid re-registering layer on every parent re-render
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+
   // Parse the diff into separate files
   const parsedFiles = useMemo(() => parseGitDiff(diffText), [diffText]);
 
@@ -34,7 +38,7 @@ export function GitDiffViewer({ diffText, cwd, theme, onClose }: GitDiffViewerPr
       capturesFocus: true,
       focusTrap: 'lenient',
       ariaLabel: 'Git Diff Preview',
-      onEscape: onClose,
+      onEscape: () => onCloseRef.current(),
     });
 
     return () => {
@@ -42,14 +46,14 @@ export function GitDiffViewer({ diffText, cwd, theme, onClose }: GitDiffViewerPr
         unregisterLayer(layerIdRef.current);
       }
     };
-  }, [registerLayer, unregisterLayer, onClose]);
+  }, [registerLayer, unregisterLayer]); // Removed onClose from deps
 
-  // Update handler when dependencies change
+  // Update handler when dependencies change (not really needed since onClose uses ref)
   useEffect(() => {
     if (layerIdRef.current) {
-      updateLayerHandler(layerIdRef.current, onClose);
+      updateLayerHandler(layerIdRef.current, () => onCloseRef.current());
     }
-  }, [updateLayerHandler, onClose]);
+  }, [updateLayerHandler]);
 
   // Auto-scroll to active tab when it changes
   useEffect(() => {

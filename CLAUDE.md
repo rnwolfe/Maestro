@@ -256,10 +256,14 @@ import { useLayerStack } from '../contexts/LayerStackContext';
 import { MODAL_PRIORITIES } from '../constants/modalPriorities';
 ```
 
-3. **Register layer on mount**:
+3. **Register layer on mount** (use ref pattern to avoid re-registration on callback changes):
 ```typescript
 const { registerLayer, unregisterLayer, updateLayerHandler } = useLayerStack();
 const layerIdRef = useRef<string>();
+
+// Store onClose in ref to avoid re-registering layer when callback identity changes
+const onCloseRef = useRef(onClose);
+onCloseRef.current = onClose;
 
 useEffect(() => {
   if (modalOpen) {
@@ -270,27 +274,24 @@ useEffect(() => {
       capturesFocus: true,
       focusTrap: 'strict',  // or 'lenient', 'none'
       ariaLabel: 'Your Modal Name',
-      onEscape: () => {
-        setModalOpen(false);
-      }
+      onEscape: () => onCloseRef.current(),  // Use ref to get latest callback
     });
     layerIdRef.current = id;
     return () => unregisterLayer(id);
   }
-}, [modalOpen, registerLayer, unregisterLayer]);
+}, [modalOpen, registerLayer, unregisterLayer]);  // Note: onClose NOT in deps
 ```
 
-4. **Update handler when dependencies change** (performance optimization):
+4. **Update handler when dependencies change** (only needed if handler has other dependencies):
 ```typescript
 useEffect(() => {
   if (modalOpen && layerIdRef.current) {
-    updateLayerHandler(layerIdRef.current, () => {
-      setModalOpen(false);
-      // ... other cleanup
-    });
+    updateLayerHandler(layerIdRef.current, () => onCloseRef.current());
   }
-}, [modalOpen, updateLayerHandler, /* other dependencies */]);
+}, [modalOpen, updateLayerHandler]);  // Use ref for callbacks
 ```
+
+**Why use the ref pattern?** Parent components often create new callback instances on every render. Without the ref pattern, this would cause the layer to be unregistered and re-registered unnecessarily, which can cause flickering or focus issues.
 
 5. **Add ARIA attributes**:
 ```typescript

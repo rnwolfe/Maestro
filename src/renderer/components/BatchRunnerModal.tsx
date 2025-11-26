@@ -26,9 +26,10 @@ Your responsibilities are as follows:
 
 5. Completion + Reporting
     - Mark the task as completed in the scratchpad by changing - [ ] to - [x].
-    - Output a clear status message describing:
-      - What was successfully implemented, OR
-      - Why the task was intentionally skipped, OR
+    - CRITICAL: Your FIRST sentence MUST be a specific synopsis of what you accomplished (e.g., "Added pagination to the user list component" or "Refactored auth middleware to use JWT tokens"). Never start with generic phrases like "Task completed successfully" - always lead with the specific work done.
+    - Follow with any relevant details about:
+      - Implementation approach or key decisions made
+      - Why the task was intentionally skipped (if applicable)
       - If implementation failed, explain the failure and do NOT check off the item.
 
 6. Version Control

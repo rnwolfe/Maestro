@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { Search, Clock, MessageSquare, HardDrive, Play, ChevronLeft, Loader2, Plus, X, List, Database, BarChart3, ChevronDown, User, Bot, DollarSign, Star } from 'lucide-react';
+import { Search, Clock, MessageSquare, HardDrive, Play, ChevronLeft, Loader2, Plus, X, List, Database, BarChart3, ChevronDown, User, Bot, DollarSign, Star, Zap, Timer, Hash, ArrowDownToLine, ArrowUpFromLine } from 'lucide-react';
 import type { Theme, Session, LogEntry } from '../types';
 import { useLayerStack } from '../contexts/LayerStackContext';
 import { MODAL_PRIORITIES } from '../constants/modalPriorities';
@@ -22,6 +22,11 @@ interface ClaudeSession {
   messageCount: number;
   sizeBytes: number;
   costUsd: number;
+  inputTokens: number;
+  outputTokens: number;
+  cacheReadTokens: number;
+  cacheCreationTokens: number;
+  durationSeconds: number;
 }
 
 interface SessionMessage {
@@ -549,15 +554,128 @@ export function AgentSessionsBrowser({
 
       {/* Content */}
       {viewingSession ? (
-        <div
-          ref={messagesContainerRef}
-          className="flex-1 overflow-y-auto p-6 space-y-4 outline-none scrollbar-thin"
-          onScroll={handleMessagesScroll}
-          onKeyDown={handleKeyDown}
-          tabIndex={0}
-        >
-          {/* Load more indicator */}
-          {hasMoreMessages && (
+        <div className="flex-1 flex flex-col overflow-hidden">
+          {/* Session Stats Panel */}
+          <div
+            className="px-6 py-4 border-b shrink-0"
+            style={{ borderColor: theme.colors.border, backgroundColor: theme.colors.bgActivity + '30' }}
+          >
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              {/* Cost */}
+              <div className="flex flex-col">
+                <div className="flex items-center gap-2 mb-1">
+                  <DollarSign className="w-4 h-4" style={{ color: theme.colors.success }} />
+                  <span className="text-xs font-medium uppercase tracking-wider" style={{ color: theme.colors.textDim }}>
+                    Cost
+                  </span>
+                </div>
+                <span className="text-lg font-mono font-semibold" style={{ color: theme.colors.success }}>
+                  ${viewingSession.costUsd.toFixed(4)}
+                </span>
+              </div>
+
+              {/* Duration */}
+              <div className="flex flex-col">
+                <div className="flex items-center gap-2 mb-1">
+                  <Timer className="w-4 h-4" style={{ color: theme.colors.warning }} />
+                  <span className="text-xs font-medium uppercase tracking-wider" style={{ color: theme.colors.textDim }}>
+                    Duration
+                  </span>
+                </div>
+                <span className="text-lg font-mono font-semibold" style={{ color: theme.colors.textMain }}>
+                  {viewingSession.durationSeconds < 60
+                    ? `${viewingSession.durationSeconds}s`
+                    : viewingSession.durationSeconds < 3600
+                    ? `${Math.floor(viewingSession.durationSeconds / 60)}m ${viewingSession.durationSeconds % 60}s`
+                    : `${Math.floor(viewingSession.durationSeconds / 3600)}h ${Math.floor((viewingSession.durationSeconds % 3600) / 60)}m`}
+                </span>
+              </div>
+
+              {/* Total Tokens (Context Window) */}
+              <div className="flex flex-col">
+                <div className="flex items-center gap-2 mb-1">
+                  <Zap className="w-4 h-4" style={{ color: theme.colors.accent }} />
+                  <span className="text-xs font-medium uppercase tracking-wider" style={{ color: theme.colors.textDim }}>
+                    Total Tokens
+                  </span>
+                </div>
+                <span className="text-lg font-mono font-semibold" style={{ color: theme.colors.textMain }}>
+                  {((viewingSession.inputTokens + viewingSession.outputTokens) / 1000).toFixed(1)}k
+                </span>
+                <span className="text-[10px]" style={{ color: theme.colors.textDim }}>
+                  {((viewingSession.inputTokens + viewingSession.outputTokens) / 200000 * 100).toFixed(1)}% of 200k context
+                </span>
+              </div>
+
+              {/* Messages */}
+              <div className="flex flex-col">
+                <div className="flex items-center gap-2 mb-1">
+                  <MessageSquare className="w-4 h-4" style={{ color: theme.colors.textDim }} />
+                  <span className="text-xs font-medium uppercase tracking-wider" style={{ color: theme.colors.textDim }}>
+                    Messages
+                  </span>
+                </div>
+                <span className="text-lg font-mono font-semibold" style={{ color: theme.colors.textMain }}>
+                  {viewingSession.messageCount}
+                </span>
+              </div>
+            </div>
+
+            {/* Token Breakdown */}
+            <div className="mt-4 pt-3 border-t flex flex-wrap gap-x-6 gap-y-2" style={{ borderColor: theme.colors.border + '50' }}>
+              <div className="flex items-center gap-2">
+                <ArrowDownToLine className="w-3 h-3" style={{ color: theme.colors.textDim }} />
+                <span className="text-xs" style={{ color: theme.colors.textDim }}>
+                  Input: <span className="font-mono font-medium" style={{ color: theme.colors.textMain }}>{(viewingSession.inputTokens / 1000).toFixed(1)}k</span>
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <ArrowUpFromLine className="w-3 h-3" style={{ color: theme.colors.textDim }} />
+                <span className="text-xs" style={{ color: theme.colors.textDim }}>
+                  Output: <span className="font-mono font-medium" style={{ color: theme.colors.textMain }}>{(viewingSession.outputTokens / 1000).toFixed(1)}k</span>
+                </span>
+              </div>
+              {viewingSession.cacheReadTokens > 0 && (
+                <div className="flex items-center gap-2">
+                  <Database className="w-3 h-3" style={{ color: theme.colors.success }} />
+                  <span className="text-xs" style={{ color: theme.colors.textDim }}>
+                    Cache Read: <span className="font-mono font-medium" style={{ color: theme.colors.success }}>{(viewingSession.cacheReadTokens / 1000).toFixed(1)}k</span>
+                  </span>
+                </div>
+              )}
+              {viewingSession.cacheCreationTokens > 0 && (
+                <div className="flex items-center gap-2">
+                  <Hash className="w-3 h-3" style={{ color: theme.colors.warning }} />
+                  <span className="text-xs" style={{ color: theme.colors.textDim }}>
+                    Cache Write: <span className="font-mono font-medium" style={{ color: theme.colors.warning }}>{(viewingSession.cacheCreationTokens / 1000).toFixed(1)}k</span>
+                  </span>
+                </div>
+              )}
+              <div className="flex items-center gap-2">
+                <HardDrive className="w-3 h-3" style={{ color: theme.colors.textDim }} />
+                <span className="text-xs" style={{ color: theme.colors.textDim }}>
+                  Size: <span className="font-mono font-medium" style={{ color: theme.colors.textMain }}>{formatSize(viewingSession.sizeBytes)}</span>
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Clock className="w-3 h-3" style={{ color: theme.colors.textDim }} />
+                <span className="text-xs" style={{ color: theme.colors.textDim }}>
+                  Started: <span className="font-medium" style={{ color: theme.colors.textMain }}>{new Date(viewingSession.timestamp).toLocaleString()}</span>
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Messages Container */}
+          <div
+            ref={messagesContainerRef}
+            className="flex-1 overflow-y-auto p-6 space-y-4 outline-none scrollbar-thin"
+            onScroll={handleMessagesScroll}
+            onKeyDown={handleKeyDown}
+            tabIndex={0}
+          >
+            {/* Load more indicator */}
+            {hasMoreMessages && (
             <div className="text-center py-2">
               {messagesLoading ? (
                 <Loader2 className="w-5 h-5 animate-spin mx-auto" style={{ color: theme.colors.textDim }} />
@@ -604,6 +722,7 @@ export function AgentSessionsBrowser({
               <Loader2 className="w-6 h-6 animate-spin" style={{ color: theme.colors.textDim }} />
             </div>
           )}
+          </div>
         </div>
       ) : (
         <div className="flex-1 flex flex-col overflow-hidden">

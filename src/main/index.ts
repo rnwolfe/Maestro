@@ -1018,6 +1018,25 @@ function setupIpcHandlers() {
             const cacheCreationCost = (totalCacheCreationTokens / 1_000_000) * 3.75;
             const costUsd = inputCost + outputCost + cacheReadCost + cacheCreationCost;
 
+            // Extract last timestamp from the session to calculate duration
+            let lastTimestamp = timestamp;
+            for (let i = lines.length - 1; i >= Math.max(0, lines.length - 10); i--) {
+              try {
+                const entry = JSON.parse(lines[i]);
+                if (entry.timestamp) {
+                  lastTimestamp = entry.timestamp;
+                  break;
+                }
+              } catch {
+                // Skip malformed lines
+              }
+            }
+
+            // Calculate duration in seconds
+            const startTime = new Date(timestamp).getTime();
+            const endTime = new Date(lastTimestamp).getTime();
+            const durationSeconds = Math.max(0, Math.floor((endTime - startTime) / 1000));
+
             return {
               sessionId,
               projectPath,
@@ -1027,6 +1046,12 @@ function setupIpcHandlers() {
               messageCount,
               sizeBytes: stats.size,
               costUsd,
+              // Token details for context window info
+              inputTokens: totalInputTokens,
+              outputTokens: totalOutputTokens,
+              cacheReadTokens: totalCacheReadTokens,
+              cacheCreationTokens: totalCacheCreationTokens,
+              durationSeconds,
             };
           } catch (error) {
             logger.error(`Error reading session file: ${filename}`, 'ClaudeSessions', error);
@@ -1499,9 +1524,11 @@ function setupIpcHandlers() {
 
   // Audio feedback using system TTS command (non-blocking)
   ipcMain.handle('notification:speak', async (_event, text: string, command?: string) => {
+    console.log('[TTS Main] notification:speak called, text length:', text?.length, 'command:', command);
     try {
       const { spawn } = await import('child_process');
       const fullCommand = command || 'say'; // Default to macOS 'say' command
+      console.log('[TTS Main] Using fullCommand:', fullCommand);
 
       // Parse command string to extract command and arguments
       // Handles paths with spaces if quoted, and preserves arguments
@@ -1512,6 +1539,8 @@ function setupIpcHandlers() {
       // Add the text as the final argument (this is how most TTS commands work)
       ttsArgs.push(text);
 
+      console.log('[TTS Main] Spawning:', ttsCommand, 'with args count:', ttsArgs.length);
+
       // Spawn the TTS process without waiting for it to complete (non-blocking)
       // This runs in the background and won't block the main process
       const child = spawn(ttsCommand, ttsArgs, {
@@ -1519,12 +1548,18 @@ function setupIpcHandlers() {
         detached: true, // Run independently
       });
 
+      child.on('error', (err) => {
+        console.error('[TTS Main] Spawn error:', err);
+      });
+
       // Unref to allow the parent to exit independently
       child.unref();
 
+      console.log('[TTS Main] Process spawned successfully');
       logger.debug('Started audio feedback', 'Notification', { command: ttsCommand, args: ttsArgs.length, textLength: text.length });
       return { success: true };
     } catch (error) {
+      console.error('[TTS Main] Error starting audio feedback:', error);
       logger.error('Error starting audio feedback', 'Notification', error);
       return { success: false, error: String(error) };
     }

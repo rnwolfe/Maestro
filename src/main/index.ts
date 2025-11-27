@@ -8,6 +8,7 @@ import { AgentDetector } from './agent-detector';
 import { execFileNoThrow } from './utils/execFile';
 import { logger } from './utils/logger';
 import { detectShells } from './utils/shellDetector';
+import { getThemeById } from './themes';
 import Store from 'electron-store';
 
 // Type definitions
@@ -304,6 +305,12 @@ app.whenReady().then(() => {
       inputMode: s.inputMode,
       cwd: s.cwd,
     }));
+  });
+
+  // Set up callback for web server to fetch current theme
+  webServer.setGetThemeCallback(() => {
+    const themeId = store.get('activeThemeId', 'dracula');
+    return getThemeById(themeId);
   });
 
   // Initialize session web server manager with callbacks

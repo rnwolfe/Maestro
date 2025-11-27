@@ -57,6 +57,30 @@ export type GetSessionsCallback = () => Array<{
   cwd: string;
 }>;
 
+// Theme type for web clients (matches renderer/types/index.ts)
+export interface WebTheme {
+  id: string;
+  name: string;
+  mode: 'light' | 'dark' | 'vibe';
+  colors: {
+    bgMain: string;
+    bgSidebar: string;
+    bgActivity: string;
+    border: string;
+    textMain: string;
+    textDim: string;
+    accent: string;
+    accentDim: string;
+    accentText: string;
+    success: string;
+    warning: string;
+    error: string;
+  };
+}
+
+// Callback type for fetching current theme
+export type GetThemeCallback = () => WebTheme | null;
+
 export class WebServer {
   private server: FastifyInstance;
   private port: number;
@@ -65,6 +89,7 @@ export class WebServer {
   private clientIdCounter: number = 0;
   private authConfig: WebAuthConfig = { enabled: false, token: null };
   private getSessionsCallback: GetSessionsCallback | null = null;
+  private getThemeCallback: GetThemeCallback | null = null;
 
   constructor(port: number = 8000) {
     this.port = port;
@@ -84,6 +109,14 @@ export class WebServer {
    */
   setGetSessionsCallback(callback: GetSessionsCallback) {
     this.getSessionsCallback = callback;
+  }
+
+  /**
+   * Set the callback function for fetching current theme
+   * This is called when a new client connects to send the initial theme
+   */
+  setGetThemeCallback(callback: GetThemeCallback) {
+    this.getThemeCallback = callback;
   }
 
   /**
@@ -339,6 +372,18 @@ export class WebServer {
             timestamp: Date.now(),
           }));
         }
+
+        // Send current theme to newly connected client
+        if (this.getThemeCallback) {
+          const theme = this.getThemeCallback();
+          if (theme) {
+            connection.socket.send(JSON.stringify({
+              type: 'theme',
+              theme,
+              timestamp: Date.now(),
+            }));
+          }
+        }
       } else {
         // Send auth required message
         connection.socket.send(JSON.stringify({
@@ -375,6 +420,18 @@ export class WebServer {
                   sessions,
                   timestamp: Date.now(),
                 }));
+              }
+
+              // Send current theme to newly authenticated client
+              if (this.getThemeCallback) {
+                const theme = this.getThemeCallback();
+                if (theme) {
+                  connection.socket.send(JSON.stringify({
+                    type: 'theme',
+                    theme,
+                    timestamp: Date.now(),
+                  }));
+                }
               }
             } else {
               connection.socket.send(JSON.stringify({

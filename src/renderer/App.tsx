@@ -524,10 +524,10 @@ export default function MaestroConsole() {
 
             return {
               ...s,
+              state: 'busy' as SessionState,  // Explicitly keep busy for queued message processing
               aiLogs: [...s.aiLogs, nextMessage],
               messageQueue: remainingQueue,
               thinkingStartTime: Date.now()
-              // Keep state as 'busy' since we're processing next message
             };
           }
 

@@ -235,6 +235,11 @@ export function AboutModal({ theme, sessions, persistedStats, onClose }: AboutMo
               <ExternalLink className="w-4 h-4" style={{ color: theme.colors.textDim }} />
             </button>
           </div>
+
+          {/* Made in Austin */}
+          <div className="pt-3 text-center">
+            <span className="text-xs" style={{ color: theme.colors.textDim }}>Made in Austin, TX</span>
+          </div>
         </div>
       </div>
     </div>

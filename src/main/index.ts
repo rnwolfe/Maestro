@@ -293,6 +293,19 @@ app.whenReady().then(() => {
   });
   logger.info(`Web server auth initialized: enabled=${webAuthEnabled}`, 'WebServer');
 
+  // Set up callback for web server to fetch sessions list
+  webServer.setGetSessionsCallback(() => {
+    const sessions = sessionsStore.get('sessions', []);
+    return sessions.map((s: any) => ({
+      id: s.id,
+      name: s.name,
+      toolType: s.toolType,
+      state: s.state,
+      inputMode: s.inputMode,
+      cwd: s.cwd,
+    }));
+  });
+
   // Initialize session web server manager with callbacks
   sessionWebServerManager = new SessionWebServerManager(
     // getSessionData callback - fetch session from store
@@ -386,6 +399,49 @@ function setupIpcHandlers() {
   });
 
   ipcMain.handle('sessions:setAll', async (_, sessions: any[]) => {
+    // Get previous sessions to detect changes
+    const previousSessions = sessionsStore.get('sessions', []);
+    const previousSessionMap = new Map(previousSessions.map((s: any) => [s.id, s]));
+    const currentSessionMap = new Map(sessions.map((s: any) => [s.id, s]));
+
+    // Detect and broadcast changes to web clients
+    if (webServer && webServer.getWebClientCount() > 0) {
+      // Check for state changes in existing sessions
+      for (const session of sessions) {
+        const prevSession = previousSessionMap.get(session.id);
+        if (prevSession) {
+          // Session exists - check if state changed
+          if (prevSession.state !== session.state ||
+              prevSession.inputMode !== session.inputMode ||
+              prevSession.name !== session.name) {
+            webServer.broadcastSessionStateChange(session.id, session.state, {
+              name: session.name,
+              toolType: session.toolType,
+              inputMode: session.inputMode,
+              cwd: session.cwd,
+            });
+          }
+        } else {
+          // New session added
+          webServer.broadcastSessionAdded({
+            id: session.id,
+            name: session.name,
+            toolType: session.toolType,
+            state: session.state,
+            inputMode: session.inputMode,
+            cwd: session.cwd,
+          });
+        }
+      }
+
+      // Check for removed sessions
+      for (const prevSession of previousSessions) {
+        if (!currentSessionMap.has(prevSession.id)) {
+          webServer.broadcastSessionRemoved(prevSession.id);
+        }
+      }
+    }
+
     sessionsStore.set('sessions', sessions);
     return true;
   });

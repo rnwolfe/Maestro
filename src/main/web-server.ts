@@ -47,6 +47,16 @@ export interface WebAuthConfig {
  *
  * See PRD.md Phase 6 for full requirements.
  */
+// Callback type for fetching sessions data
+export type GetSessionsCallback = () => Array<{
+  id: string;
+  name: string;
+  toolType: string;
+  state: string;
+  inputMode: string;
+  cwd: string;
+}>;
+
 export class WebServer {
   private server: FastifyInstance;
   private port: number;
@@ -54,6 +64,7 @@ export class WebServer {
   private webClients: Map<string, WebClient> = new Map();
   private clientIdCounter: number = 0;
   private authConfig: WebAuthConfig = { enabled: false, token: null };
+  private getSessionsCallback: GetSessionsCallback | null = null;
 
   constructor(port: number = 8000) {
     this.port = port;
@@ -65,6 +76,14 @@ export class WebServer {
 
     this.setupMiddleware();
     this.setupRoutes();
+  }
+
+  /**
+   * Set the callback function for fetching current sessions list
+   * This is called when a new client connects to send the initial state
+   */
+  setGetSessionsCallback(callback: GetSessionsCallback) {
+    this.getSessionsCallback = callback;
   }
 
   /**
@@ -310,6 +329,16 @@ export class WebServer {
           authenticated: true,
           timestamp: Date.now(),
         }));
+
+        // Send initial sessions list to newly connected client
+        if (this.getSessionsCallback) {
+          const sessions = this.getSessionsCallback();
+          connection.socket.send(JSON.stringify({
+            type: 'sessions_list',
+            sessions,
+            timestamp: Date.now(),
+          }));
+        }
       } else {
         // Send auth required message
         connection.socket.send(JSON.stringify({
@@ -337,6 +366,16 @@ export class WebServer {
                 timestamp: Date.now(),
               }));
               console.log(`Web client authenticated: ${clientId}`);
+
+              // Send initial sessions list to newly authenticated client
+              if (this.getSessionsCallback) {
+                const sessions = this.getSessionsCallback();
+                connection.socket.send(JSON.stringify({
+                  type: 'sessions_list',
+                  sessions,
+                  timestamp: Date.now(),
+                }));
+              }
             } else {
               connection.socket.send(JSON.stringify({
                 type: 'auth_failed',
@@ -450,10 +489,77 @@ export class WebServer {
   broadcastToWebClients(message: object) {
     const data = JSON.stringify(message);
     for (const client of this.webClients.values()) {
-      if (client.socket.readyState === WebSocket.OPEN) {
+      if (client.socket.readyState === WebSocket.OPEN && client.authenticated) {
         client.socket.send(data);
       }
     }
+  }
+
+  /**
+   * Broadcast a session state change to all connected web clients
+   * Called when any session's state changes (idle, busy, error, connecting)
+   */
+  broadcastSessionStateChange(sessionId: string, state: string, additionalData?: {
+    name?: string;
+    toolType?: string;
+    inputMode?: string;
+    cwd?: string;
+  }) {
+    this.broadcastToWebClients({
+      type: 'session_state_change',
+      sessionId,
+      state,
+      ...additionalData,
+      timestamp: Date.now(),
+    });
+  }
+
+  /**
+   * Broadcast when a session is added
+   */
+  broadcastSessionAdded(session: {
+    id: string;
+    name: string;
+    toolType: string;
+    state: string;
+    inputMode: string;
+    cwd: string;
+  }) {
+    this.broadcastToWebClients({
+      type: 'session_added',
+      session,
+      timestamp: Date.now(),
+    });
+  }
+
+  /**
+   * Broadcast when a session is removed
+   */
+  broadcastSessionRemoved(sessionId: string) {
+    this.broadcastToWebClients({
+      type: 'session_removed',
+      sessionId,
+      timestamp: Date.now(),
+    });
+  }
+
+  /**
+   * Broadcast the full sessions list to all connected web clients
+   * Used for initial sync or bulk updates
+   */
+  broadcastSessionsList(sessions: Array<{
+    id: string;
+    name: string;
+    toolType: string;
+    state: string;
+    inputMode: string;
+    cwd: string;
+  }>) {
+    this.broadcastToWebClients({
+      type: 'sessions_list',
+      sessions,
+      timestamp: Date.now(),
+    });
   }
 
   /**

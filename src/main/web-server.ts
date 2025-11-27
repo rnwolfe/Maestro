@@ -2,6 +2,20 @@ import Fastify from 'fastify';
 import cors from '@fastify/cors';
 import websocket from '@fastify/websocket';
 import { FastifyInstance } from 'fastify';
+import { WebSocket } from 'ws';
+
+// Types for web client messages
+interface WebClientMessage {
+  type: string;
+  [key: string]: unknown;
+}
+
+// Web client connection info
+interface WebClient {
+  socket: WebSocket;
+  id: string;
+  connectedAt: number;
+}
 
 /**
  * WebServer - HTTP and WebSocket server for remote access
@@ -29,6 +43,8 @@ export class WebServer {
   private server: FastifyInstance;
   private port: number;
   private isRunning: boolean = false;
+  private webClients: Map<string, WebClient> = new Map();
+  private clientIdCounter: number = 0;
 
   constructor(port: number = 8000) {
     this.port = port;
@@ -180,6 +196,109 @@ export class WebServer {
         timestamp: Date.now(),
       };
     });
+
+    // WebSocket endpoint for web interface clients
+    // This provides real-time updates for session state, theme changes, and log streaming
+    this.server.get('/ws/web', { websocket: true }, (connection) => {
+      const clientId = `web-client-${++this.clientIdCounter}`;
+      const client: WebClient = {
+        socket: connection.socket,
+        id: clientId,
+        connectedAt: Date.now(),
+      };
+
+      this.webClients.set(clientId, client);
+      console.log(`Web client connected: ${clientId} (total: ${this.webClients.size})`);
+
+      // Send connection confirmation with client ID
+      connection.socket.send(JSON.stringify({
+        type: 'connected',
+        clientId,
+        message: 'Connected to Maestro Web Interface',
+        timestamp: Date.now(),
+      }));
+
+      // Handle incoming messages from web clients
+      connection.socket.on('message', (message) => {
+        try {
+          const data = JSON.parse(message.toString()) as WebClientMessage;
+          this.handleWebClientMessage(clientId, data);
+        } catch {
+          // Send error for invalid JSON
+          connection.socket.send(JSON.stringify({
+            type: 'error',
+            message: 'Invalid message format',
+          }));
+        }
+      });
+
+      // Handle client disconnection
+      connection.socket.on('close', () => {
+        this.webClients.delete(clientId);
+        console.log(`Web client disconnected: ${clientId} (total: ${this.webClients.size})`);
+      });
+
+      // Handle errors
+      connection.socket.on('error', (error) => {
+        console.error(`Web client error (${clientId}):`, error);
+        this.webClients.delete(clientId);
+      });
+    });
+  }
+
+  /**
+   * Handle incoming messages from web clients
+   */
+  private handleWebClientMessage(clientId: string, message: WebClientMessage) {
+    const client = this.webClients.get(clientId);
+    if (!client) return;
+
+    switch (message.type) {
+      case 'ping':
+        // Respond to ping with pong
+        client.socket.send(JSON.stringify({
+          type: 'pong',
+          timestamp: Date.now(),
+        }));
+        break;
+
+      case 'subscribe':
+        // Placeholder for subscription handling (sessions, theme, etc.)
+        // Will be implemented in future tasks
+        client.socket.send(JSON.stringify({
+          type: 'subscribed',
+          topic: message.topic,
+          timestamp: Date.now(),
+        }));
+        break;
+
+      default:
+        // Echo unknown message types for debugging
+        client.socket.send(JSON.stringify({
+          type: 'echo',
+          originalType: message.type,
+          data: message,
+        }));
+    }
+  }
+
+  /**
+   * Broadcast a message to all connected web clients
+   */
+  broadcastToWebClients(message: object) {
+    const data = JSON.stringify(message);
+    for (const client of this.webClients.values()) {
+      if (client.socket.readyState === WebSocket.OPEN) {
+        client.socket.send(data);
+      }
+    }
+  }
+
+  /**
+   * Get the number of connected web clients
+   */
+  getWebClientCount(): number {
+    return this.webClients.size;
   }
 
   async start() {

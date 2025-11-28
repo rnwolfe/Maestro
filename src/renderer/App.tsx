@@ -910,12 +910,6 @@ export default function MaestroConsole() {
 
   // Tab completion hook for terminal mode
   const { getSuggestions: getTabCompletionSuggestions } = useTabCompletion(activeSession);
-  const tabCompletionSuggestions = useMemo(() => {
-    if (!tabCompletionOpen || !activeSession || activeSession.inputMode !== 'terminal') {
-      return [];
-    }
-    return getTabCompletionSuggestions(inputValue);
-  }, [tabCompletionOpen, activeSession, inputValue, getTabCompletionSuggestions]);
 
   // Broadcast active session change to web clients
   useEffect(() => {
@@ -1060,6 +1054,14 @@ export default function MaestroConsole() {
   // Images are only used in AI mode
   const stagedImages = aiStagedImages;
   const setStagedImages = setAiStagedImages;
+
+  // Tab completion suggestions (must be after inputValue is defined)
+  const tabCompletionSuggestions = useMemo(() => {
+    if (!tabCompletionOpen || !activeSession || activeSession.inputMode !== 'terminal') {
+      return [];
+    }
+    return getTabCompletionSuggestions(inputValue);
+  }, [tabCompletionOpen, activeSession, inputValue, getTabCompletionSuggestions]);
 
   // --- BATCH PROCESSOR ---
   // Helper to spawn a Claude agent and wait for completion (for a specific session)

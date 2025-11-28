@@ -101,9 +101,9 @@ export class ProcessManager extends EventEmitter {
     let finalArgs: string[];
 
     if (hasImages && prompt) {
-      // Use stream-json mode for images - prompt will be sent via stdin
-      // Note: --verbose is required when using --print with --output-format=stream-json
-      finalArgs = [...args, '--verbose', '--input-format', 'stream-json', '--output-format', 'stream-json', '-p'];
+      // For images, add stream-json input format (output format and --verbose already in base args)
+      // The prompt will be sent via stdin as a JSON message with image data
+      finalArgs = [...args, '--input-format', 'stream-json'];
     } else if (prompt) {
       // Regular batch mode - prompt as CLI arg
       // The -- ensures prompt is treated as positional arg, not a flag (even if it starts with --)
@@ -241,7 +241,8 @@ export class ProcessManager extends EventEmitter {
         });
 
         const isBatchMode = !!prompt;
-        const isStreamJsonMode = hasImages && !!prompt;
+        // Detect stream-json mode from args (now default for Claude Code) or when images are present
+        const isStreamJsonMode = finalArgs.includes('stream-json') || (hasImages && !!prompt);
 
         const managedProcess: ManagedProcess = {
           sessionId,

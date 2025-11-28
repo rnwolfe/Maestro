@@ -117,6 +117,7 @@ export default function MaestroConsole() {
   const [rightPanelOpen, setRightPanelOpen] = useState(true);
   const [activeRightTab, setActiveRightTab] = useState<RightPanelTab>('files');
   const [activeFocus, setActiveFocus] = useState<FocusArea>('main');
+  const [bookmarksCollapsed, setBookmarksCollapsed] = useState(false);
 
   // File Explorer State
   const [previewFile, setPreviewFile] = useState<{name: string; content: string; path: string} | null>(null);
@@ -1819,7 +1820,7 @@ export default function MaestroConsole() {
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [shortcuts, activeFocus, activeRightTab, sessions, selectedSidebarIndex, activeSessionId, quickActionOpen, settingsModalOpen, shortcutsHelpOpen, newInstanceModalOpen, aboutModalOpen, processMonitorOpen, logViewerOpen, createGroupModalOpen, confirmModalOpen, renameInstanceModalOpen, renameGroupModalOpen, activeSession, previewFile, fileTreeFilter, fileTreeFilterOpen, gitDiffPreview, gitLogOpen, lightboxImage, hasOpenLayers, hasOpenModal, visibleSessions, sortedSessions, groups]);
+  }, [shortcuts, activeFocus, activeRightTab, sessions, selectedSidebarIndex, activeSessionId, quickActionOpen, settingsModalOpen, shortcutsHelpOpen, newInstanceModalOpen, aboutModalOpen, processMonitorOpen, logViewerOpen, createGroupModalOpen, confirmModalOpen, renameInstanceModalOpen, renameGroupModalOpen, activeSession, previewFile, fileTreeFilter, fileTreeFilterOpen, gitDiffPreview, gitLogOpen, lightboxImage, hasOpenLayers, hasOpenModal, visibleSessions, sortedSessions, groups, bookmarksCollapsed, leftSidebarOpen]);
 
   // Sync selectedSidebarIndex with activeSessionId
   // IMPORTANT: Only sync when activeSessionId changes, NOT when sortedSessions changes
@@ -1861,6 +1862,28 @@ export default function MaestroConsole() {
 
   // --- ACTIONS ---
   const cycleSession = (dir: 'next' | 'prev') => {
+    // Check if we should cycle within the bookmarks folder
+    // This happens when: sidebar is open, bookmarks folder is open, and current session is bookmarked
+    const activeSession = sessions.find(s => s.id === activeSessionId);
+    const bookmarkedSessions = sortedSessions.filter(s => s.bookmarked);
+    const shouldCycleInBookmarks = leftSidebarOpen &&
+      !bookmarksCollapsed &&
+      activeSession?.bookmarked &&
+      bookmarkedSessions.length > 0;
+
+    if (shouldCycleInBookmarks) {
+      // Cycle only through bookmarked sessions
+      const currentIndex = bookmarkedSessions.findIndex(s => s.id === activeSessionId);
+      let nextIndex;
+      if (dir === 'next') {
+        nextIndex = currentIndex === bookmarkedSessions.length - 1 ? 0 : currentIndex + 1;
+      } else {
+        nextIndex = currentIndex === 0 ? bookmarkedSessions.length - 1 : currentIndex - 1;
+      }
+      setActiveSessionId(bookmarkedSessions[nextIndex].id);
+      return;
+    }
+
     // When left sidebar is collapsed, cycle through ALL sessions (groups not visible)
     // When left sidebar is open, only cycle through visible sessions (not in collapsed groups)
     const visibleSessions = leftSidebarOpen
@@ -3696,6 +3719,8 @@ export default function MaestroConsole() {
           isLiveMode={isLiveMode}
           webInterfaceUrl={webInterfaceUrl}
           toggleGlobalLive={toggleGlobalLive}
+          bookmarksCollapsed={bookmarksCollapsed}
+          setBookmarksCollapsed={setBookmarksCollapsed}
           setActiveFocus={setActiveFocus}
           setActiveSessionId={setActiveSessionId}
           setLeftSidebarOpen={setLeftSidebarOpen}

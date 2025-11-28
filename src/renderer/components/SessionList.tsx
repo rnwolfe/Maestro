@@ -50,6 +50,10 @@ interface SessionListProps {
   webInterfaceUrl: string | null;
   toggleGlobalLive: () => void;
 
+  // Bookmarks folder state (lifted from component to App.tsx for keyboard shortcut access)
+  bookmarksCollapsed: boolean;
+  setBookmarksCollapsed: (collapsed: boolean) => void;
+
   // Handlers
   setActiveFocus: (focus: string) => void;
   setActiveSessionId: (id: string) => void;
@@ -86,6 +90,7 @@ export function SessionList(props: SessionListProps) {
     leftSidebarWidthState, activeFocus, selectedSidebarIndex, editingGroupId,
     editingSessionId, draggingSessionId, shortcuts,
     isLiveMode, webInterfaceUrl, toggleGlobalLive,
+    bookmarksCollapsed, setBookmarksCollapsed,
     setActiveFocus, setActiveSessionId, setLeftSidebarOpen, setLeftSidebarWidthState,
     setShortcutsHelpOpen, setSettingsModalOpen, setSettingsTab, setAboutModalOpen, setLogViewerOpen, setProcessMonitorOpen, toggleGroup,
     handleDragStart, handleDragOver, handleDropOnGroup, handleDropOnUngrouped,
@@ -97,7 +102,6 @@ export function SessionList(props: SessionListProps) {
   const [sessionFilter, setSessionFilter] = useState('');
   const [sessionFilterOpen, setSessionFilterOpen] = useState(false);
   const [ungroupedCollapsed, setUngroupedCollapsed] = useState(false);
-  const [bookmarksCollapsed, setBookmarksCollapsed] = useState(false);
   const [preFilterGroupStates, setPreFilterGroupStates] = useState<Map<string, boolean>>(new Map());
   const [menuOpen, setMenuOpen] = useState(false);
   const [liveOverlayOpen, setLiveOverlayOpen] = useState(false);

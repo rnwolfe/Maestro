@@ -2116,6 +2116,16 @@ export default function MaestroConsole() {
             s.id === activeSession.id ? result.session : s
           ));
         }
+        if (isTabShortcut(e, 'closeTab')) {
+          e.preventDefault();
+          // Only close if there's more than one tab (closeTab returns null otherwise)
+          const result = closeTab(activeSession, activeSession.activeTabId);
+          if (result) {
+            setSessions(prev => prev.map(s =>
+              s.id === activeSession.id ? result.session : s
+            ));
+          }
+        }
       }
 
       // Forward slash to open file tree filter when file tree has focus

@@ -168,13 +168,13 @@ export function HistoryHelpModal({ theme, onClose }: HistoryHelpModalProps) {
                   <span
                     className="flex items-center justify-center w-5 h-5 rounded-full"
                     style={{
-                      backgroundColor: theme.colors.success + '20',
-                      border: `1px solid ${theme.colors.success}40`
+                      backgroundColor: theme.colors.success + '40',
+                      border: `1px solid ${theme.colors.success}60`
                     }}
                   >
                     <svg className="w-3 h-3" style={{ color: theme.colors.success }} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                      <polyline points="20 6 9 17 4 12" />
-                      <polyline points="20 12 9 23 4 18" transform="translate(0, -6)" />
+                      <polyline points="15 6 6 17 1 12" />
+                      <polyline points="23 6 14 17 11 14" />
                     </svg>
                   </span>
                   <span>Task completed successfully <strong style={{ color: theme.colors.textMain }}>and human-validated</strong></span>

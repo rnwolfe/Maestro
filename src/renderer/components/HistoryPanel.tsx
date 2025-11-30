@@ -7,8 +7,8 @@ import { HistoryHelpModal } from './HistoryHelpModal';
 // Double checkmark SVG component for validated entries
 const DoubleCheck = ({ className, style }: { className?: string; style?: React.CSSProperties }) => (
   <svg className={className} style={style} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-    <polyline points="18 6 9 17 4 12" />
-    <polyline points="22 6 13 17" />
+    <polyline points="15 6 6 17 1 12" />
+    <polyline points="23 6 14 17 11 14" />
   </svg>
 );
 
@@ -30,9 +30,10 @@ interface ActivityGraphProps {
   entries: HistoryEntry[];
   theme: Theme;
   referenceTime?: number; // The "end" of the 24-hour window (defaults to now)
+  onBarClick?: (bucketStartTime: number, bucketEndTime: number) => void;
 }
 
-const ActivityGraph: React.FC<ActivityGraphProps> = ({ entries, theme, referenceTime }) => {
+const ActivityGraph: React.FC<ActivityGraphProps> = ({ entries, theme, referenceTime, onBarClick }) => {
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
 
   // Use referenceTime as the end of our window, or current time if not provided
@@ -98,6 +99,23 @@ const ActivityGraph: React.FC<ActivityGraphProps> = ({ entries, theme, reference
     };
 
     return `${formatHour(bucketStart)} - ${formatHour(bucketEnd)}`;
+  };
+
+  // Get bucket time range as timestamps for click handling
+  const getBucketTimeRange = (index: number): { start: number; end: number } => {
+    const hoursAgo = 23 - index;
+    const bucketEnd = endTime - (hoursAgo * 60 * 60 * 1000);
+    const bucketStart = bucketEnd - (60 * 60 * 1000);
+    return { start: bucketStart, end: bucketEnd };
+  };
+
+  // Handle bar click
+  const handleBarClick = (index: number) => {
+    const total = hourlyData[index].auto + hourlyData[index].user;
+    if (total > 0 && onBarClick) {
+      const { start, end } = getBucketTimeRange(index);
+      onBarClick(start, end);
+    }
   };
 
   // Format the reference time for display (shows what time point we're viewing)
@@ -170,10 +188,12 @@ const ActivityGraph: React.FC<ActivityGraphProps> = ({ entries, theme, reference
                 opacity: total > 0 ? 1 : 0.15,
                 transform: isHovered ? 'scaleX(1.5)' : 'scaleX(1)',
                 zIndex: isHovered ? 10 : 1,
-                transition: 'transform 0.1s ease-out'
+                transition: 'transform 0.1s ease-out',
+                cursor: total > 0 ? 'pointer' : 'default'
               }}
               onMouseEnter={() => setHoveredIndex(index)}
               onMouseLeave={() => setHoveredIndex(null)}
+              onClick={() => handleBarClick(index)}
             >
               <div
                 className="w-full rounded-t-sm overflow-hidden flex flex-col justify-end"
@@ -357,6 +377,60 @@ export const HistoryPanel = React.memo(forwardRef<HistoryPanelHandle, HistoryPan
   // Check if there are more entries to load
   const hasMore = allFilteredEntries.length > displayCount;
 
+  // Handle graph bar click - scroll to first entry in that time range
+  const handleGraphBarClick = useCallback((bucketStart: number, bucketEnd: number) => {
+    // Find entries within this time bucket (entries are sorted newest first)
+    const entriesInBucket = historyEntries.filter(
+      entry => entry.timestamp >= bucketStart && entry.timestamp < bucketEnd
+    );
+
+    if (entriesInBucket.length === 0) return;
+
+    // Get the most recent entry in the bucket (first one since sorted by timestamp desc)
+    const targetEntry = entriesInBucket[0];
+
+    // Find its index in the filtered list
+    // We need to look at allFilteredEntries (not just currently displayed ones)
+    // and potentially expand displayCount to show it
+    const indexInAllFiltered = allFilteredEntries.findIndex(e => e.id === targetEntry.id);
+
+    if (indexInAllFiltered === -1) {
+      // Entry exists but is filtered out - try finding any entry from the bucket in filtered list
+      const anyMatch = allFilteredEntries.findIndex(e =>
+        e.timestamp >= bucketStart && e.timestamp < bucketEnd
+      );
+      if (anyMatch === -1) return;
+
+      // Expand display count if needed
+      if (anyMatch >= displayCount) {
+        setDisplayCount(Math.min(anyMatch + LOAD_MORE_COUNT, allFilteredEntries.length));
+      }
+
+      // Set selection and scroll after a brief delay for state to update
+      setTimeout(() => {
+        setSelectedIndex(anyMatch);
+        const itemEl = itemRefs.current[anyMatch];
+        if (itemEl) {
+          itemEl.scrollIntoView({ block: 'center', behavior: 'smooth' });
+        }
+      }, 50);
+    } else {
+      // Expand display count if needed
+      if (indexInAllFiltered >= displayCount) {
+        setDisplayCount(Math.min(indexInAllFiltered + LOAD_MORE_COUNT, allFilteredEntries.length));
+      }
+
+      // Set selection and scroll after a brief delay for state to update
+      setTimeout(() => {
+        setSelectedIndex(indexInAllFiltered);
+        const itemEl = itemRefs.current[indexInAllFiltered];
+        if (itemEl) {
+          itemEl.scrollIntoView({ block: 'center', behavior: 'smooth' });
+        }
+      }, 50);
+    }
+  }, [historyEntries, allFilteredEntries, displayCount]);
+
   // Handle scroll to load more entries AND update graph reference time
   const handleScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
     const target = e.currentTarget;
@@ -539,7 +613,7 @@ export const HistoryPanel = React.memo(forwardRef<HistoryPanelHandle, HistoryPan
         </div>
 
         {/* 24-hour activity bar graph */}
-        <ActivityGraph entries={historyEntries} theme={theme} referenceTime={graphReferenceTime} />
+        <ActivityGraph entries={historyEntries} theme={theme} referenceTime={graphReferenceTime} onBarClick={handleGraphBarClick} />
 
         {/* Help button */}
         <button
@@ -636,8 +710,12 @@ export const HistoryPanel = React.memo(forwardRef<HistoryPanelHandle, HistoryPan
                       <span
                         className="flex items-center justify-center w-5 h-5 rounded-full"
                         style={{
-                          backgroundColor: entry.success ? theme.colors.success + '20' : theme.colors.error + '20',
-                          border: `1px solid ${entry.success ? theme.colors.success + '40' : theme.colors.error + '40'}`
+                          backgroundColor: entry.success
+                            ? theme.colors.success + (entry.validated ? '40' : '20')
+                            : theme.colors.error + '20',
+                          border: `1px solid ${entry.success
+                            ? theme.colors.success + (entry.validated ? '60' : '40')
+                            : theme.colors.error + '40'}`
                         }}
                         title={entry.success
                           ? (entry.validated ? 'Task completed successfully and human-validated' : 'Task completed successfully')

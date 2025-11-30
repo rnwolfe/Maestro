@@ -7,8 +7,8 @@ import { MODAL_PRIORITIES } from '../constants/modalPriorities';
 // Double checkmark SVG component for validated entries
 const DoubleCheck = ({ className, style }: { className?: string; style?: React.CSSProperties }) => (
   <svg className={className} style={style} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-    <polyline points="18 6 9 17 4 12" />
-    <polyline points="22 6 13 17" />
+    <polyline points="15 6 6 17 1 12" />
+    <polyline points="23 6 14 17 11 14" />
   </svg>
 );
 
@@ -151,8 +151,12 @@ export function HistoryDetailModal({
               <span
                 className="flex items-center justify-center w-6 h-6 rounded-full"
                 style={{
-                  backgroundColor: entry.success ? theme.colors.success + '20' : theme.colors.error + '20',
-                  border: `1px solid ${entry.success ? theme.colors.success + '40' : theme.colors.error + '40'}`
+                  backgroundColor: entry.success
+                    ? theme.colors.success + (entry.validated ? '40' : '20')
+                    : theme.colors.error + '20',
+                  border: `1px solid ${entry.success
+                    ? theme.colors.success + (entry.validated ? '60' : '40')
+                    : theme.colors.error + '40'}`
                 }}
                 title={entry.success
                   ? (entry.validated ? 'Task completed successfully and human-validated' : 'Task completed successfully')

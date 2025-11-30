@@ -90,11 +90,43 @@ function AttachmentImage({
       setDataUrl(src);
       setFilename(null);
       setLoading(false);
-    } else {
+    } else if (src.startsWith('http://') || src.startsWith('https://')) {
       // External URL - just use it directly
       setDataUrl(src);
       setFilename(null);
       setLoading(false);
+    } else if (src.startsWith('/')) {
+      // Absolute file path - load via IPC
+      setFilename(src.split('/').pop() || null);
+      window.maestro.fs.readFile(src)
+        .then((result) => {
+          if (result.startsWith('data:')) {
+            setDataUrl(result);
+          } else {
+            setError('Invalid image data');
+          }
+          setLoading(false);
+        })
+        .catch((err) => {
+          setError(`Failed to load image: ${err.message || 'Unknown error'}`);
+          setLoading(false);
+        });
+    } else {
+      // Relative path or other - try to load as file (may fail if not an absolute path)
+      setFilename(src.split('/').pop() || null);
+      window.maestro.fs.readFile(src)
+        .then((result) => {
+          if (result.startsWith('data:')) {
+            setDataUrl(result);
+          } else {
+            setError('Invalid image data');
+          }
+          setLoading(false);
+        })
+        .catch((err) => {
+          setError(`Failed to load image: ${err.message || 'Unknown error'}`);
+          setLoading(false);
+        });
     }
   }, [src, sessionId]);
 

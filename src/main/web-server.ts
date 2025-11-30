@@ -138,10 +138,12 @@ export interface SessionDetail {
   };
   claudeSessionId?: string;
   isGitRepo?: boolean;
+  activeTabId?: string;
 }
 
 // Callback type for fetching single session details
-export type GetSessionDetailCallback = (sessionId: string) => SessionDetail | null;
+// Optional tabId allows fetching logs for a specific tab (avoids race conditions)
+export type GetSessionDetailCallback = (sessionId: string, tabId?: string) => SessionDetail | null;
 
 // Callback type for sending commands to a session
 // Returns true if successful, false if session not found or write failed
@@ -725,6 +727,7 @@ export class WebServer {
     });
 
     // Session detail endpoint - works for any valid session (security token protects access)
+    // Optional ?tabId= query param to fetch logs for a specific tab (avoids race conditions)
     this.server.get(`/${token}/api/session/:id`, {
       config: {
         rateLimit: {
@@ -734,6 +737,7 @@ export class WebServer {
       },
     }, async (request, reply) => {
       const { id } = request.params as { id: string };
+      const { tabId } = request.query as { tabId?: string };
 
       if (!this.getSessionDetailCallback) {
         return reply.code(503).send({
@@ -743,7 +747,7 @@ export class WebServer {
         });
       }
 
-      const session = this.getSessionDetailCallback(id);
+      const session = this.getSessionDetailCallback(id, tabId);
       if (!session) {
         return reply.code(404).send({
           error: 'Not Found',

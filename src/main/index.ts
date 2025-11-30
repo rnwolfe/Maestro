@@ -181,10 +181,13 @@ function createWebServer(): WebServer {
       const group = s.groupId ? groups.find((g: any) => g.id === s.groupId) : null;
 
       // Extract last AI response for mobile preview (first 3 lines, max 500 chars)
+      // Use active tab's logs as the source of truth
       let lastResponse = null;
-      if (s.aiLogs && s.aiLogs.length > 0) {
+      const activeTab = s.aiTabs?.find((t: any) => t.id === s.activeTabId) || s.aiTabs?.[0];
+      const tabLogs = activeTab?.logs || [];
+      if (tabLogs.length > 0) {
         // Find the last stdout/stderr entry from the AI (not user messages)
-        const lastAiLog = [...s.aiLogs].reverse().find((log: any) =>
+        const lastAiLog = [...tabLogs].reverse().find((log: any) =>
           log.source === 'stdout' || log.source === 'stderr'
         );
         if (lastAiLog && lastAiLog.text) {
@@ -240,10 +243,21 @@ function createWebServer(): WebServer {
   });
 
   // Set up callback for web server to fetch single session details
-  server.setGetSessionDetailCallback((sessionId: string) => {
+  // Optional tabId param allows fetching logs for a specific tab (avoids race conditions)
+  server.setGetSessionDetailCallback((sessionId: string, tabId?: string) => {
     const sessions = sessionsStore.get('sessions', []);
     const session = sessions.find((s: any) => s.id === sessionId);
     if (!session) return null;
+
+    // Get the requested tab's logs (or active tab if no tabId provided)
+    // Tabs are the source of truth for AI conversation history
+    let aiLogs: any[] = [];
+    const targetTabId = tabId || session.activeTabId;
+    if (session.aiTabs && session.aiTabs.length > 0) {
+      const targetTab = session.aiTabs.find((t: any) => t.id === targetTabId) || session.aiTabs[0];
+      aiLogs = targetTab?.logs || [];
+    }
+
     return {
       id: session.id,
       name: session.name,
@@ -251,11 +265,12 @@ function createWebServer(): WebServer {
       state: session.state,
       inputMode: session.inputMode,
       cwd: session.cwd,
-      aiLogs: session.aiLogs || [],
+      aiLogs,
       shellLogs: session.shellLogs || [],
       usageStats: session.usageStats,
       claudeSessionId: session.claudeSessionId,
       isGitRepo: session.isGitRepo,
+      activeTabId: targetTabId,
     };
   });
 

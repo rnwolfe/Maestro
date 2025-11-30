@@ -343,6 +343,7 @@ export default function MobileApp() {
   const { setDesktopTheme } = useDesktopTheme();
   const [sessions, setSessions] = useState<Session[]>([]);
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
+  const [activeTabId, setActiveTabId] = useState<string | null>(null);
   const [showAllSessions, setShowAllSessions] = useState(false);
   const [showHistoryPanel, setShowHistoryPanel] = useState(false);
   const [commandInput, setCommandInput] = useState('');
@@ -505,10 +506,19 @@ export default function MobileApp() {
       });
 
       setSessions(newSessions);
-      // Auto-select first session if none selected
+      // Auto-select first session if none selected, and sync activeTabId
       setActiveSessionId(prev => {
         if (!prev && newSessions.length > 0) {
-          return newSessions[0].id;
+          const firstSession = newSessions[0];
+          setActiveTabId(firstSession.activeTabId || null);
+          return firstSession.id;
+        }
+        // Sync activeTabId for current session
+        if (prev) {
+          const currentSession = newSessions.find(s => s.id === prev);
+          if (currentSession) {
+            setActiveTabId(currentSession.activeTabId || null);
+          }
         }
         return prev;
       });
@@ -651,14 +661,21 @@ export default function MobileApp() {
         [sessionId]: state,
       }));
     },
-    onTabsChanged: (sessionId: string, aiTabs: AITabData[], activeTabId: string) => {
+    onTabsChanged: (sessionId: string, aiTabs: AITabData[], newActiveTabId: string) => {
       // Tab state changed on desktop - update session
-      webLogger.debug(`Tabs changed: ${sessionId} - ${aiTabs.length} tabs, active: ${activeTabId}`, 'Mobile');
+      webLogger.debug(`Tabs changed: ${sessionId} - ${aiTabs.length} tabs, active: ${newActiveTabId}`, 'Mobile');
       setSessions(prev => prev.map(s =>
         s.id === sessionId
-          ? { ...s, aiTabs, activeTabId }
+          ? { ...s, aiTabs, activeTabId: newActiveTabId }
           : s
       ));
+      // Also update activeTabId state if this is the current session
+      setActiveSessionId(currentSessionId => {
+        if (currentSessionId === sessionId) {
+          setActiveTabId(newActiveTabId);
+        }
+        return currentSessionId;
+      });
     },
   }), [showResponseNotification, setDesktopTheme]);
 
@@ -674,7 +691,7 @@ export default function MobileApp() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Fetch session logs when active session changes
+  // Fetch session logs when active session or active tab changes
   useEffect(() => {
     if (!activeSessionId || isOffline) {
       setSessionLogs({ aiLogs: [], shellLogs: [] });
@@ -684,7 +701,9 @@ export default function MobileApp() {
     const fetchSessionLogs = async () => {
       setIsLoadingLogs(true);
       try {
-        const apiUrl = buildApiUrl(`/session/${activeSessionId}`);
+        // Pass tabId explicitly to avoid race conditions with activeTabId sync
+        const tabParam = activeTabId ? `?tabId=${activeTabId}` : '';
+        const apiUrl = buildApiUrl(`/session/${activeSessionId}${tabParam}`);
         const response = await fetch(apiUrl);
         if (response.ok) {
           const data = await response.json();
@@ -696,6 +715,8 @@ export default function MobileApp() {
           webLogger.debug('Fetched session logs:', 'Mobile', {
             aiLogs: session?.aiLogs?.length || 0,
             shellLogs: session?.shellLogs?.length || 0,
+            requestedTabId: activeTabId,
+            returnedTabId: session?.activeTabId,
           });
         }
       } catch (err) {
@@ -706,7 +727,7 @@ export default function MobileApp() {
     };
 
     fetchSessionLogs();
-  }, [activeSessionId, isOffline]);
+  }, [activeSessionId, activeTabId, isOffline]);
 
   // Update sendRef after WebSocket is initialized
   useEffect(() => {
@@ -765,11 +786,14 @@ export default function MobileApp() {
 
   // Handle session selection - also notifies desktop to switch
   const handleSelectSession = useCallback((sessionId: string) => {
+    // Find the session to get its activeTabId
+    const session = sessions.find(s => s.id === sessionId);
     setActiveSessionId(sessionId);
+    setActiveTabId(session?.activeTabId || null);
     triggerHaptic(HAPTIC_PATTERNS.tap);
     // Notify desktop to switch to this session
     send({ type: 'select_session', sessionId });
-  }, [send]);
+  }, [sessions, send]);
 
   // Handle selecting a tab within a session
   const handleSelectTab = useCallback((tabId: string) => {
@@ -777,7 +801,9 @@ export default function MobileApp() {
     triggerHaptic(HAPTIC_PATTERNS.tap);
     // Notify desktop to switch to this tab
     send({ type: 'select_tab', sessionId: activeSessionId, tabId });
-    // Optimistically update local state
+    // Update local activeTabId state directly (triggers log fetch)
+    setActiveTabId(tabId);
+    // Also update sessions state for UI consistency
     setSessions(prev => prev.map(s =>
       s.id === activeSessionId
         ? { ...s, activeTabId: tabId }

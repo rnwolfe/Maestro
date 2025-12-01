@@ -2554,41 +2554,11 @@ export default function MaestroConsole() {
   // Ref to hold all keyboard handler dependencies - avoids re-attaching listener on every state change
   // This is a critical performance optimization: the keyboard handler was being removed and re-added
   // on every state change due to 51+ dependencies, causing memory leaks and event listener bloat
-  const keyboardHandlerRef = useRef({
-    shortcuts, activeFocus, activeRightTab, sessions, selectedSidebarIndex, activeSessionId,
-    quickActionOpen, settingsModalOpen, shortcutsHelpOpen, newInstanceModalOpen, aboutModalOpen,
-    processMonitorOpen, logViewerOpen, createGroupModalOpen, confirmModalOpen, renameInstanceModalOpen,
-    renameGroupModalOpen, activeSession, previewFile, fileTreeFilter, fileTreeFilterOpen, gitDiffPreview,
-    gitLogOpen, lightboxImage, hasOpenLayers, hasOpenModal, visibleSessions, sortedSessions, groups,
-    bookmarksCollapsed, leftSidebarOpen, editingSessionId, editingGroupId,
-    // Functions - these are stable but we include them for completeness
-    setLeftSidebarOpen, setRightPanelOpen, addNewSession, deleteSession, setQuickActionInitialMode,
-    setQuickActionOpen, cycleSession, toggleInputMode, setShortcutsHelpOpen, setSettingsModalOpen,
-    setSettingsTab, setActiveRightTab, setActiveFocus, setBookmarksCollapsed, setGroups,
-    setSelectedSidebarIndex, setActiveSessionId, handleViewGitDiff, setGitLogOpen, setActiveClaudeSessionId,
-    setAgentSessionsOpen, setLogViewerOpen, setProcessMonitorOpen, logsEndRef, inputRef, terminalOutputRef,
-    setSessions, createTab, closeTab, reopenClosedTab, getActiveTab, setRenameTabId, setRenameTabInitialName,
-    setRenameTabModalOpen, navigateToNextTab, navigateToPrevTab, navigateToTabByIndex, navigateToLastTab,
-    setFileTreeFilterOpen, isShortcut, isTabShortcut
-  });
-
-  // Update ref synchronously during render (before effects run)
-  keyboardHandlerRef.current = {
-    shortcuts, activeFocus, activeRightTab, sessions, selectedSidebarIndex, activeSessionId,
-    quickActionOpen, settingsModalOpen, shortcutsHelpOpen, newInstanceModalOpen, aboutModalOpen,
-    processMonitorOpen, logViewerOpen, createGroupModalOpen, confirmModalOpen, renameInstanceModalOpen,
-    renameGroupModalOpen, activeSession, previewFile, fileTreeFilter, fileTreeFilterOpen, gitDiffPreview,
-    gitLogOpen, lightboxImage, hasOpenLayers, hasOpenModal, visibleSessions, sortedSessions, groups,
-    bookmarksCollapsed, leftSidebarOpen, editingSessionId, editingGroupId,
-    setLeftSidebarOpen, setRightPanelOpen, addNewSession, deleteSession, setQuickActionInitialMode,
-    setQuickActionOpen, cycleSession, toggleInputMode, setShortcutsHelpOpen, setSettingsModalOpen,
-    setSettingsTab, setActiveRightTab, setActiveFocus, setBookmarksCollapsed, setGroups,
-    setSelectedSidebarIndex, setActiveSessionId, handleViewGitDiff, setGitLogOpen, setActiveClaudeSessionId,
-    setAgentSessionsOpen, setLogViewerOpen, setProcessMonitorOpen, logsEndRef, inputRef, terminalOutputRef,
-    setSessions, createTab, closeTab, reopenClosedTab, getActiveTab, setRenameTabId, setRenameTabInitialName,
-    setRenameTabModalOpen, navigateToNextTab, navigateToPrevTab, navigateToTabByIndex, navigateToLastTab,
-    setFileTreeFilterOpen, isShortcut, isTabShortcut
-  };
+  // NOTE: Initialize with null - the actual value is set synchronously below during render.
+  // This avoids referencing functions like addNewSession before they're defined.
+  const keyboardHandlerRef = useRef<any>(null);
+  // NOTE: keyboardHandlerRef.current is assigned later in the file (after all handler functions are defined)
+  // to avoid "Cannot access before initialization" errors with functions like addNewSession
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -3425,6 +3395,25 @@ export default function MaestroConsole() {
     if (diff.diff) {
       setGitDiffPreview(diff.diff);
     }
+  };
+
+  // Update keyboardHandlerRef synchronously during render (before effects run)
+  // This must be placed after all handler functions are defined to avoid TDZ errors
+  keyboardHandlerRef.current = {
+    shortcuts, activeFocus, activeRightTab, sessions, selectedSidebarIndex, activeSessionId,
+    quickActionOpen, settingsModalOpen, shortcutsHelpOpen, newInstanceModalOpen, aboutModalOpen,
+    processMonitorOpen, logViewerOpen, createGroupModalOpen, confirmModalOpen, renameInstanceModalOpen,
+    renameGroupModalOpen, activeSession, previewFile, fileTreeFilter, fileTreeFilterOpen, gitDiffPreview,
+    gitLogOpen, lightboxImage, hasOpenLayers, hasOpenModal, visibleSessions, sortedSessions, groups,
+    bookmarksCollapsed, leftSidebarOpen, editingSessionId, editingGroupId,
+    setLeftSidebarOpen, setRightPanelOpen, addNewSession, deleteSession, setQuickActionInitialMode,
+    setQuickActionOpen, cycleSession, toggleInputMode, setShortcutsHelpOpen, setSettingsModalOpen,
+    setSettingsTab, setActiveRightTab, setActiveFocus, setBookmarksCollapsed, setGroups,
+    setSelectedSidebarIndex, setActiveSessionId, handleViewGitDiff, setGitLogOpen, setActiveClaudeSessionId,
+    setAgentSessionsOpen, setLogViewerOpen, setProcessMonitorOpen, logsEndRef, inputRef, terminalOutputRef,
+    setSessions, createTab, closeTab, reopenClosedTab, getActiveTab, setRenameTabId, setRenameTabInitialName,
+    setRenameTabModalOpen, navigateToNextTab, navigateToPrevTab, navigateToTabByIndex, navigateToLastTab,
+    setFileTreeFilterOpen, isShortcut, isTabShortcut
   };
 
   const toggleGroup = (groupId: string) => {

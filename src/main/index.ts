@@ -1089,6 +1089,46 @@ function setupIpcHandlers() {
     return { stdout: result.stdout, stderr: result.stderr };
   });
 
+  // Read file content at a specific git ref (e.g., HEAD:path/to/file.png)
+  // Returns base64 data URL for images, raw content for text files
+  ipcMain.handle('git:showFile', async (_, cwd: string, ref: string, filePath: string) => {
+    try {
+      // Use git show to get file content at specific ref
+      // We need to handle binary files differently
+      const ext = filePath.split('.').pop()?.toLowerCase() || '';
+      const imageExtensions = ['png', 'jpg', 'jpeg', 'gif', 'bmp', 'webp', 'svg', 'ico'];
+      const isImage = imageExtensions.includes(ext);
+
+      if (isImage) {
+        // For images, we need to get raw binary content
+        // Use spawnSync to capture raw binary output
+        const { spawnSync } = require('child_process');
+        const result = spawnSync('git', ['show', `${ref}:${filePath}`], {
+          cwd,
+          encoding: 'buffer',
+          maxBuffer: 50 * 1024 * 1024 // 50MB max
+        });
+
+        if (result.status !== 0) {
+          return { error: result.stderr?.toString() || 'Failed to read file from git' };
+        }
+
+        const base64 = result.stdout.toString('base64');
+        const mimeType = ext === 'svg' ? 'image/svg+xml' : `image/${ext === 'jpg' ? 'jpeg' : ext}`;
+        return { content: `data:${mimeType};base64,${base64}` };
+      } else {
+        // For text files, use regular exec
+        const result = await execFileNoThrow('git', ['show', `${ref}:${filePath}`], cwd);
+        if (result.exitCode !== 0) {
+          return { error: result.stderr || 'Failed to read file from git' };
+        }
+        return { content: result.stdout };
+      }
+    } catch (error) {
+      return { error: error instanceof Error ? error.message : 'Unknown error' };
+    }
+  });
+
   // File system operations
   ipcMain.handle('fs:readDir', async (_, dirPath: string) => {
     const entries = await fs.readdir(dirPath, { withFileTypes: true });

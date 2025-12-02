@@ -248,14 +248,32 @@ export function TabSwitcherModal({
       });
       return sorted.map(tab => ({ type: 'open' as const, tab }));
     } else {
-      // All Named mode - show named sessions that are NOT currently open
-      const closedNamedSessions = namedSessions.filter(
-        s => !openTabSessionIds.has(s.claudeSessionId)
-      );
-      const sorted = closedNamedSessions.sort((a, b) =>
-        a.sessionName.toLowerCase().localeCompare(b.sessionName.toLowerCase())
-      );
-      return sorted.map(session => ({ type: 'named' as const, session }));
+      // All Named mode - show ALL named sessions (including open ones)
+      // For open tabs, use the 'open' type so we get usage stats; for closed ones use 'named'
+      const items: ListItem[] = [];
+
+      // Add open tabs that have names
+      for (const tab of tabs) {
+        if (tab.name && tab.claudeSessionId) {
+          items.push({ type: 'open' as const, tab });
+        }
+      }
+
+      // Add closed named sessions (not currently open)
+      for (const session of namedSessions) {
+        if (!openTabSessionIds.has(session.claudeSessionId)) {
+          items.push({ type: 'named' as const, session });
+        }
+      }
+
+      // Sort all by name
+      items.sort((a, b) => {
+        const nameA = a.type === 'open' ? (a.tab.name || '').toLowerCase() : a.session.sessionName.toLowerCase();
+        const nameB = b.type === 'open' ? (b.tab.name || '').toLowerCase() : b.session.sessionName.toLowerCase();
+        return nameA.localeCompare(nameB);
+      });
+
+      return items;
     }
   }, [viewMode, tabs, namedSessions, openTabSessionIds]);
 
@@ -358,7 +376,7 @@ export function TabSwitcherModal({
           <input
             ref={inputRef}
             className="flex-1 bg-transparent outline-none text-lg placeholder-opacity-50"
-            placeholder={viewMode === 'open' ? "Search open tabs..." : "Search named sessions..."}
+            placeholder={viewMode === 'open' ? "Search open tabs..." : "Search all named sessions..."}
             style={{ color: theme.colors.textMain }}
             value={search}
             onChange={e => setSearch(e.target.value)}

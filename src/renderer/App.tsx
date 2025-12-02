@@ -5575,7 +5575,12 @@ export default function MaestroConsole() {
         <LightboxModal
           image={lightboxImage}
           stagedImages={lightboxImages.length > 0 ? lightboxImages : stagedImages}
-          onClose={() => { setLightboxImage(null); setLightboxImages([]); }}
+          onClose={() => {
+            setLightboxImage(null);
+            setLightboxImages([]);
+            // Return focus to input after closing carousel
+            setTimeout(() => inputRef.current?.focus(), 0);
+          }}
           onNavigate={(img) => setLightboxImage(img)}
         />
       )}

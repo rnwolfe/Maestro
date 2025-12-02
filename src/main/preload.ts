@@ -217,6 +217,8 @@ contextBridge.exposeInMainWorld('maestro', {
     log: (cwd: string, options?: { limit?: number; search?: string }) =>
       ipcRenderer.invoke('git:log', cwd, options),
     show: (cwd: string, hash: string) => ipcRenderer.invoke('git:show', cwd, hash),
+    showFile: (cwd: string, ref: string, filePath: string) =>
+      ipcRenderer.invoke('git:showFile', cwd, ref, filePath) as Promise<{ content?: string; error?: string }>,
   },
 
   // File System API
@@ -506,6 +508,7 @@ export interface MaestroAPI {
       error: string | null;
     }>;
     show: (cwd: string, hash: string) => Promise<{ stdout: string; stderr: string }>;
+    showFile: (cwd: string, ref: string, filePath: string) => Promise<{ content?: string; error?: string }>;
   };
   fs: {
     readDir: (dirPath: string) => Promise<DirectoryEntry[]>;

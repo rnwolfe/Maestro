@@ -1,10 +1,17 @@
 import { parseDiff, File as DiffFile } from 'react-diff-view';
 
+// Image file extensions for binary detection
+const IMAGE_EXTENSIONS = ['png', 'jpg', 'jpeg', 'gif', 'bmp', 'webp', 'svg', 'ico'];
+
 export interface ParsedFileDiff {
   oldPath: string;
   newPath: string;
   diffText: string;
   parsedDiff: DiffFile[];
+  isBinary: boolean;
+  isImage: boolean;
+  isNewFile: boolean;
+  isDeletedFile: boolean;
 }
 
 /**
@@ -27,15 +34,31 @@ export function parseGitDiff(diffText: string): ParsedFileDiff[] {
     const oldPath = pathMatch?.[1] || 'unknown';
     const newPath = pathMatch?.[2] || 'unknown';
 
+    // Detect binary files - git outputs "Binary files ... differ"
+    const isBinary = /Binary files .* differ/.test(section);
+
+    // Check if the file is an image based on extension
+    const ext = newPath.split('.').pop()?.toLowerCase() || '';
+    const isImage = IMAGE_EXTENSIONS.includes(ext);
+
+    // Detect new/deleted files
+    const isNewFile = section.includes('new file mode') || section.includes('/dev/null\n+++ b/');
+    const isDeletedFile = section.includes('deleted file mode') || section.includes('--- a/') && section.includes('+++ /dev/null');
+
     try {
       // Use react-diff-view's parseDiff to parse the diff section
-      const parsedDiff = parseDiff(section);
+      // For binary files, parseDiff will likely fail or return empty, but that's okay
+      const parsedDiff = isBinary ? [] : parseDiff(section);
 
       return {
         oldPath,
         newPath,
         diffText: section,
-        parsedDiff
+        parsedDiff,
+        isBinary,
+        isImage,
+        isNewFile,
+        isDeletedFile
       };
     } catch (error) {
       console.error('Failed to parse diff section:', error);
@@ -44,7 +67,11 @@ export function parseGitDiff(diffText: string): ParsedFileDiff[] {
         oldPath,
         newPath,
         diffText: section,
-        parsedDiff: []
+        parsedDiff: [],
+        isBinary,
+        isImage,
+        isNewFile,
+        isDeletedFile
       };
     }
   });

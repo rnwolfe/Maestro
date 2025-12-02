@@ -52,150 +52,104 @@ export function StandingOvationOverlay({
   const goldColor = '#FFD700';
   const purpleAccent = theme.colors.accent;
 
-  // Confetti colors matching our theme
+  // Confetti colors - celebratory mix
   const confettiColors = [
     goldColor, purpleAccent,
     '#FF6B6B', '#FF8E53', '#FFA726', // Warm colors
     '#4ECDC4', '#45B7D1', '#64B5F6', // Cool colors
-    '#96CEB4', '#81C784', // Greens
     '#FFEAA7', '#FFD54F', // Yellows
-    '#DDA0DD', '#BA68C8', '#9575CD', // Purples
-    '#F48FB1', '#FF80AB', // Pinks
+    '#DDA0DD', '#BA68C8', // Purples
+    '#F48FB1', // Pink
   ];
 
-  // Fire confetti burst - MASSIVE Raycast style explosion
+  // Z-index layering: backdrop (99997) < confetti (99998) < modal (99999)
+  const CONFETTI_Z_INDEX = 99998;
+
+  // Fire realistic confetti - cannon-style bursts from off-screen bottom corners
   const fireConfetti = useCallback(() => {
-    const duration = 4000;
-    const animationEnd = Date.now() + duration;
     const defaults = {
-      startVelocity: 55,
-      spread: 360,
-      ticks: 200,
-      zIndex: 999999,
+      zIndex: CONFETTI_Z_INDEX,
       colors: confettiColors,
       disableForReducedMotion: true,
-      gravity: 0.8,
     };
 
-    // Helper to get random value in range
-    const randomInRange = (min: number, max: number) => Math.random() * (max - min) + min;
-
-    // INITIAL MASSIVE BURST - fire immediately from multiple points
-    // Center explosion
+    // Left cannon burst - origin off-screen left/bottom
     confetti({
-      particleCount: 300,
-      spread: 120,
-      origin: { x: 0.5, y: 0.5 },
-      colors: confettiColors,
+      ...defaults,
+      particleCount: 144,
+      angle: 55,
+      spread: 55,
+      origin: { x: -0.05, y: 1.1 },
       startVelocity: 70,
-      zIndex: 999999,
-      scalar: 1.3,
-      gravity: 0.7,
-      ticks: 300,
-    });
-
-    // Left burst
-    confetti({
-      particleCount: 200,
-      spread: 80,
-      origin: { x: 0.2, y: 0.5 },
-      colors: confettiColors,
-      startVelocity: 65,
-      zIndex: 999999,
-      scalar: 1.2,
-      angle: 60,
-      gravity: 0.8,
-      ticks: 250,
-    });
-
-    // Right burst
-    confetti({
-      particleCount: 200,
-      spread: 80,
-      origin: { x: 0.8, y: 0.5 },
-      colors: confettiColors,
-      startVelocity: 65,
-      zIndex: 999999,
-      scalar: 1.2,
-      angle: 120,
-      gravity: 0.8,
-      ticks: 250,
-    });
-
-    // Top burst
-    confetti({
-      particleCount: 150,
-      spread: 100,
-      origin: { x: 0.5, y: 0.3 },
-      colors: confettiColors,
-      startVelocity: 60,
-      zIndex: 999999,
-      scalar: 1.1,
       gravity: 1,
+      scalar: 1.2,
       ticks: 200,
     });
 
-    // Fire continuous bursts
-    const interval = setInterval(() => {
-      const timeLeft = animationEnd - Date.now();
+    // Right cannon burst - origin off-screen right/bottom
+    confetti({
+      ...defaults,
+      particleCount: 144,
+      angle: 125,
+      spread: 55,
+      origin: { x: 1.05, y: 1.1 },
+      startVelocity: 70,
+      gravity: 1,
+      scalar: 1.2,
+      ticks: 200,
+    });
 
-      if (timeLeft <= 0) {
-        clearInterval(interval);
-        return;
-      }
-
-      const particleCount = 250 * (timeLeft / duration);
-
-      // Fire from 5 random origins for maximum chaos
-      for (let i = 0; i < 5; i++) {
-        confetti({
-          ...defaults,
-          particleCount: Math.floor(particleCount / 3),
-          origin: { x: randomInRange(0.1, 0.9), y: randomInRange(0.2, 0.6) },
-          scalar: randomInRange(0.8, 1.5),
-          startVelocity: randomInRange(45, 70),
-        });
-      }
-    }, 100);
-
-    // Secondary wave after 200ms
+    // Delayed second wave - slightly smaller
     setTimeout(() => {
       confetti({
-        particleCount: 250,
-        spread: 140,
-        origin: { x: 0.5, y: 0.45 },
-        colors: confettiColors,
-        startVelocity: 75,
-        zIndex: 999999,
-        scalar: 1.4,
-        gravity: 0.6,
-        ticks: 300,
+        ...defaults,
+        particleCount: 86,
+        angle: 55,
+        spread: 45,
+        origin: { x: -0.05, y: 1.15 },
+        startVelocity: 62,
+        gravity: 1.1,
+        scalar: 1.0,
+        ticks: 180,
       });
-    }, 200);
+      confetti({
+        ...defaults,
+        particleCount: 86,
+        angle: 125,
+        spread: 45,
+        origin: { x: 1.05, y: 1.15 },
+        startVelocity: 62,
+        gravity: 1.1,
+        scalar: 1.0,
+        ticks: 180,
+      });
+    }, 250);
 
-    // Third wave
+    // Third wave - gentle finish
     setTimeout(() => {
       confetti({
-        particleCount: 200,
-        spread: 160,
-        origin: { x: 0.3, y: 0.4 },
-        colors: confettiColors,
-        startVelocity: 60,
-        zIndex: 999999,
-        scalar: 1.2,
-        gravity: 0.9,
+        ...defaults,
+        particleCount: 58,
+        angle: 60,
+        spread: 60,
+        origin: { x: -0.02, y: 1.1 },
+        startVelocity: 55,
+        gravity: 1.2,
+        scalar: 0.9,
+        ticks: 160,
       });
       confetti({
-        particleCount: 200,
-        spread: 160,
-        origin: { x: 0.7, y: 0.4 },
-        colors: confettiColors,
-        startVelocity: 60,
-        zIndex: 999999,
-        scalar: 1.2,
-        gravity: 0.9,
+        ...defaults,
+        particleCount: 58,
+        angle: 120,
+        spread: 60,
+        origin: { x: 1.02, y: 1.1 },
+        startVelocity: 55,
+        gravity: 1.2,
+        scalar: 0.9,
+        ticks: 160,
       });
-    }, 400);
+    }, 500);
   }, [confettiColors]);
 
   // Fire confetti on mount - immediately!
@@ -413,30 +367,39 @@ export function StandingOvationOverlay({
   }, [generateShareImage, badge.level]);
 
   return (
-    <div
-      ref={containerRef}
-      className="fixed inset-0 flex items-center justify-center z-[99999] animate-in fade-in duration-500"
-      role="dialog"
-      aria-modal="true"
-      aria-label="Standing Ovation Achievement"
-      tabIndex={-1}
-      onClick={handleTakeABow}
-      style={{
-        backgroundColor: 'rgba(0, 0, 0, 0.95)',
-      }}
-    >
-      {/* Main content card */}
+    <>
+      {/* Dark backdrop - lowest layer (z-index 99997) */}
       <div
-        className={`relative max-w-lg w-full mx-4 rounded-2xl shadow-2xl overflow-hidden transition-all duration-500 ${
-          isClosing ? 'opacity-0 scale-95' : 'animate-in zoom-in-95'
-        }`}
-        onClick={(e) => e.stopPropagation()}
+        className="fixed inset-0 z-[99997] animate-in fade-in duration-500"
+        onClick={handleTakeABow}
         style={{
-          backgroundColor: theme.colors.bgSidebar,
-          border: `2px solid ${goldColor}`,
-          boxShadow: `0 0 40px rgba(0, 0, 0, 0.5)`,
+          backgroundColor: 'rgba(0, 0, 0, 0.85)',
         }}
+      />
+
+      {/* Confetti renders at z-index 99998 (set in fireConfetti) */}
+
+      {/* Modal container - highest layer (z-index 99999) */}
+      <div
+        ref={containerRef}
+        className="fixed inset-0 flex items-center justify-center z-[99999] pointer-events-none"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Standing Ovation Achievement"
+        tabIndex={-1}
       >
+        {/* Main content card */}
+        <div
+          className={`relative max-w-lg w-full mx-4 rounded-2xl shadow-2xl overflow-hidden transition-all duration-500 pointer-events-auto ${
+            isClosing ? 'opacity-0 scale-95' : 'animate-in zoom-in-95'
+          }`}
+          onClick={(e) => e.stopPropagation()}
+          style={{
+            backgroundColor: theme.colors.bgSidebar,
+            border: `2px solid ${goldColor}`,
+            boxShadow: `0 0 40px rgba(0, 0, 0, 0.5)`,
+          }}
+        >
         {/* Header with glow */}
         <div
           className="relative px-8 pt-8 pb-4 text-center"
@@ -675,8 +638,9 @@ export function StandingOvationOverlay({
             )}
           </div>
         </div>
+        </div>
       </div>
-    </div>
+    </>
   );
 }
 

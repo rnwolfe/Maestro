@@ -1,10 +1,11 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Diff, Hunk, tokenize } from 'react-diff-view';
-import { X, Plus, Minus } from 'lucide-react';
+import { X, Plus, Minus, ImageIcon } from 'lucide-react';
 import type { Theme } from '../types';
 import { parseGitDiff, getFileName, getDiffStats, ParsedFileDiff } from '../utils/gitDiffParser';
 import { useLayerStack } from '../contexts/LayerStackContext';
 import { MODAL_PRIORITIES } from '../constants/modalPriorities';
+import { ImageDiffViewer } from './ImageDiffViewer';
 import 'react-diff-view/style/index.css';
 
 interface GitDiffViewerProps {
@@ -188,19 +189,26 @@ export function GitDiffViewer({ diffText, cwd, theme, onClose }: GitDiffViewerPr
                 }}
               >
                 <div className="flex items-center gap-2">
+                  {file.isImage && <ImageIcon className="w-3.5 h-3.5" style={{ color: theme.colors.textDim }} />}
                   <span className="font-mono">{getFileName(file.newPath)}</span>
                   <div className="flex items-center gap-1 text-xs">
-                    {fileStats.additions > 0 && (
-                      <span className="text-green-500 flex items-center gap-0.5">
-                        <Plus className="w-3 h-3" />
-                        {fileStats.additions}
-                      </span>
-                    )}
-                    {fileStats.deletions > 0 && (
-                      <span className="text-red-500 flex items-center gap-0.5">
-                        <Minus className="w-3 h-3" />
-                        {fileStats.deletions}
-                      </span>
+                    {file.isBinary ? (
+                      <span style={{ color: theme.colors.textDim }}>binary</span>
+                    ) : (
+                      <>
+                        {fileStats.additions > 0 && (
+                          <span className="text-green-500 flex items-center gap-0.5">
+                            <Plus className="w-3 h-3" />
+                            {fileStats.additions}
+                          </span>
+                        )}
+                        {fileStats.deletions > 0 && (
+                          <span className="text-red-500 flex items-center gap-0.5">
+                            <Minus className="w-3 h-3" />
+                            {fileStats.deletions}
+                          </span>
+                        )}
+                      </>
                     )}
                   </div>
                 </div>
@@ -211,7 +219,27 @@ export function GitDiffViewer({ diffText, cwd, theme, onClose }: GitDiffViewerPr
 
         {/* Diff Content */}
         <div className="flex-1 overflow-auto p-6">
-          {activeFile && activeFile.parsedDiff.length > 0 ? (
+          {activeFile && activeFile.isImage ? (
+            // Image diff view - side-by-side comparison
+            <ImageDiffViewer
+              oldPath={activeFile.oldPath}
+              newPath={activeFile.newPath}
+              cwd={cwd}
+              theme={theme}
+              isNewFile={activeFile.isNewFile}
+              isDeletedFile={activeFile.isDeletedFile}
+            />
+          ) : activeFile && activeFile.isBinary ? (
+            // Non-image binary file
+            <div className="flex flex-col items-center justify-center h-full gap-2">
+              <p className="text-sm" style={{ color: theme.colors.textDim }}>
+                Binary file changed
+              </p>
+              <p className="text-xs" style={{ color: theme.colors.textDim }}>
+                {activeFile.newPath}
+              </p>
+            </div>
+          ) : activeFile && activeFile.parsedDiff.length > 0 ? (
             <div className="font-mono text-sm">
               <style>{`
                 /* Override react-diff-view default colors with theme */
@@ -292,16 +320,22 @@ export function GitDiffViewer({ diffText, cwd, theme, onClose }: GitDiffViewerPr
             <span style={{ color: theme.colors.textDim }}>
               Current file: <span className="font-mono" style={{ color: theme.colors.textMain }}>{getFileName(activeFile.newPath)}</span>
             </span>
-            <div className="flex items-center gap-2">
-              <span className="text-green-500 flex items-center gap-1">
-                <Plus className="w-3 h-3" />
-                {stats.additions} additions
+            {activeFile.isBinary ? (
+              <span style={{ color: theme.colors.textDim }}>
+                {activeFile.isImage ? 'Image file' : 'Binary file'}
               </span>
-              <span className="text-red-500 flex items-center gap-1">
-                <Minus className="w-3 h-3" />
-                {stats.deletions} deletions
-              </span>
-            </div>
+            ) : (
+              <div className="flex items-center gap-2">
+                <span className="text-green-500 flex items-center gap-1">
+                  <Plus className="w-3 h-3" />
+                  {stats.additions} additions
+                </span>
+                <span className="text-red-500 flex items-center gap-1">
+                  <Minus className="w-3 h-3" />
+                  {stats.deletions} deletions
+                </span>
+              </div>
+            )}
           </div>
           <span style={{ color: theme.colors.textDim }}>
             File {activeTab + 1} of {parsedFiles.length}

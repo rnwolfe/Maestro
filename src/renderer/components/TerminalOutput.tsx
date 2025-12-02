@@ -627,6 +627,17 @@ const LogItemComponent = memo(({
                           {children}
                         </a>
                       ),
+                      // Custom li to handle loose lists - render p children inline
+                      li: ({ node, children, ...props }: any) => {
+                        // Process children to convert p tags to spans for inline rendering
+                        const processedChildren = React.Children.map(children, (child: any) => {
+                          if (child?.type === 'p') {
+                            return <span>{child.props.children}</span>;
+                          }
+                          return child;
+                        });
+                        return <li {...props}>{processedChildren}</li>;
+                      },
                       code: ({ node, inline, className, children, ...props }: any) => {
                         const match = (className || '').match(/language-(\w+)/);
                         const language = match ? match[1] : 'text';
@@ -771,6 +782,17 @@ const LogItemComponent = memo(({
                           {children}
                         </a>
                       ),
+                      // Custom li to handle loose lists - render p children inline
+                      li: ({ node, children, ...props }: any) => {
+                        // Process children to convert p tags to spans for inline rendering
+                        const processedChildren = React.Children.map(children, (child: any) => {
+                          if (child?.type === 'p') {
+                            return <span>{child.props.children}</span>;
+                          }
+                          return child;
+                        });
+                        return <li {...props}>{processedChildren}</li>;
+                      },
                       code: ({ node, inline, className, children, ...props }: any) => {
                         const match = (className || '').match(/language-(\w+)/);
                         const language = match ? match[1] : 'text';
@@ -897,6 +919,16 @@ const LogItemComponent = memo(({
                         {children}
                       </a>
                     ),
+                    li: ({ node, children, ...props }: any) => {
+                      // Convert <p> children to <span> to prevent block display in list items
+                      const processedChildren = React.Children.map(children, (child: any) => {
+                        if (child?.type === 'p') {
+                          return <span>{child.props.children}</span>;
+                        }
+                        return child;
+                      });
+                      return <li {...props}>{processedChildren}</li>;
+                    },
                     code: ({ node, inline, className, children, ...props }: any) => {
                       const match = (className || '').match(/language-(\w+)/);
                       const language = match ? match[1] : 'text';

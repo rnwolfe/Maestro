@@ -459,6 +459,33 @@ contextBridge.exposeInMainWorld('maestro', {
     listImages: (folderPath: string, docName: string) =>
       ipcRenderer.invoke('autorun:listImages', folderPath, docName),
   },
+
+  // Playbooks API (saved batch run configurations)
+  playbooks: {
+    list: (sessionId: string) =>
+      ipcRenderer.invoke('playbooks:list', sessionId),
+    create: (
+      sessionId: string,
+      playbook: {
+        name: string;
+        documents: Array<{ filename: string; resetOnCompletion: boolean }>;
+        loopEnabled: boolean;
+        prompt: string;
+      }
+    ) => ipcRenderer.invoke('playbooks:create', sessionId, playbook),
+    update: (
+      sessionId: string,
+      playbookId: string,
+      updates: Partial<{
+        name: string;
+        documents: Array<{ filename: string; resetOnCompletion: boolean }>;
+        loopEnabled: boolean;
+        prompt: string;
+      }>
+    ) => ipcRenderer.invoke('playbooks:update', sessionId, playbookId, updates),
+    delete: (sessionId: string, playbookId: string) =>
+      ipcRenderer.invoke('playbooks:delete', sessionId, playbookId),
+  },
 });
 
 // Type definitions for TypeScript
@@ -773,6 +800,68 @@ export interface MaestroAPI {
     ) => Promise<{
       success: boolean;
       images?: { filename: string; relativePath: string }[];
+      error?: string;
+    }>;
+  };
+  playbooks: {
+    list: (sessionId: string) => Promise<{
+      success: boolean;
+      playbooks: Array<{
+        id: string;
+        name: string;
+        createdAt: number;
+        updatedAt: number;
+        documents: Array<{ filename: string; resetOnCompletion: boolean }>;
+        loopEnabled: boolean;
+        prompt: string;
+      }>;
+      error?: string;
+    }>;
+    create: (
+      sessionId: string,
+      playbook: {
+        name: string;
+        documents: Array<{ filename: string; resetOnCompletion: boolean }>;
+        loopEnabled: boolean;
+        prompt: string;
+      }
+    ) => Promise<{
+      success: boolean;
+      playbook?: {
+        id: string;
+        name: string;
+        createdAt: number;
+        updatedAt: number;
+        documents: Array<{ filename: string; resetOnCompletion: boolean }>;
+        loopEnabled: boolean;
+        prompt: string;
+      };
+      error?: string;
+    }>;
+    update: (
+      sessionId: string,
+      playbookId: string,
+      updates: Partial<{
+        name: string;
+        documents: Array<{ filename: string; resetOnCompletion: boolean }>;
+        loopEnabled: boolean;
+        prompt: string;
+      }>
+    ) => Promise<{
+      success: boolean;
+      playbook?: {
+        id: string;
+        name: string;
+        createdAt: number;
+        updatedAt: number;
+        documents: Array<{ filename: string; resetOnCompletion: boolean }>;
+        loopEnabled: boolean;
+        prompt: string;
+      };
+      error?: string;
+    }>;
+    delete: (sessionId: string, playbookId: string) => Promise<{
+      success: boolean;
       error?: string;
     }>;
   };

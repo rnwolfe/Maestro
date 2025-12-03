@@ -3484,6 +3484,157 @@ function setupIpcHandlers() {
       }
     }
   );
+
+  // ============================================
+  // Playbook IPC Handlers
+  // ============================================
+
+  // Helper: Get path to playbooks file for a session
+  function getPlaybooksFilePath(sessionId: string): string {
+    const userDataPath = app.getPath('userData');
+    return path.join(userDataPath, 'playbooks', `${sessionId}.json`);
+  }
+
+  // Helper: Read playbooks from file
+  async function readPlaybooks(sessionId: string): Promise<any[]> {
+    const filePath = getPlaybooksFilePath(sessionId);
+    try {
+      const content = await fs.readFile(filePath, 'utf-8');
+      const data = JSON.parse(content);
+      return Array.isArray(data.playbooks) ? data.playbooks : [];
+    } catch {
+      // File doesn't exist or is invalid, return empty array
+      return [];
+    }
+  }
+
+  // Helper: Write playbooks to file
+  async function writePlaybooks(sessionId: string, playbooks: any[]): Promise<void> {
+    const filePath = getPlaybooksFilePath(sessionId);
+    const dir = path.dirname(filePath);
+
+    // Ensure the playbooks directory exists
+    await fs.mkdir(dir, { recursive: true });
+
+    // Write the playbooks file
+    await fs.writeFile(filePath, JSON.stringify({ playbooks }, null, 2), 'utf-8');
+  }
+
+  // List all playbooks for a session
+  ipcMain.handle('playbooks:list', async (_event, sessionId: string) => {
+    try {
+      const playbooks = await readPlaybooks(sessionId);
+      logger.info(`Listed ${playbooks.length} playbooks for session ${sessionId}`, 'Playbooks');
+      return { success: true, playbooks };
+    } catch (error) {
+      logger.error('Error listing playbooks', 'Playbooks', error);
+      return { success: false, playbooks: [], error: String(error) };
+    }
+  });
+
+  // Create a new playbook
+  ipcMain.handle(
+    'playbooks:create',
+    async (
+      _event,
+      sessionId: string,
+      playbook: { name: string; documents: any[]; loopEnabled: boolean; prompt: string }
+    ) => {
+      try {
+        const playbooks = await readPlaybooks(sessionId);
+
+        // Create new playbook with generated ID and timestamps
+        const now = Date.now();
+        const newPlaybook = {
+          id: crypto.randomUUID(),
+          name: playbook.name,
+          createdAt: now,
+          updatedAt: now,
+          documents: playbook.documents,
+          loopEnabled: playbook.loopEnabled,
+          prompt: playbook.prompt,
+        };
+
+        // Add to list and save
+        playbooks.push(newPlaybook);
+        await writePlaybooks(sessionId, playbooks);
+
+        logger.info(`Created playbook "${playbook.name}" for session ${sessionId}`, 'Playbooks');
+        return { success: true, playbook: newPlaybook };
+      } catch (error) {
+        logger.error('Error creating playbook', 'Playbooks', error);
+        return { success: false, error: String(error) };
+      }
+    }
+  );
+
+  // Update an existing playbook
+  ipcMain.handle(
+    'playbooks:update',
+    async (
+      _event,
+      sessionId: string,
+      playbookId: string,
+      updates: Partial<{
+        name: string;
+        documents: any[];
+        loopEnabled: boolean;
+        prompt: string;
+        updatedAt: number;
+      }>
+    ) => {
+      try {
+        const playbooks = await readPlaybooks(sessionId);
+
+        // Find the playbook to update
+        const index = playbooks.findIndex((p: any) => p.id === playbookId);
+        if (index === -1) {
+          return { success: false, error: 'Playbook not found' };
+        }
+
+        // Update the playbook
+        const updatedPlaybook = {
+          ...playbooks[index],
+          ...updates,
+          updatedAt: Date.now(),
+        };
+        playbooks[index] = updatedPlaybook;
+
+        await writePlaybooks(sessionId, playbooks);
+
+        logger.info(`Updated playbook "${updatedPlaybook.name}" for session ${sessionId}`, 'Playbooks');
+        return { success: true, playbook: updatedPlaybook };
+      } catch (error) {
+        logger.error('Error updating playbook', 'Playbooks', error);
+        return { success: false, error: String(error) };
+      }
+    }
+  );
+
+  // Delete a playbook
+  ipcMain.handle('playbooks:delete', async (_event, sessionId: string, playbookId: string) => {
+    try {
+      const playbooks = await readPlaybooks(sessionId);
+
+      // Find the playbook to delete
+      const index = playbooks.findIndex((p: any) => p.id === playbookId);
+      if (index === -1) {
+        return { success: false, error: 'Playbook not found' };
+      }
+
+      const deletedName = playbooks[index].name;
+
+      // Remove from list and save
+      playbooks.splice(index, 1);
+      await writePlaybooks(sessionId, playbooks);
+
+      logger.info(`Deleted playbook "${deletedName}" from session ${sessionId}`, 'Playbooks');
+      return { success: true };
+    } catch (error) {
+      logger.error('Error deleting playbook', 'Playbooks', error);
+      return { success: false, error: String(error) };
+    }
+  });
 }
 
 // Handle process output streaming (set up after initialization)

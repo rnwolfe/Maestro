@@ -2706,6 +2706,13 @@ export default function MaestroConsole() {
     // Handle Shift+[ producing { and Shift+] producing }
     if (mainKey === '[' && (key === '[' || key === '{')) return true;
     if (mainKey === ']' && (key === ']' || key === '}')) return true;
+    // Handle Shift+number producing symbol (US keyboard layout)
+    // Shift+1='!', Shift+2='@', Shift+3='#', etc.
+    const shiftNumberMap: Record<string, string> = {
+      '!': '1', '@': '2', '#': '3', '$': '4', '%': '5',
+      '^': '6', '&': '7', '*': '8', '(': '9', ')': '0'
+    };
+    if (shiftNumberMap[key] === mainKey) return true;
 
     return key === mainKey;
   };

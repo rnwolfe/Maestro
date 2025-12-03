@@ -6504,6 +6504,7 @@ export default function MaestroConsole() {
             const matches = result.content.match(/^[\s]*-\s*\[\s*\]\s*.+$/gm);
             return matches ? matches.length : 0;
           }}
+          sessionId={activeSession.id}
         />
       )}
 

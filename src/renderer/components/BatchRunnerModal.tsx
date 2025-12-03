@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { X, RotateCcw, Play, Variable, ChevronDown, ChevronRight, Save, GripVertical, Plus, Repeat } from 'lucide-react';
-import type { Theme, BatchDocumentEntry, BatchRunConfig } from '../types';
+import type { Theme, BatchDocumentEntry, BatchRunConfig, Playbook, PlaybookDocumentEntry } from '../types';
 import { useLayerStack } from '../contexts/LayerStackContext';
 import { MODAL_PRIORITIES } from '../constants/modalPriorities';
 import { TEMPLATE_VARIABLES } from '../utils/templateVariables';
@@ -59,6 +59,8 @@ interface BatchRunnerModalProps {
   currentDocument: string;
   allDocuments: string[]; // All available docs in folder (without .md)
   getDocumentTaskCount: (filename: string) => Promise<number>; // Get task count for a document
+  // Session ID for playbook storage
+  sessionId: string;
 }
 
 // Helper function to count unchecked tasks in scratchpad content
@@ -98,7 +100,8 @@ export function BatchRunnerModal(props: BatchRunnerModalProps) {
     folderPath,
     currentDocument,
     allDocuments,
-    getDocumentTaskCount
+    getDocumentTaskCount,
+    sessionId
   } = props;
 
   // Document list state
@@ -136,6 +139,11 @@ export function BatchRunnerModal(props: BatchRunnerModalProps) {
   const [draggedId, setDraggedId] = useState<string | null>(null);
   const [dragOverId, setDragOverId] = useState<string | null>(null);
 
+  // Playbook state
+  const [playbooks, setPlaybooks] = useState<Playbook[]>([]);
+  const [loadedPlaybook, setLoadedPlaybook] = useState<Playbook | null>(null);
+  const [loadingPlaybooks, setLoadingPlaybooks] = useState(true);
+
   const { registerLayer, unregisterLayer, updateLayerHandler } = useLayerStack();
   const layerIdRef = useRef<string>();
 
@@ -160,9 +168,55 @@ export function BatchRunnerModal(props: BatchRunnerModalProps) {
     loadTaskCounts();
   }, [allDocuments, getDocumentTaskCount]);
 
+  // Load playbooks on mount
+  useEffect(() => {
+    const loadPlaybooks = async () => {
+      setLoadingPlaybooks(true);
+      try {
+        const result = await window.maestro.playbooks.list(sessionId);
+        if (result.success) {
+          setPlaybooks(result.playbooks);
+        }
+      } catch (error) {
+        console.error('Failed to load playbooks:', error);
+      }
+      setLoadingPlaybooks(false);
+    };
+
+    loadPlaybooks();
+  }, [sessionId]);
+
   // Calculate total tasks across selected documents
   const totalTaskCount = documents.reduce((sum, doc) => sum + (taskCounts[doc.filename] || 0), 0);
   const hasNoTasks = totalTaskCount === 0;
+
+  // Track if the current configuration differs from the loaded playbook
+  const isPlaybookModified = useMemo(() => {
+    if (!loadedPlaybook) return false;
+
+    // Compare documents
+    const currentDocs = documents.map(d => ({
+      filename: d.filename,
+      resetOnCompletion: d.resetOnCompletion
+    }));
+    const savedDocs = loadedPlaybook.documents;
+
+    if (currentDocs.length !== savedDocs.length) return true;
+    for (let i = 0; i < currentDocs.length; i++) {
+      if (currentDocs[i].filename !== savedDocs[i].filename ||
+          currentDocs[i].resetOnCompletion !== savedDocs[i].resetOnCompletion) {
+        return true;
+      }
+    }
+
+    // Compare loop setting
+    if (loopEnabled !== loadedPlaybook.loopEnabled) return true;
+
+    // Compare prompt
+    if (prompt !== loadedPlaybook.prompt) return true;
+
+    return false;
+  }, [documents, loopEnabled, prompt, loadedPlaybook]);
 
   // Register layer on mount
   useEffect(() => {

@@ -577,38 +577,8 @@ const LogItemComponent = memo(({
                 <div className="overflow-x-auto scrollbar-thin" dangerouslySetInnerHTML={{ __html: displayHtmlContent }} />
               ) : isAIMode && !markdownRawMode ? (
                 // Collapsed markdown preview with rendered markdown
+                // Note: prose styles are injected once at TerminalOutput container level for performance
                 <div className="prose prose-sm max-w-none" style={{ color: theme.colors.textMain, lineHeight: 1.5 }}>
-                  <style>{`
-                    .prose { line-height: 1.4; overflow: visible; }
-                    .prose > *:first-child { margin-top: 0; }
-                    .prose > *:last-child { margin-bottom: 0; }
-                    .prose h1 { color: ${theme.colors.accent}; font-size: 2em; font-weight: bold; margin: 0; line-height: 1.4; }
-                    .prose h2 { color: ${theme.colors.success}; font-size: 1.75em; font-weight: bold; margin: 0; line-height: 1.4; }
-                    .prose h3 { color: ${theme.colors.warning}; font-size: 1.5em; font-weight: bold; margin: 0; line-height: 1.4; }
-                    .prose h4 { color: ${theme.colors.textMain}; font-size: 1.35em; font-weight: bold; margin: 0; line-height: 1.4; }
-                    .prose h5 { color: ${theme.colors.textMain}; font-size: 1.2em; font-weight: bold; margin: 0; line-height: 1.4; }
-                    .prose h6 { color: ${theme.colors.textDim}; font-size: 1.1em; font-weight: bold; margin: 0; line-height: 1.4; }
-                    .prose p { color: ${theme.colors.textMain}; margin: 0; line-height: 1.4; }
-                    .prose p:empty { display: none; }
-                    .prose > ul, .prose > ol { color: ${theme.colors.textMain}; margin: 0.5em 0; padding-left: 0.5em; list-style-position: inside; }
-                    .prose li ul, .prose li ol { margin: 0 !important; padding-left: 1em; list-style-position: inside; }
-                    .prose li { margin: 0 !important; padding: 0; line-height: 1.4; display: list-item; }
-                    .prose li > p:first-child { margin: 0 !important; display: contents !important; }
-                    .prose li > p:first-child + ul, .prose li > p:first-child + ol { display: block; margin-top: 0 !important; }
-                    .prose li > p + ul, .prose li > p + ol { margin-top: 0 !important; }
-                    .prose li:has(> input[type="checkbox"]) { list-style: none; margin-left: -1.5em; }
-                    .prose code { background-color: ${theme.colors.bgSidebar}; color: ${theme.colors.textMain}; padding: 0.15em 0.3em; border-radius: 3px; font-size: 0.9em; }
-                    .prose pre { background-color: ${theme.colors.bgSidebar}; color: ${theme.colors.textMain}; padding: 0.5em; border-radius: 6px; overflow-x: auto; margin: 0.5em 0; }
-                    .prose pre code { background: none; padding: 0; }
-                    .prose blockquote { border-left: 3px solid ${theme.colors.border}; padding-left: 0.75em; margin: 0; color: ${theme.colors.textDim}; }
-                    .prose a { color: ${theme.colors.accent}; text-decoration: underline; }
-                    .prose hr { border: none; border-top: 1px solid ${theme.colors.border}; margin: 0.75em 0; }
-                    .prose table { border-collapse: collapse; width: 100%; margin: 0.5em 0; }
-                    .prose th, .prose td { border: 1px solid ${theme.colors.border}; padding: 0.25em 0.5em; text-align: left; }
-                    .prose th { background-color: ${theme.colors.bgSidebar}; font-weight: bold; }
-                    .prose strong { font-weight: bold; }
-                    .prose em { font-style: italic; }
-                  `}</style>
                   <ReactMarkdown
                     remarkPlugins={[remarkGfm]}
                     components={{
@@ -732,38 +702,8 @@ const LogItemComponent = memo(({
                 </div>
               ) : isAIMode && !markdownRawMode ? (
                 // Expanded markdown rendering
+                // Note: prose styles are injected once at TerminalOutput container level for performance
                 <div className="prose prose-sm max-w-none text-sm" style={{ color: theme.colors.textMain, lineHeight: 1.5 }}>
-                  <style>{`
-                    .prose { line-height: 1.4; overflow: visible; }
-                    .prose > *:first-child { margin-top: 0; }
-                    .prose > *:last-child { margin-bottom: 0; }
-                    .prose h1 { color: ${theme.colors.accent}; font-size: 2em; font-weight: bold; margin: 0; line-height: 1.4; }
-                    .prose h2 { color: ${theme.colors.success}; font-size: 1.75em; font-weight: bold; margin: 0; line-height: 1.4; }
-                    .prose h3 { color: ${theme.colors.warning}; font-size: 1.5em; font-weight: bold; margin: 0; line-height: 1.4; }
-                    .prose h4 { color: ${theme.colors.textMain}; font-size: 1.35em; font-weight: bold; margin: 0; line-height: 1.4; }
-                    .prose h5 { color: ${theme.colors.textMain}; font-size: 1.2em; font-weight: bold; margin: 0; line-height: 1.4; }
-                    .prose h6 { color: ${theme.colors.textDim}; font-size: 1.1em; font-weight: bold; margin: 0; line-height: 1.4; }
-                    .prose p { color: ${theme.colors.textMain}; margin: 0; line-height: 1.4; }
-                    .prose p:empty { display: none; }
-                    .prose > ul, .prose > ol { color: ${theme.colors.textMain}; margin: 0.5em 0; padding-left: 0.5em; list-style-position: inside; }
-                    .prose li ul, .prose li ol { margin: 0 !important; padding-left: 1em; list-style-position: inside; }
-                    .prose li { margin: 0 !important; padding: 0; line-height: 1.4; display: list-item; }
-                    .prose li > p:first-child { margin: 0 !important; display: contents !important; }
-                    .prose li > p:first-child + ul, .prose li > p:first-child + ol { display: block; margin-top: 0 !important; }
-                    .prose li > p + ul, .prose li > p + ol { margin-top: 0 !important; }
-                    .prose li:has(> input[type="checkbox"]) { list-style: none; margin-left: -1.5em; }
-                    .prose code { background-color: ${theme.colors.bgSidebar}; color: ${theme.colors.textMain}; padding: 0.15em 0.3em; border-radius: 3px; font-size: 0.9em; }
-                    .prose pre { background-color: ${theme.colors.bgSidebar}; color: ${theme.colors.textMain}; padding: 0.5em; border-radius: 6px; overflow-x: auto; margin: 0.5em 0; }
-                    .prose pre code { background: none; padding: 0; }
-                    .prose blockquote { border-left: 3px solid ${theme.colors.border}; padding-left: 0.75em; margin: 0; color: ${theme.colors.textDim}; }
-                    .prose a { color: ${theme.colors.accent}; text-decoration: underline; }
-                    .prose hr { border: none; border-top: 1px solid ${theme.colors.border}; margin: 0.75em 0; }
-                    .prose table { border-collapse: collapse; width: 100%; margin: 0.5em 0; }
-                    .prose th, .prose td { border: 1px solid ${theme.colors.border}; padding: 0.25em 0.5em; text-align: left; }
-                    .prose th { background-color: ${theme.colors.bgSidebar}; font-weight: bold; }
-                    .prose strong { font-weight: bold; }
-                    .prose em { font-style: italic; }
-                  `}</style>
                   <ReactMarkdown
                     remarkPlugins={[remarkGfm]}
                     components={{
@@ -869,38 +809,8 @@ const LogItemComponent = memo(({
               </div>
             ) : isAIMode && !markdownRawMode ? (
               // Rendered markdown for AI responses
+              // Note: prose styles are injected once at TerminalOutput container level for performance
               <div className="prose prose-sm max-w-none text-sm" style={{ color: theme.colors.textMain, lineHeight: 1.4 }}>
-                <style>{`
-                  .prose { line-height: 1.4; overflow: visible; }
-                  .prose > *:first-child { margin-top: 0; }
-                  .prose > *:last-child { margin-bottom: 0; }
-                  .prose h1 { color: ${theme.colors.accent}; font-size: 2em; font-weight: bold; margin: 0; line-height: 1.4; }
-                  .prose h2 { color: ${theme.colors.success}; font-size: 1.75em; font-weight: bold; margin: 0; line-height: 1.4; }
-                  .prose h3 { color: ${theme.colors.warning}; font-size: 1.5em; font-weight: bold; margin: 0; line-height: 1.4; }
-                  .prose h4 { color: ${theme.colors.textMain}; font-size: 1.35em; font-weight: bold; margin: 0; line-height: 1.4; }
-                  .prose h5 { color: ${theme.colors.textMain}; font-size: 1.2em; font-weight: bold; margin: 0; line-height: 1.4; }
-                  .prose h6 { color: ${theme.colors.textDim}; font-size: 1.1em; font-weight: bold; margin: 0; line-height: 1.4; }
-                  .prose p { color: ${theme.colors.textMain}; margin: 0; line-height: 1.4; }
-                  .prose p:empty { display: none; }
-                  .prose > ul, .prose > ol { color: ${theme.colors.textMain}; margin: 0.5em 0; padding-left: 0.5em; list-style-position: inside; }
-                  .prose li ul, .prose li ol { margin: 0 !important; padding-left: 1em; list-style-position: inside; }
-                  .prose li { margin: 0 !important; padding: 0; line-height: 1.4; display: list-item; }
-                  .prose li > p:first-child { margin: 0 !important; display: contents !important; }
-                  .prose li > p:first-child + ul, .prose li > p:first-child + ol { display: block; margin-top: 0 !important; }
-                  .prose li > p + ul, .prose li > p + ol { margin-top: 0 !important; }
-                  .prose li:has(> input[type="checkbox"]) { list-style: none; margin-left: -1.5em; }
-                  .prose code { background-color: ${theme.colors.bgSidebar}; color: ${theme.colors.textMain}; padding: 0.15em 0.3em; border-radius: 3px; font-size: 0.9em; }
-                  .prose pre { background-color: ${theme.colors.bgSidebar}; color: ${theme.colors.textMain}; padding: 0.5em; border-radius: 6px; overflow-x: auto; margin: 0.5em 0; }
-                  .prose pre code { background: none; padding: 0; }
-                  .prose blockquote { border-left: 3px solid ${theme.colors.border}; padding-left: 0.75em; margin: 0; color: ${theme.colors.textDim}; }
-                  .prose a { color: ${theme.colors.accent}; text-decoration: underline; }
-                  .prose hr { border: none; border-top: 1px solid ${theme.colors.border}; margin: 0.75em 0; }
-                  .prose table { border-collapse: collapse; width: 100%; margin: 0.5em 0; }
-                  .prose th, .prose td { border: 1px solid ${theme.colors.border}; padding: 0.25em 0.5em; text-align: left; }
-                  .prose th { background-color: ${theme.colors.bgSidebar}; font-weight: bold; }
-                  .prose strong { font-weight: bold; }
-                  .prose em { font-style: italic; }
-                `}</style>
                 <ReactMarkdown
                   remarkPlugins={[remarkGfm]}
                   components={{
@@ -1626,6 +1536,39 @@ export const TerminalOutput = forwardRef<HTMLDivElement, TerminalOutputProps>((p
   const isTerminal = session.inputMode === 'terminal';
   const isAIMode = session.inputMode === 'ai';
 
+  // Memoized prose styles - applied once at container level instead of per-log-item
+  const proseStyles = useMemo(() => `
+    .prose { line-height: 1.4; overflow: visible; }
+    .prose > *:first-child { margin-top: 0; }
+    .prose > *:last-child { margin-bottom: 0; }
+    .prose h1 { color: ${theme.colors.accent}; font-size: 2em; font-weight: bold; margin: 0; line-height: 1.4; }
+    .prose h2 { color: ${theme.colors.success}; font-size: 1.75em; font-weight: bold; margin: 0; line-height: 1.4; }
+    .prose h3 { color: ${theme.colors.warning}; font-size: 1.5em; font-weight: bold; margin: 0; line-height: 1.4; }
+    .prose h4 { color: ${theme.colors.textMain}; font-size: 1.35em; font-weight: bold; margin: 0; line-height: 1.4; }
+    .prose h5 { color: ${theme.colors.textMain}; font-size: 1.2em; font-weight: bold; margin: 0; line-height: 1.4; }
+    .prose h6 { color: ${theme.colors.textDim}; font-size: 1.1em; font-weight: bold; margin: 0; line-height: 1.4; }
+    .prose p { color: ${theme.colors.textMain}; margin: 0; line-height: 1.4; }
+    .prose p:empty { display: none; }
+    .prose > ul, .prose > ol { color: ${theme.colors.textMain}; margin: 0.5em 0; padding-left: 0.5em; list-style-position: inside; }
+    .prose li ul, .prose li ol { margin: 0 !important; padding-left: 1em; list-style-position: inside; }
+    .prose li { margin: 0 !important; padding: 0; line-height: 1.4; display: list-item; }
+    .prose li > p:first-child { margin: 0 !important; display: contents !important; }
+    .prose li > p:first-child + ul, .prose li > p:first-child + ol { display: block; margin-top: 0 !important; }
+    .prose li > p + ul, .prose li > p + ol { margin-top: 0 !important; }
+    .prose li:has(> input[type="checkbox"]) { list-style: none; margin-left: -1.5em; }
+    .prose code { background-color: ${theme.colors.bgSidebar}; color: ${theme.colors.textMain}; padding: 0.15em 0.3em; border-radius: 3px; font-size: 0.9em; }
+    .prose pre { background-color: ${theme.colors.bgSidebar}; color: ${theme.colors.textMain}; padding: 0.5em; border-radius: 6px; overflow-x: auto; margin: 0.5em 0; }
+    .prose pre code { background: none; padding: 0; }
+    .prose blockquote { border-left: 3px solid ${theme.colors.border}; padding-left: 0.75em; margin: 0; color: ${theme.colors.textDim}; }
+    .prose a { color: ${theme.colors.accent}; text-decoration: underline; }
+    .prose hr { border: none; border-top: 1px solid ${theme.colors.border}; margin: 0.75em 0; }
+    .prose table { border-collapse: collapse; width: 100%; margin: 0.5em 0; }
+    .prose th, .prose td { border: 1px solid ${theme.colors.border}; padding: 0.25em 0.5em; text-align: left; }
+    .prose th { background-color: ${theme.colors.bgSidebar}; font-weight: bold; }
+    .prose strong { font-weight: bold; }
+    .prose em { font-style: italic; }
+  `, [theme.colors]);
+
   return (
     <div
       ref={terminalOutputRef}
@@ -1706,6 +1649,8 @@ export const TerminalOutput = forwardRef<HTMLDivElement, TerminalOutputProps>((p
           />
         </div>
       )}
+      {/* Prose styles for markdown rendering - injected once at container level for performance */}
+      <style>{proseStyles}</style>
       {/* Native scroll log list */}
       <div
         ref={scrollContainerRef}

@@ -6341,6 +6341,12 @@ export default function MaestroConsole() {
         theme={theme}
         initialValue={inputValue}
         onSubmit={(value) => setInputValue(value)}
+        onSend={(value) => {
+          // Set the input value and trigger send
+          setInputValue(value);
+          // Use setTimeout to ensure state updates before processing
+          setTimeout(() => processInput(value), 0);
+        }}
         sessionName={activeSession?.name}
       />
 

@@ -337,6 +337,7 @@ ${docList}
         // Loop mode
         loopEnabled,
         loopIteration: 0,
+        maxLoops,
         // Folder path for file operations
         folderPath,
         // Worktree tracking
@@ -615,11 +616,22 @@ ${docList}
       // Continue looping
       loopIteration++;
       console.log(`[BatchProcessor] Starting loop iteration ${loopIteration + 1}`);
+
+      // Re-scan all documents to get fresh task counts (tasks may have been added/removed)
+      let newTotalTasks = 0;
+      for (const doc of documents) {
+        const { taskCount } = await readDocAndCountTasks(folderPath, doc.filename);
+        newTotalTasks += taskCount;
+      }
+      console.log(`[BatchProcessor] Loop ${loopIteration + 1}: ${newTotalTasks} tasks across all documents`);
+
       setBatchRunStates(prev => ({
         ...prev,
         [sessionId]: {
           ...prev[sessionId],
-          loopIteration
+          loopIteration,
+          totalTasksAcrossAllDocs: newTotalTasks + prev[sessionId].completedTasksAcrossAllDocs,
+          totalTasks: newTotalTasks + prev[sessionId].completedTasks
         }
       }));
     }

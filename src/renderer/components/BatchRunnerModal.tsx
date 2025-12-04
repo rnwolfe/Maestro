@@ -1276,7 +1276,7 @@ export function BatchRunnerModal(props: BatchRunnerModalProps) {
                         }}
                         title="Loop forever until all tasks complete"
                       >
-                        ∞
+                        <span className="text-xl leading-none">∞</span>
                       </button>
                       {/* Max Toggle */}
                       <button
@@ -1306,12 +1306,12 @@ export function BatchRunnerModal(props: BatchRunnerModalProps) {
                       <input
                         type="range"
                         min="1"
-                        max="50"
+                        max="25"
                         value={maxLoops ?? 5}
                         onChange={(e) => setMaxLoops(parseInt(e.target.value))}
-                        className="w-20 h-1 rounded-lg appearance-none cursor-pointer"
+                        className="w-32 h-1 rounded-lg appearance-none cursor-pointer"
                         style={{
-                          background: `linear-gradient(to right, ${theme.colors.accent} 0%, ${theme.colors.accent} ${((maxLoops ?? 5) / 50) * 100}%, ${theme.colors.border} ${((maxLoops ?? 5) / 50) * 100}%, ${theme.colors.border} 100%)`
+                          background: `linear-gradient(to right, ${theme.colors.accent} 0%, ${theme.colors.accent} ${((maxLoops ?? 5) / 25) * 100}%, ${theme.colors.border} ${((maxLoops ?? 5) / 25) * 100}%, ${theme.colors.border} 100%)`
                         }}
                       />
                       <span

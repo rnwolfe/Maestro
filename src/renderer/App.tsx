@@ -280,6 +280,7 @@ export default function MaestroConsole() {
 
   // Auto Run document management state
   const [autoRunDocumentList, setAutoRunDocumentList] = useState<string[]>([]);
+  const [autoRunDocumentTree, setAutoRunDocumentTree] = useState<Array<{ name: string; type: 'file' | 'folder'; path: string; children?: unknown[] }>>([]);
   const [autoRunContent, setAutoRunContent] = useState<string>('');
   const [autoRunIsLoadingDocuments, setAutoRunIsLoadingDocuments] = useState(false);
 
@@ -2456,6 +2457,7 @@ export default function MaestroConsole() {
     const result = await window.maestro.autorun.listDocs(folderPath);
     if (result.success) {
       setAutoRunDocumentList(result.files || []);
+      setAutoRunDocumentTree((result.tree as Array<{ name: string; type: 'file' | 'folder'; path: string; children?: unknown[] }>) || []);
       // Auto-select first document if available
       const firstFile = result.files?.[0] || null;
       setSessions(prev => prev.map(s =>
@@ -3470,6 +3472,7 @@ export default function MaestroConsole() {
     const loadAutoRunData = async () => {
       if (!activeSession?.autoRunFolderPath) {
         setAutoRunDocumentList([]);
+        setAutoRunDocumentTree([]);
         setAutoRunContent('');
         return;
       }
@@ -3479,6 +3482,7 @@ export default function MaestroConsole() {
       const listResult = await window.maestro.autorun.listDocs(activeSession.autoRunFolderPath);
       if (listResult.success) {
         setAutoRunDocumentList(listResult.files || []);
+        setAutoRunDocumentTree((listResult.tree as Array<{ name: string; type: 'file' | 'folder'; path: string; children?: unknown[] }>) || []);
       }
       setAutoRunIsLoadingDocuments(false);
 
@@ -6517,6 +6521,7 @@ export default function MaestroConsole() {
             setSessions={setSessions}
             onAutoRefreshChange={handleAutoRefreshChange}
             autoRunDocumentList={autoRunDocumentList}
+            autoRunDocumentTree={autoRunDocumentTree}
             autoRunContent={autoRunContent}
             autoRunIsLoadingDocuments={autoRunIsLoadingDocuments}
             onAutoRunContentChange={handleAutoRunContentChange}

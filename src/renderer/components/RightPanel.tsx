@@ -55,6 +55,7 @@ interface RightPanelProps {
 
   // Auto Run handlers
   autoRunDocumentList: string[];        // List of document filenames (without .md)
+  autoRunDocumentTree?: Array<{ name: string; type: 'file' | 'folder'; path: string; children?: unknown[] }>;  // Tree structure for subfolders
   autoRunContent: string;               // Content of currently selected document
   autoRunIsLoadingDocuments: boolean;   // Loading state
   onAutoRunContentChange: (content: string) => void;
@@ -87,7 +88,7 @@ export const RightPanel = forwardRef<RightPanelHandle, RightPanelProps>(function
     filteredFileTree, selectedFileIndex, setSelectedFileIndex, previewFile, fileTreeContainerRef,
     fileTreeFilterInputRef, toggleFolder, handleFileClick, expandAllFolders, collapseAllFolders,
     updateSessionWorkingDirectory, refreshFileTree, setSessions, onAutoRefreshChange,
-    autoRunDocumentList, autoRunContent, autoRunIsLoadingDocuments,
+    autoRunDocumentList, autoRunDocumentTree, autoRunContent, autoRunIsLoadingDocuments,
     onAutoRunContentChange, onAutoRunModeChange, onAutoRunStateChange,
     onAutoRunSelectDocument, onAutoRunCreateDocument, onAutoRunRefresh, onAutoRunOpenSetup,
     batchRunState, onOpenBatchRunner, onStopBatchRun, onJumpToClaudeSession, onResumeSession,
@@ -249,6 +250,7 @@ export const RightPanel = forwardRef<RightPanelHandle, RightPanelProps>(function
             folderPath={session.autoRunFolderPath || null}
             selectedFile={session.autoRunSelectedFile || null}
             documentList={autoRunDocumentList}
+            documentTree={autoRunDocumentTree}
             content={autoRunContent}
             onContentChange={onAutoRunContentChange}
             mode={session.autoRunMode || 'edit'}
@@ -298,30 +300,36 @@ export const RightPanel = forwardRef<RightPanelHandle, RightPanelProps>(function
             </div>
           </div>
 
-          {/* Document progress - only show if we have multiple documents */}
+          {/* Document progress with inline progress bar - only for multi-document runs */}
           {batchRunState.documents && batchRunState.documents.length > 1 && (
             <div className="mb-2">
-              <span className="text-xs font-bold" style={{ color: theme.colors.textMain }}>
-                Document {batchRunState.currentDocumentIndex + 1} of {batchRunState.documents.length}:
-                {' '}{batchRunState.documents[batchRunState.currentDocumentIndex]}
-              </span>
+              {/* Document name with progress bar */}
+              <div className="flex items-center gap-2">
+                <span
+                  className="text-xs font-medium shrink-0"
+                  style={{ color: theme.colors.textMain }}
+                >
+                  Document {batchRunState.currentDocumentIndex + 1}/{batchRunState.documents.length}: {batchRunState.documents[batchRunState.currentDocumentIndex]}
+                </span>
+                <div
+                  className="flex-1 h-1 rounded-full overflow-hidden"
+                  style={{ backgroundColor: theme.colors.border }}
+                >
+                  <div
+                    className="h-full transition-all duration-300 ease-out"
+                    style={{
+                      width: `${
+                        batchRunState.currentDocTasksTotal > 0
+                          ? (batchRunState.currentDocTasksCompleted / batchRunState.currentDocTasksTotal) * 100
+                          : 0
+                      }%`,
+                      backgroundColor: theme.colors.accent
+                    }}
+                  />
+                </div>
+              </div>
             </div>
           )}
-
-          {/* Task progress within current document */}
-          <div className="text-xs mb-2" style={{ color: theme.colors.textDim }}>
-            {batchRunState.documents && batchRunState.documents.length > 0 ? (
-              <>
-                Task {batchRunState.currentDocTasksCompleted + 1} of {batchRunState.currentDocTasksTotal}
-                {batchRunState.documents.length === 1 && batchRunState.documents[0] && (
-                  <span> in {batchRunState.documents[0]}</span>
-                )}
-              </>
-            ) : (
-              // Fallback to legacy fields if new fields not populated
-              `Task ${batchRunState.currentTaskIndex + 1} of ${batchRunState.totalTasks}`
-            )}
-          </div>
 
           {/* Overall progress bar */}
           <div
@@ -343,14 +351,25 @@ export const RightPanel = forwardRef<RightPanelHandle, RightPanelProps>(function
             />
           </div>
 
-          {/* Overall completed count */}
-          <div className="mt-2 text-[10px]" style={{ color: theme.colors.textDim }}>
-            {batchRunState.isStopping
-              ? 'Waiting for current task to complete before stopping...'
-              : batchRunState.totalTasksAcrossAllDocs > 0
-                ? `${batchRunState.completedTasksAcrossAllDocs} / ${batchRunState.totalTasksAcrossAllDocs} total tasks completed`
-                : `${batchRunState.completedTasks} / ${batchRunState.totalTasks} tasks completed`
-            }
+          {/* Overall completed count with loop info */}
+          <div className="mt-2 flex items-center justify-between">
+            <span className="text-[10px]" style={{ color: theme.colors.textDim }}>
+              {batchRunState.isStopping
+                ? 'Waiting for current task to complete before stopping...'
+                : batchRunState.totalTasksAcrossAllDocs > 0
+                  ? `${batchRunState.completedTasksAcrossAllDocs} / ${batchRunState.totalTasksAcrossAllDocs} total tasks completed`
+                  : `${batchRunState.completedTasks} / ${batchRunState.totalTasks} tasks completed`
+              }
+            </span>
+            {/* Loop iteration indicator */}
+            {batchRunState.loopEnabled && (
+              <span
+                className="text-[10px] px-1.5 py-0.5 rounded"
+                style={{ backgroundColor: theme.colors.accent + '20', color: theme.colors.accent }}
+              >
+                Loop {batchRunState.loopIteration + 1} of {batchRunState.maxLoops ?? '∞'}
+              </span>
+            )}
           </div>
         </div>
       )}

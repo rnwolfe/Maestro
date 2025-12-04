@@ -3529,61 +3529,110 @@ function setupIpcHandlers() {
   // Auto Run IPC Handlers
   // ============================================
 
-  // List markdown files in a directory for Auto Run
+  // List markdown files in a directory for Auto Run (with recursive subfolder support)
   ipcMain.handle('autorun:listDocs', async (_event, folderPath: string) => {
     try {
       // Validate the folder path exists
       const folderStat = await fs.stat(folderPath);
       if (!folderStat.isDirectory()) {
-        return { success: false, files: [], error: 'Path is not a directory' };
+        return { success: false, files: [], tree: [], error: 'Path is not a directory' };
       }
 
-      // Read directory contents
-      const entries = await fs.readdir(folderPath, { withFileTypes: true });
+      // Recursive function to build tree structure
+      interface TreeNode {
+        name: string;
+        type: 'file' | 'folder';
+        path: string;  // Relative path from root folder
+        children?: TreeNode[];
+      }
 
-      // Filter for .md files only, excluding hidden files
-      const mdFiles = entries
-        .filter((entry) => {
-          if (!entry.isFile()) return false;
-          if (entry.name.startsWith('.')) return false;
-          return entry.name.toLowerCase().endsWith('.md');
-        })
-        .map((entry) => {
-          // Return filename without .md extension
-          return entry.name.slice(0, -3);
-        })
-        .sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase()));
+      const scanDirectory = async (dirPath: string, relativePath: string = ''): Promise<TreeNode[]> => {
+        const entries = await fs.readdir(dirPath, { withFileTypes: true });
+        const nodes: TreeNode[] = [];
 
-      logger.info(`Listed ${mdFiles.length} markdown files in ${folderPath}`, 'AutoRun');
-      return { success: true, files: mdFiles };
+        // Sort entries: folders first, then files, both alphabetically
+        const sortedEntries = entries
+          .filter(entry => !entry.name.startsWith('.'))
+          .sort((a, b) => {
+            if (a.isDirectory() && !b.isDirectory()) return -1;
+            if (!a.isDirectory() && b.isDirectory()) return 1;
+            return a.name.toLowerCase().localeCompare(b.name.toLowerCase());
+          });
+
+        for (const entry of sortedEntries) {
+          const entryRelativePath = relativePath ? `${relativePath}/${entry.name}` : entry.name;
+
+          if (entry.isDirectory()) {
+            // Recursively scan subdirectory
+            const children = await scanDirectory(path.join(dirPath, entry.name), entryRelativePath);
+            // Only include folders that contain .md files (directly or in subfolders)
+            if (children.length > 0) {
+              nodes.push({
+                name: entry.name,
+                type: 'folder',
+                path: entryRelativePath,
+                children
+              });
+            }
+          } else if (entry.isFile() && entry.name.toLowerCase().endsWith('.md')) {
+            // Add .md file (without extension in name, but keep in path)
+            nodes.push({
+              name: entry.name.slice(0, -3),
+              type: 'file',
+              path: entryRelativePath.slice(0, -3)  // Remove .md from path too
+            });
+          }
+        }
+
+        return nodes;
+      };
+
+      const tree = await scanDirectory(folderPath);
+
+      // Also build flat list for backwards compatibility
+      const flattenTree = (nodes: TreeNode[]): string[] => {
+        const files: string[] = [];
+        for (const node of nodes) {
+          if (node.type === 'file') {
+            files.push(node.path);
+          } else if (node.children) {
+            files.push(...flattenTree(node.children));
+          }
+        }
+        return files;
+      };
+
+      const files = flattenTree(tree);
+
+      logger.info(`Listed ${files.length} markdown files in ${folderPath} (with subfolders)`, 'AutoRun');
+      return { success: true, files, tree };
     } catch (error) {
       logger.error('Error listing Auto Run docs', 'AutoRun', error);
-      return { success: false, files: [], error: String(error) };
+      return { success: false, files: [], tree: [], error: String(error) };
     }
   });
 
-  // Read a markdown document for Auto Run
+  // Read a markdown document for Auto Run (supports subdirectories)
   ipcMain.handle(
     'autorun:readDoc',
     async (_event, folderPath: string, filename: string) => {
       try {
-        // Sanitize filename to prevent directory traversal
-        const sanitizedFilename = path.basename(filename);
-        if (sanitizedFilename !== filename || filename.includes('..')) {
+        // Reject obvious traversal attempts
+        if (filename.includes('..')) {
           return { success: false, content: '', error: 'Invalid filename' };
         }
 
         // Ensure filename has .md extension
-        const fullFilename = sanitizedFilename.endsWith('.md')
-          ? sanitizedFilename
-          : `${sanitizedFilename}.md`;
+        const fullFilename = filename.endsWith('.md')
+          ? filename
+          : `${filename}.md`;
 
         const filePath = path.join(folderPath, fullFilename);
 
         // Validate the file is within the folder path (prevent traversal)
         const resolvedPath = path.resolve(filePath);
         const resolvedFolder = path.resolve(folderPath);
-        if (!resolvedPath.startsWith(resolvedFolder)) {
+        if (!resolvedPath.startsWith(resolvedFolder + path.sep) && resolvedPath !== resolvedFolder) {
           return { success: false, content: '', error: 'Invalid file path' };
         }
 
@@ -3606,36 +3655,42 @@ function setupIpcHandlers() {
     }
   );
 
-  // Write a markdown document for Auto Run
+  // Write a markdown document for Auto Run (supports subdirectories)
   ipcMain.handle(
     'autorun:writeDoc',
     async (_event, folderPath: string, filename: string, content: string) => {
       try {
-        // Sanitize filename to prevent directory traversal
-        const sanitizedFilename = path.basename(filename);
-        if (sanitizedFilename !== filename || filename.includes('..')) {
+        // Reject obvious traversal attempts
+        if (filename.includes('..')) {
           return { success: false, error: 'Invalid filename' };
         }
 
         // Ensure filename has .md extension
-        const fullFilename = sanitizedFilename.endsWith('.md')
-          ? sanitizedFilename
-          : `${sanitizedFilename}.md`;
+        const fullFilename = filename.endsWith('.md')
+          ? filename
+          : `${filename}.md`;
 
         const filePath = path.join(folderPath, fullFilename);
 
         // Validate the file is within the folder path (prevent traversal)
         const resolvedPath = path.resolve(filePath);
         const resolvedFolder = path.resolve(folderPath);
-        if (!resolvedPath.startsWith(resolvedFolder)) {
+        if (!resolvedPath.startsWith(resolvedFolder + path.sep) && resolvedPath !== resolvedFolder) {
           return { success: false, error: 'Invalid file path' };
         }
 
-        // Ensure the folder exists
+        // Ensure the parent directory exists (create if needed for subdirectories)
+        const parentDir = path.dirname(filePath);
         try {
-          await fs.access(folderPath);
+          await fs.access(parentDir);
         } catch {
-          return { success: false, error: 'Folder does not exist' };
+          // Parent dir doesn't exist - create it if it's within folderPath
+          const resolvedParent = path.resolve(parentDir);
+          if (resolvedParent.startsWith(resolvedFolder)) {
+            await fs.mkdir(parentDir, { recursive: true });
+          } else {
+            return { success: false, error: 'Invalid parent directory' };
+          }
         }
 
         // Write the file

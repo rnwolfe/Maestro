@@ -139,6 +139,7 @@ export interface BatchRunState {
   // Loop mode
   loopEnabled: boolean;
   loopIteration: number;  // How many times we've looped (0 = first pass)
+  maxLoops?: number | null;  // Max loop iterations (null/undefined = infinite)
 
   // Folder path for file operations
   folderPath: string;

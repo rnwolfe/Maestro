@@ -20,6 +20,7 @@ interface AutoRunProps {
   folderPath: string | null;
   selectedFile: string | null;
   documentList: string[];  // Filenames without .md
+  documentTree?: Array<{ name: string; type: 'file' | 'folder'; path: string; children?: unknown[] }>;  // Tree structure for subfolders
 
   // Content state
   content: string;
@@ -350,6 +351,7 @@ function AutoRunInner({
   folderPath,
   selectedFile,
   documentList,
+  documentTree,
   content,
   onContentChange,
   mode: externalMode,
@@ -1579,6 +1581,7 @@ function AutoRunInner({
           <AutoRunDocumentSelector
             theme={theme}
             documents={documentList}
+            documentTree={documentTree as import('./AutoRunDocumentSelector').DocTreeNode[] | undefined}
             selectedDocument={selectedFile}
             onSelectDocument={onSelectDocument}
             onRefresh={onRefresh}

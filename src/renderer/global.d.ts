@@ -358,7 +358,22 @@ interface MaestroAPI {
   };
   // Auto Run file operations
   autorun: {
-    listDocs: (folderPath: string) => Promise<{ success: boolean; files: string[]; error?: string }>;
+    listDocs: (folderPath: string) => Promise<{
+      success: boolean;
+      files: string[];
+      tree?: Array<{
+        name: string;
+        type: 'file' | 'folder';
+        path: string;
+        children?: Array<{
+          name: string;
+          type: 'file' | 'folder';
+          path: string;
+          children?: unknown[];  // Recursive type
+        }>;
+      }>;
+      error?: string;
+    }>;
     readDoc: (folderPath: string, filename: string) => Promise<{ success: boolean; content?: string; error?: string }>;
     writeDoc: (folderPath: string, filename: string, content: string) => Promise<{ success: boolean; error?: string }>;
     saveImage: (folderPath: string, docName: string, base64Data: string, extension: string) => Promise<{ success: boolean; relativePath?: string; error?: string }>;

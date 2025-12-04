@@ -1107,15 +1107,17 @@ function AutoRunInner({
   const canNavigateLightbox = attachmentsList.length > 1;
 
   const goToPrevImage = useCallback(() => {
-    if (canNavigateLightbox && lightboxCurrentIndex > 0) {
-      setLightboxFilename(attachmentsList[lightboxCurrentIndex - 1]);
+    if (canNavigateLightbox) {
+      const newIndex = lightboxCurrentIndex > 0 ? lightboxCurrentIndex - 1 : attachmentsList.length - 1;
+      setLightboxFilename(attachmentsList[newIndex]);
       setLightboxCopied(false);
     }
   }, [canNavigateLightbox, lightboxCurrentIndex, attachmentsList]);
 
   const goToNextImage = useCallback(() => {
-    if (canNavigateLightbox && lightboxCurrentIndex < attachmentsList.length - 1) {
-      setLightboxFilename(attachmentsList[lightboxCurrentIndex + 1]);
+    if (canNavigateLightbox) {
+      const newIndex = lightboxCurrentIndex < attachmentsList.length - 1 ? lightboxCurrentIndex + 1 : 0;
+      setLightboxFilename(attachmentsList[newIndex]);
       setLightboxCopied(false);
     }
   }, [canNavigateLightbox, lightboxCurrentIndex, attachmentsList]);
@@ -1846,7 +1848,7 @@ function AutoRunInner({
           ref={(el) => el?.focus()}
         >
           {/* Previous button - only for attachments carousel */}
-          {!lightboxExternalUrl && canNavigateLightbox && lightboxCurrentIndex > 0 && (
+          {!lightboxExternalUrl && canNavigateLightbox && (
             <button
               onClick={(e) => { e.stopPropagation(); goToPrevImage(); }}
               className="absolute left-4 top-1/2 -translate-y-1/2 bg-white/10 hover:bg-white/20 text-white rounded-full p-3 backdrop-blur-sm transition-colors"
@@ -1898,7 +1900,7 @@ function AutoRunInner({
           </div>
 
           {/* Next button - only for attachments carousel */}
-          {!lightboxExternalUrl && canNavigateLightbox && lightboxCurrentIndex < attachmentsList.length - 1 && (
+          {!lightboxExternalUrl && canNavigateLightbox && (
             <button
               onClick={(e) => { e.stopPropagation(); goToNextImage(); }}
               className="absolute right-4 top-1/2 -translate-y-1/2 bg-white/10 hover:bg-white/20 text-white rounded-full p-3 backdrop-blur-sm transition-colors"

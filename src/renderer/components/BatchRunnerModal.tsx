@@ -743,14 +743,14 @@ export function BatchRunnerModal(props: BatchRunnerModalProps) {
         // Add to local playbooks list
         setPlaybooks(prev => [...prev, result.playbook]);
         // Load the imported playbook
-        loadPlaybook(result.playbook);
+        handleLoadPlaybook(result.playbook);
       } else if (result.error && result.error !== 'Import cancelled') {
         console.error('Failed to import playbook:', result.error);
       }
     } catch (error) {
       console.error('Failed to import playbook:', error);
     }
-  }, [sessionId, folderPath, loadPlaybook]);
+  }, [sessionId, folderPath, handleLoadPlaybook]);
 
   // Handle saving a new playbook
   const handleSaveAsPlaybook = useCallback(async (name: string) => {

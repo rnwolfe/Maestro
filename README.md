@@ -369,37 +369,47 @@ sudo ln -sf "/opt/Maestro/resources/maestro-playbook" /usr/local/bin/maestro-pla
 # List all groups
 maestro-playbook list groups
 
-# List all agents/sessions
+# List all agents
 maestro-playbook list agents
 maestro-playbook list agents --group <group-id>
 
-# List playbooks for a session
-maestro-playbook list playbooks --session <session-id>
+# List playbooks for an agent
+maestro-playbook list playbooks --agent <agent-id>
 
-# Run a playbook (streams JSONL to stdout)
-maestro-playbook run --session <session-id> --playbook <playbook-id>
+# Run a playbook
+maestro-playbook run --agent <agent-id> --playbook <playbook-id>
 
 # Dry run (shows what would be executed)
-maestro-playbook run --session <session-id> --playbook <playbook-id> --dry-run
+maestro-playbook run --agent <agent-id> --playbook <playbook-id> --dry-run
 
 # Run without writing to history
-maestro-playbook run --session <session-id> --playbook <playbook-id> --no-history
+maestro-playbook run --agent <agent-id> --playbook <playbook-id> --no-history
 ```
 
-### JSONL Output
+### JSON Output
 
-All commands output JSONL (JSON Lines) format for easy parsing:
+By default, commands output human-readable formatted text. Use `--json` for machine-parseable JSONL output:
 
 ```bash
-# List groups
+# Human-readable output (default)
 maestro-playbook list groups
-{"type":"group","id":"abc123","name":"Frontend","emoji":"...","timestamp":...}
+GROUPS (2)
 
-# Running a playbook streams events
-maestro-playbook run -s <session> -p <playbook>
-{"type":"start","timestamp":...,"playbook":{...},"session":{...}}
+  🎨  Frontend
+      group-abc123
+  ⚙️  Backend
+      group-def456
+
+# JSON output for scripting
+maestro-playbook list groups --json
+{"type":"group","id":"group-abc123","name":"Frontend","emoji":"🎨","timestamp":...}
+{"type":"group","id":"group-def456","name":"Backend","emoji":"⚙️","timestamp":...}
+
+# Running a playbook with JSON streams events
+maestro-playbook run -a <agent-id> -p <playbook-id> --json
+{"type":"start","timestamp":...,"playbook":{...}}
 {"type":"document_start","timestamp":...,"document":"tasks.md","taskCount":5}
-{"type":"task_start","timestamp":...,"document":"tasks.md","taskIndex":0}
+{"type":"task_start","timestamp":...,"taskIndex":0}
 {"type":"task_complete","timestamp":...,"success":true,"summary":"...","elapsedMs":8000}
 {"type":"document_complete","timestamp":...,"tasksCompleted":5}
 {"type":"complete","timestamp":...,"totalTasksCompleted":5,"totalElapsedMs":60000}
@@ -408,8 +418,8 @@ maestro-playbook run -s <session> -p <playbook>
 ### Scheduling with Cron
 
 ```bash
-# Run a playbook every hour
-0 * * * * /usr/local/bin/maestro-playbook run -s <session-id> -p <playbook-id> >> /var/log/maestro.jsonl 2>&1
+# Run a playbook every hour (use --json for log parsing)
+0 * * * * /usr/local/bin/maestro-playbook run -a <agent-id> -p <playbook-id> --json >> /var/log/maestro.jsonl 2>&1
 ```
 
 ### Requirements

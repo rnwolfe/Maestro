@@ -21,28 +21,32 @@ const list = program.command('list').description('List resources');
 list
   .command('groups')
   .description('List all session groups')
+  .option('--json', 'Output as JSON lines (for scripting)')
   .action(listGroups);
 
 list
   .command('agents')
-  .description('List all agents/sessions')
+  .description('List all agents')
   .option('-g, --group <id>', 'Filter by group ID')
+  .option('--json', 'Output as JSON lines (for scripting)')
   .action(listAgents);
 
 list
   .command('playbooks')
-  .description('List playbooks for a session')
-  .requiredOption('-s, --session <id>', 'Session ID')
+  .description('List playbooks (optionally filter by agent)')
+  .option('-a, --agent <id>', 'Agent ID (shows all if not specified)')
+  .option('--json', 'Output as JSON lines (for scripting)')
   .action(listPlaybooks);
 
 // Run command
 program
   .command('run')
   .description('Run a playbook')
-  .requiredOption('-s, --session <id>', 'Session ID')
+  .requiredOption('-a, --agent <id>', 'Agent ID')
   .requiredOption('-p, --playbook <id>', 'Playbook ID')
   .option('--dry-run', 'Show what would be executed without running')
   .option('--no-history', 'Do not write history entries')
+  .option('--json', 'Output as JSON lines (for scripting)')
   .action(runPlaybook);
 
 program.parse();

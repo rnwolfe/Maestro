@@ -101,19 +101,126 @@ export function readSettings(): SettingsStore {
 }
 
 /**
- * Get a session by ID
+ * Resolve a partial ID to a full ID
+ * Returns: { id, ambiguous, matches }
+ * - If exact match found, returns that ID
+ * - If single prefix match found, returns that ID
+ * - If multiple matches, returns ambiguous: true with all matches
+ * - If no match, returns undefined id
  */
-export function getSessionById(sessionId: string): SessionInfo | undefined {
-  const sessions = readSessions();
-  return sessions.find(s => s.id === sessionId);
+export interface IdResolution {
+  id?: string;
+  ambiguous: boolean;
+  matches: string[];
+}
+
+function resolveId(partialId: string, allIds: string[]): IdResolution {
+  // First try exact match
+  if (allIds.includes(partialId)) {
+    return { id: partialId, ambiguous: false, matches: [partialId] };
+  }
+
+  // Try prefix match
+  const matches = allIds.filter((id) => id.startsWith(partialId));
+
+  if (matches.length === 1) {
+    return { id: matches[0], ambiguous: false, matches };
+  } else if (matches.length > 1) {
+    return { id: undefined, ambiguous: true, matches };
+  }
+
+  return { id: undefined, ambiguous: false, matches: [] };
 }
 
 /**
- * Get sessions by group ID
+ * Resolve an agent ID (partial or full)
+ * Throws if ambiguous or not found
+ */
+export function resolveAgentId(partialId: string): string {
+  const sessions = readSessions();
+  const allIds = sessions.map((s) => s.id);
+  const resolution = resolveId(partialId, allIds);
+
+  if (resolution.ambiguous) {
+    const matchList = resolution.matches.map((id) => {
+      const session = sessions.find((s) => s.id === id);
+      return `  ${id.slice(0, 8)}  ${session?.name || 'Unknown'}`;
+    }).join('\n');
+    throw new Error(`Ambiguous agent ID '${partialId}'. Matches:\n${matchList}`);
+  }
+
+  if (!resolution.id) {
+    throw new Error(`Agent not found: ${partialId}`);
+  }
+
+  return resolution.id;
+}
+
+/**
+ * Resolve a group ID (partial or full)
+ * Throws if ambiguous or not found
+ */
+export function resolveGroupId(partialId: string): string {
+  const groups = readGroups();
+  const allIds = groups.map((g) => g.id);
+  const resolution = resolveId(partialId, allIds);
+
+  if (resolution.ambiguous) {
+    const matchList = resolution.matches.map((id) => {
+      const group = groups.find((g) => g.id === id);
+      return `  ${id}  ${group?.name || 'Unknown'}`;
+    }).join('\n');
+    throw new Error(`Ambiguous group ID '${partialId}'. Matches:\n${matchList}`);
+  }
+
+  if (!resolution.id) {
+    throw new Error(`Group not found: ${partialId}`);
+  }
+
+  return resolution.id;
+}
+
+/**
+ * Get a session by ID (supports partial IDs)
+ */
+export function getSessionById(sessionId: string): SessionInfo | undefined {
+  const sessions = readSessions();
+
+  // First try exact match
+  const exact = sessions.find((s) => s.id === sessionId);
+  if (exact) return exact;
+
+  // Try prefix match
+  const matches = sessions.filter((s) => s.id.startsWith(sessionId));
+  if (matches.length === 1) {
+    return matches[0];
+  }
+
+  return undefined;
+}
+
+/**
+ * Get sessions by group ID (supports partial IDs)
  */
 export function getSessionsByGroup(groupId: string): SessionInfo[] {
   const sessions = readSessions();
-  return sessions.filter(s => s.groupId === groupId);
+  const groups = readGroups();
+
+  // Resolve group ID
+  const allGroupIds = groups.map((g) => g.id);
+
+  // Exact match first
+  if (allGroupIds.includes(groupId)) {
+    return sessions.filter((s) => s.groupId === groupId);
+  }
+
+  // Prefix match
+  const matches = allGroupIds.filter((id) => id.startsWith(groupId));
+  if (matches.length === 1) {
+    return sessions.filter((s) => s.groupId === matches[0]);
+  }
+
+  return [];
 }
 
 /**

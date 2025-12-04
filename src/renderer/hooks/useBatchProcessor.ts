@@ -420,10 +420,29 @@ ${docList}
         const docFilePath = `${folderPath}/${docEntry.filename}.md`;
 
         // Read document and count tasks
-        let { taskCount: remainingTasks } = await readDocAndCountTasks(folderPath, docEntry.filename);
+        let { taskCount: remainingTasks, content: docContent } = await readDocAndCountTasks(folderPath, docEntry.filename);
 
-        // Skip documents with no tasks
+        // Handle documents with no unchecked tasks
         if (remainingTasks === 0) {
+          // For reset-on-completion documents, check if there are checked tasks that need resetting
+          if (docEntry.resetOnCompletion && loopEnabled) {
+            const checkedTaskCount = (docContent.match(/^[\s]*-\s*\[x\]/gim) || []).length;
+            if (checkedTaskCount > 0) {
+              console.log(`[BatchProcessor] Document ${docEntry.filename} has ${checkedTaskCount} checked tasks - resetting for next iteration`);
+              const resetContent = uncheckAllTasks(docContent);
+              await window.maestro.autorun.writeDoc(folderPath, docEntry.filename + '.md', resetContent);
+              // Update task count in state
+              const resetTaskCount = countUnfinishedTasks(resetContent);
+              setBatchRunStates(prev => ({
+                ...prev,
+                [sessionId]: {
+                  ...prev[sessionId],
+                  totalTasksAcrossAllDocs: prev[sessionId].totalTasksAcrossAllDocs + resetTaskCount,
+                  totalTasks: prev[sessionId].totalTasks + resetTaskCount
+                }
+              }));
+            }
+          }
           console.log(`[BatchProcessor] Skipping document ${docEntry.filename} - no unchecked tasks`);
           continue;
         }

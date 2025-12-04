@@ -45,11 +45,53 @@ export function readPlaybooks(sessionId: string): Playbook[] {
 }
 
 /**
- * Get a specific playbook by ID
+ * Get a specific playbook by ID (supports partial IDs)
  */
 export function getPlaybook(sessionId: string, playbookId: string): Playbook | undefined {
   const playbooks = readPlaybooks(sessionId);
-  return playbooks.find(p => p.id === playbookId);
+
+  // First try exact match
+  const exact = playbooks.find((p) => p.id === playbookId);
+  if (exact) return exact;
+
+  // Try prefix match
+  const matches = playbooks.filter((p) => p.id.startsWith(playbookId));
+  if (matches.length === 1) {
+    return matches[0];
+  }
+
+  return undefined;
+}
+
+/**
+ * Resolve a playbook ID (partial or full)
+ * Throws if ambiguous or not found
+ */
+export function resolvePlaybookId(sessionId: string, partialId: string): string {
+  const playbooks = readPlaybooks(sessionId);
+  const allIds = playbooks.map((p) => p.id);
+
+  // First try exact match
+  if (allIds.includes(partialId)) {
+    return partialId;
+  }
+
+  // Try prefix match
+  const matches = allIds.filter((id) => id.startsWith(partialId));
+
+  if (matches.length === 1) {
+    return matches[0];
+  } else if (matches.length > 1) {
+    const matchList = matches
+      .map((id) => {
+        const playbook = playbooks.find((p) => p.id === id);
+        return `  ${id.slice(0, 8)}  ${playbook?.name || 'Unknown'}`;
+      })
+      .join('\n');
+    throw new Error(`Ambiguous playbook ID '${partialId}'. Matches:\n${matchList}`);
+  }
+
+  throw new Error(`Playbook not found: ${partialId}`);
 }
 
 /**

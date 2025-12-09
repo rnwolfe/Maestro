@@ -681,6 +681,9 @@ describe('NewInstanceModal', () => {
         expect(screen.getByPlaceholderText('Select directory...')).toBeInTheDocument();
       });
 
+      const nameInput = screen.getByPlaceholderText('My Project Session');
+      fireEvent.change(nameInput, { target: { value: 'My Session' } });
+
       const dirInput = screen.getByPlaceholderText('Select directory...');
       fireEvent.change(dirInput, { target: { value: '~/projects' } });
 
@@ -689,7 +692,7 @@ describe('NewInstanceModal', () => {
         fireEvent.click(createButton);
       });
 
-      expect(onCreate).toHaveBeenCalledWith('claude-code', '/home/testuser/projects', 'Claude Code');
+      expect(onCreate).toHaveBeenCalledWith('claude-code', '/home/testuser/projects', 'My Session');
     });
 
     it('should expand lone tilde to home directory', async () => {
@@ -712,6 +715,9 @@ describe('NewInstanceModal', () => {
         expect(screen.getByPlaceholderText('Select directory...')).toBeInTheDocument();
       });
 
+      const nameInput = screen.getByPlaceholderText('My Project Session');
+      fireEvent.change(nameInput, { target: { value: 'Home Session' } });
+
       const dirInput = screen.getByPlaceholderText('Select directory...');
       fireEvent.change(dirInput, { target: { value: '~' } });
 
@@ -720,7 +726,7 @@ describe('NewInstanceModal', () => {
         fireEvent.click(createButton);
       });
 
-      expect(onCreate).toHaveBeenCalledWith('claude-code', '/home/testuser', 'Claude Code');
+      expect(onCreate).toHaveBeenCalledWith('claude-code', '/home/testuser', 'Home Session');
     });
 
     it('should not expand tilde in middle of path', async () => {
@@ -743,6 +749,9 @@ describe('NewInstanceModal', () => {
         expect(screen.getByPlaceholderText('Select directory...')).toBeInTheDocument();
       });
 
+      const nameInput = screen.getByPlaceholderText('My Project Session');
+      fireEvent.change(nameInput, { target: { value: 'Tilde Test' } });
+
       const dirInput = screen.getByPlaceholderText('Select directory...');
       fireEvent.change(dirInput, { target: { value: '/path/with~tilde' } });
 
@@ -751,7 +760,7 @@ describe('NewInstanceModal', () => {
         fireEvent.click(createButton);
       });
 
-      expect(onCreate).toHaveBeenCalledWith('claude-code', '/path/with~tilde', 'Claude Code');
+      expect(onCreate).toHaveBeenCalledWith('claude-code', '/path/with~tilde', 'Tilde Test');
     });
   });
 
@@ -790,7 +799,7 @@ describe('NewInstanceModal', () => {
       expect(onClose).toHaveBeenCalled();
     });
 
-    it('should use agent name as default when no instance name provided', async () => {
+    it('should disable Create button when no instance name provided', async () => {
       vi.mocked(window.maestro.agents.detect).mockResolvedValue([
         createAgentConfig({ id: 'claude-code', name: 'Claude Code', available: true }),
       ]);
@@ -812,12 +821,9 @@ describe('NewInstanceModal', () => {
       const dirInput = screen.getByPlaceholderText('Select directory...');
       fireEvent.change(dirInput, { target: { value: '/my/project' } });
 
+      // Button should be disabled because instance name is not provided
       const createButton = screen.getByText('Create Agent');
-      await act(async () => {
-        fireEvent.click(createButton);
-      });
-
-      expect(onCreate).toHaveBeenCalledWith('claude-code', '/my/project', 'Claude Code');
+      expect(createButton).toBeDisabled();
     });
 
     it('should disable Create button when no working directory', async () => {
@@ -1041,6 +1047,9 @@ describe('NewInstanceModal', () => {
         expect(screen.getByPlaceholderText('Select directory...')).toBeInTheDocument();
       });
 
+      const nameInput = screen.getByPlaceholderText('My Project Session');
+      fireEvent.change(nameInput, { target: { value: 'Test Session' } });
+
       const dirInput = screen.getByPlaceholderText('Select directory...');
       fireEvent.change(dirInput, { target: { value: '/my/project' } });
 
@@ -1070,6 +1079,37 @@ describe('NewInstanceModal', () => {
       await waitFor(() => {
         expect(screen.getByRole('dialog')).toBeInTheDocument();
       });
+
+      const modal = screen.getByRole('dialog');
+      await act(async () => {
+        fireEvent.keyDown(modal, { key: 'Enter', metaKey: true });
+      });
+
+      expect(onCreate).not.toHaveBeenCalled();
+    });
+
+    it('should not create agent on Cmd+Enter when instance name is missing', async () => {
+      vi.mocked(window.maestro.agents.detect).mockResolvedValue([
+        createAgentConfig({ id: 'claude-code', name: 'Claude Code', available: true }),
+      ]);
+
+      render(
+        <NewInstanceModal
+          isOpen={true}
+          onClose={onClose}
+          onCreate={onCreate}
+          theme={theme}
+          defaultAgent="claude-code"
+        />
+      );
+
+      await waitFor(() => {
+        expect(screen.getByPlaceholderText('Select directory...')).toBeInTheDocument();
+      });
+
+      // Only set working directory, not instance name
+      const dirInput = screen.getByPlaceholderText('Select directory...');
+      fireEvent.change(dirInput, { target: { value: '/my/project' } });
 
       const modal = screen.getByRole('dialog');
       await act(async () => {

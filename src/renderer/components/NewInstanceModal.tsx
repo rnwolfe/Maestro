@@ -105,7 +105,8 @@ export function NewInstanceModal({ isOpen, onClose, onCreate, theme, defaultAgen
   }, []);
 
   const handleCreate = React.useCallback(() => {
-    const name = instanceName || agents.find(a => a.id === selectedAgent)?.name || 'New Agent';
+    const name = instanceName.trim();
+    if (!name) return; // Name is required
     // Expand tilde before passing to callback
     const expandedWorkingDir = expandTilde(workingDir.trim());
     onCreate(selectedAgent, expandedWorkingDir, name);
@@ -114,7 +115,7 @@ export function NewInstanceModal({ isOpen, onClose, onCreate, theme, defaultAgen
     // Reset
     setInstanceName('');
     setWorkingDir('');
-  }, [instanceName, agents, selectedAgent, workingDir, onCreate, onClose, expandTilde]);
+  }, [instanceName, selectedAgent, workingDir, onCreate, onClose, expandTilde]);
 
   // Effects
   useEffect(() => {
@@ -182,7 +183,7 @@ export function NewInstanceModal({ isOpen, onClose, onCreate, theme, defaultAgen
         if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
           e.preventDefault();
           e.stopPropagation();
-          if (selectedAgent && agents.find(a => a.id === selectedAgent)?.available && workingDir.trim()) {
+          if (selectedAgent && agents.find(a => a.id === selectedAgent)?.available && workingDir.trim() && instanceName.trim()) {
             handleCreate();
           }
           return;
@@ -210,7 +211,7 @@ export function NewInstanceModal({ isOpen, onClose, onCreate, theme, defaultAgen
           {/* Agent Name */}
           <div>
             <label className="block text-xs font-bold opacity-70 uppercase mb-2" style={{ color: theme.colors.textMain }}>
-              Agent Name (Optional)
+              Agent Name
             </label>
             <input
               ref={nameInputRef}
@@ -419,7 +420,7 @@ export function NewInstanceModal({ isOpen, onClose, onCreate, theme, defaultAgen
           </button>
           <button
             onClick={handleCreate}
-            disabled={!selectedAgent || !agents.find(a => a.id === selectedAgent)?.available || !workingDir.trim()}
+            disabled={!selectedAgent || !agents.find(a => a.id === selectedAgent)?.available || !workingDir.trim() || !instanceName.trim()}
             className="px-4 py-2 rounded disabled:opacity-50 disabled:cursor-not-allowed"
             style={{ backgroundColor: theme.colors.accent, color: theme.colors.accentForeground }}
           >

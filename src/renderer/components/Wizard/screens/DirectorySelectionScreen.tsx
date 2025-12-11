@@ -16,7 +16,6 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import type { Theme, AgentConfig } from '../../../types';
 import { useWizard } from '../WizardContext';
 import { ScreenReaderAnnouncement } from '../ScreenReaderAnnouncement';
-import { ExistingAutoRunDocsModal } from '../ExistingAutoRunDocsModal';
 import { AUTO_RUN_FOLDER_NAME } from '../services/phaseGenerator';
 
 interface DirectorySelectionScreenProps {
@@ -33,7 +32,6 @@ export function DirectorySelectionScreen({ theme }: DirectorySelectionScreenProp
     setIsGitRepo,
     setDirectoryError,
     setHasExistingAutoRunDocs,
-    setExistingDocsChoice,
     nextStep,
     previousStep,
     canProceedToNext,
@@ -44,8 +42,6 @@ export function DirectorySelectionScreen({ theme }: DirectorySelectionScreenProp
   const [isBrowsing, setIsBrowsing] = useState(false);
   const [isDetecting, setIsDetecting] = useState(true);
   const [agentConfig, setAgentConfig] = useState<AgentConfig | null>(null);
-  const [showExistingDocsModal, setShowExistingDocsModal] = useState(false);
-  const [pendingDirectoryPath, setPendingDirectoryPath] = useState<string | null>(null);
 
   // Screen reader announcement state
   const [announcement, setAnnouncement] = useState('');
@@ -235,21 +231,15 @@ export function DirectorySelectionScreen({ theme }: DirectorySelectionScreenProp
   }, [setDirectoryPath, validateDirectory, canProceedToNext, setDirectoryError]);
 
   /**
-   * Attempt to proceed to next step, showing modal if existing docs are found
+   * Attempt to proceed to next step
+   * Note: We no longer show a modal for existing docs - the agent will discover
+   * them during phase generation and make intelligent decisions about whether
+   * to continue, modify, or replace them.
    */
   const attemptNextStep = useCallback(() => {
     if (!canProceedToNext()) return;
-
-    // If existing docs found and user hasn't made a choice yet, show the modal
-    if (state.hasExistingAutoRunDocs && !state.existingDocsChoice) {
-      setPendingDirectoryPath(state.directoryPath);
-      setShowExistingDocsModal(true);
-      return;
-    }
-
-    // Otherwise proceed to next step
     nextStep();
-  }, [canProceedToNext, nextStep, state.hasExistingAutoRunDocs, state.existingDocsChoice, state.directoryPath]);
+  }, [canProceedToNext, nextStep]);
 
   /**
    * Handle keyboard navigation
@@ -278,55 +268,6 @@ export function DirectorySelectionScreen({ theme }: DirectorySelectionScreenProp
       attemptNextStep();
     }
   }, [canProceedToNext, attemptNextStep]);
-
-  /**
-   * Handle user choosing to continue with existing docs
-   */
-  const handleContinuePlanning = useCallback(() => {
-    setExistingDocsChoice('continue');
-    setShowExistingDocsModal(false);
-    setPendingDirectoryPath(null);
-    nextStep();
-  }, [setExistingDocsChoice, nextStep]);
-
-  /**
-   * Handle user choosing to start fresh (delete existing docs)
-   */
-  const handleStartFresh = useCallback(async () => {
-    if (!pendingDirectoryPath) return;
-
-    try {
-      // Delete the Auto Run Docs folder
-      const result = await window.maestro.autorun.deleteFolder(pendingDirectoryPath);
-      if (!result.success) {
-        console.error('Failed to delete Auto Run Docs folder:', result.error);
-        setDirectoryError('Failed to delete existing documents. Please try again.');
-        setShowExistingDocsModal(false);
-        setPendingDirectoryPath(null);
-        return;
-      }
-
-      // Update state to reflect docs are gone
-      setExistingDocsChoice('fresh');
-      setHasExistingAutoRunDocs(false, 0);
-      setShowExistingDocsModal(false);
-      setPendingDirectoryPath(null);
-      nextStep();
-    } catch (error) {
-      console.error('Error deleting Auto Run Docs folder:', error);
-      setDirectoryError('Failed to delete existing documents. Please try again.');
-      setShowExistingDocsModal(false);
-      setPendingDirectoryPath(null);
-    }
-  }, [pendingDirectoryPath, setExistingDocsChoice, setHasExistingAutoRunDocs, setDirectoryError, nextStep]);
-
-  /**
-   * Handle user canceling the existing docs modal
-   */
-  const handleCancelExistingDocsModal = useCallback(() => {
-    setShowExistingDocsModal(false);
-    setPendingDirectoryPath(null);
-  }, []);
 
   /**
    * Handle back button click
@@ -418,7 +359,9 @@ export function DirectorySelectionScreen({ theme }: DirectorySelectionScreenProp
           className="text-xs max-w-lg mx-auto"
           style={{ color: theme.colors.textDim, opacity: 0.8 }}
         >
-          I do my best to only make changes within this directory... that said, Caveat Emptor.
+          I do my best to only make changes within this directory...
+          <br />
+          That said, Caveat Emptor.
         </p>
       </div>
 
@@ -743,18 +686,6 @@ export function DirectorySelectionScreen({ theme }: DirectorySelectionScreenProp
           Exit Wizard
         </span>
       </div>
-
-      {/* Existing Auto Run Docs modal */}
-      {showExistingDocsModal && pendingDirectoryPath && (
-        <ExistingAutoRunDocsModal
-          theme={theme}
-          directoryPath={pendingDirectoryPath}
-          documentCount={state.existingDocsCount}
-          onStartFresh={handleStartFresh}
-          onContinuePlanning={handleContinuePlanning}
-          onCancel={handleCancelExistingDocsModal}
-        />
-      )}
     </div>
   );
 }

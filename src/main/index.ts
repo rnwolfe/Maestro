@@ -4498,6 +4498,15 @@ function setupIpcHandlers() {
         autoRunWatchers.delete(folderPath);
       }
 
+      // Create folder if it doesn't exist (agent will create files in it)
+      try {
+        await fs.stat(folderPath);
+      } catch {
+        // Folder doesn't exist, create it
+        await fs.mkdir(folderPath, { recursive: true });
+        logger.info(`Created Auto Run folder for watching: ${folderPath}`, 'AutoRun');
+      }
+
       // Validate folder exists
       const folderStat = await fs.stat(folderPath);
       if (!folderStat.isDirectory()) {

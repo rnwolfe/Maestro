@@ -623,7 +623,7 @@ describe('ProcessMonitor', () => {
       );
 
       await waitFor(() => {
-        expect(screen.getByText('AI Agent (claude-code)')).toBeInTheDocument();
+        expect(screen.getByText('Test Session - AI Agent (claude-code)')).toBeInTheDocument();
       });
     });
 
@@ -645,7 +645,7 @@ describe('ProcessMonitor', () => {
       );
 
       await waitFor(() => {
-        expect(screen.getByText('Terminal Shell')).toBeInTheDocument();
+        expect(screen.getByText('Test Session - Terminal Shell')).toBeInTheDocument();
       });
     });
 
@@ -667,7 +667,7 @@ describe('ProcessMonitor', () => {
       );
 
       await waitFor(() => {
-        expect(screen.getByText('AI Agent (claude-code)')).toBeInTheDocument();
+        expect(screen.getByText('Test Session - AI Agent (claude-code)')).toBeInTheDocument();
         expect(screen.getByText('AUTO')).toBeInTheDocument();
       });
     });
@@ -689,7 +689,7 @@ describe('ProcessMonitor', () => {
       );
 
       await waitFor(() => {
-        expect(screen.getByText('AI Agent (claude-code) - Synopsis')).toBeInTheDocument();
+        expect(screen.getByText('Test Session - AI Agent (claude-code) - Synopsis')).toBeInTheDocument();
       });
     });
 
@@ -824,7 +824,7 @@ describe('ProcessMonitor', () => {
 
       await waitFor(() => {
         // All nodes should be expanded, so we should see the process
-        expect(screen.getByText('AI Agent (claude-code)')).toBeInTheDocument();
+        expect(screen.getByText('Test Session - AI Agent (claude-code)')).toBeInTheDocument();
       });
     });
 
@@ -845,7 +845,7 @@ describe('ProcessMonitor', () => {
       );
 
       await waitFor(() => {
-        expect(screen.getByText('AI Agent (claude-code)')).toBeInTheDocument();
+        expect(screen.getByText('Test Session - AI Agent (claude-code)')).toBeInTheDocument();
       });
 
       // Click the group to collapse
@@ -853,7 +853,7 @@ describe('ProcessMonitor', () => {
 
       // Process should no longer be visible
       await waitFor(() => {
-        expect(screen.queryByText('AI Agent (claude-code)')).not.toBeInTheDocument();
+        expect(screen.queryByText('Test Session - AI Agent (claude-code)')).not.toBeInTheDocument();
       });
     });
 
@@ -874,7 +874,7 @@ describe('ProcessMonitor', () => {
       );
 
       await waitFor(() => {
-        expect(screen.getByText('AI Agent (claude-code)')).toBeInTheDocument();
+        expect(screen.getByText('Test Session - AI Agent (claude-code)')).toBeInTheDocument();
       });
 
       // Click collapse all button
@@ -883,7 +883,7 @@ describe('ProcessMonitor', () => {
 
       // Process should no longer be visible
       await waitFor(() => {
-        expect(screen.queryByText('AI Agent (claude-code)')).not.toBeInTheDocument();
+        expect(screen.queryByText('Test Session - AI Agent (claude-code)')).not.toBeInTheDocument();
       });
     });
 
@@ -904,7 +904,7 @@ describe('ProcessMonitor', () => {
       );
 
       await waitFor(() => {
-        expect(screen.getByText('AI Agent (claude-code)')).toBeInTheDocument();
+        expect(screen.getByText('Test Session - AI Agent (claude-code)')).toBeInTheDocument();
       });
 
       // Collapse first
@@ -912,7 +912,7 @@ describe('ProcessMonitor', () => {
       fireEvent.click(collapseButton);
 
       await waitFor(() => {
-        expect(screen.queryByText('AI Agent (claude-code)')).not.toBeInTheDocument();
+        expect(screen.queryByText('Test Session - AI Agent (claude-code)')).not.toBeInTheDocument();
       });
 
       // Then expand
@@ -920,7 +920,7 @@ describe('ProcessMonitor', () => {
       fireEvent.click(expandButton);
 
       await waitFor(() => {
-        expect(screen.getByText('AI Agent (claude-code)')).toBeInTheDocument();
+        expect(screen.getByText('Test Session - AI Agent (claude-code)')).toBeInTheDocument();
       });
     });
   });
@@ -999,7 +999,7 @@ describe('ProcessMonitor', () => {
       );
 
       await waitFor(() => {
-        expect(screen.getByText('AI Agent (claude-code)')).toBeInTheDocument();
+        expect(screen.getByText('Test Session - AI Agent (claude-code)')).toBeInTheDocument();
       });
 
       // Collapse first
@@ -1007,7 +1007,7 @@ describe('ProcessMonitor', () => {
       fireEvent.click(collapseButton);
 
       await waitFor(() => {
-        expect(screen.queryByText('AI Agent (claude-code)')).not.toBeInTheDocument();
+        expect(screen.queryByText('Test Session - AI Agent (claude-code)')).not.toBeInTheDocument();
       });
 
       const dialog = screen.getByRole('dialog');
@@ -1041,7 +1041,7 @@ describe('ProcessMonitor', () => {
       );
 
       await waitFor(() => {
-        expect(screen.getByText('AI Agent (claude-code)')).toBeInTheDocument();
+        expect(screen.getByText('Test Session - AI Agent (claude-code)')).toBeInTheDocument();
       });
 
       const dialog = screen.getByRole('dialog');
@@ -1054,7 +1054,7 @@ describe('ProcessMonitor', () => {
 
       // Should hide children
       await waitFor(() => {
-        expect(screen.queryByText('AI Agent (claude-code)')).not.toBeInTheDocument();
+        expect(screen.queryByText('Test Session - AI Agent (claude-code)')).not.toBeInTheDocument();
       });
     });
 
@@ -1075,7 +1075,7 @@ describe('ProcessMonitor', () => {
       );
 
       await waitFor(() => {
-        expect(screen.getByText('AI Agent (claude-code)')).toBeInTheDocument();
+        expect(screen.getByText('Test Session - AI Agent (claude-code)')).toBeInTheDocument();
       });
 
       const dialog = screen.getByRole('dialog');
@@ -1088,7 +1088,7 @@ describe('ProcessMonitor', () => {
 
       // Should hide children
       await waitFor(() => {
-        expect(screen.queryByText('AI Agent (claude-code)')).not.toBeInTheDocument();
+        expect(screen.queryByText('Test Session - AI Agent (claude-code)')).not.toBeInTheDocument();
       });
     });
 
@@ -1109,7 +1109,7 @@ describe('ProcessMonitor', () => {
       );
 
       await waitFor(() => {
-        expect(screen.getByText('AI Agent (claude-code)')).toBeInTheDocument();
+        expect(screen.getByText('Test Session - AI Agent (claude-code)')).toBeInTheDocument();
       });
 
       const dialog = screen.getByRole('dialog');
@@ -1122,7 +1122,7 @@ describe('ProcessMonitor', () => {
 
       // Should hide children
       await waitFor(() => {
-        expect(screen.queryByText('AI Agent (claude-code)')).not.toBeInTheDocument();
+        expect(screen.queryByText('Test Session - AI Agent (claude-code)')).not.toBeInTheDocument();
       });
     });
 
@@ -1250,7 +1250,7 @@ describe('ProcessMonitor', () => {
       );
 
       await waitFor(() => {
-        expect(screen.getByText('AI Agent (claude-code)')).toBeInTheDocument();
+        expect(screen.getByText('Test Session - AI Agent (claude-code)')).toBeInTheDocument();
       });
 
       // Hover over process to show kill button (simulated via click)
@@ -1276,7 +1276,7 @@ describe('ProcessMonitor', () => {
       );
 
       await waitFor(() => {
-        expect(screen.getByText('AI Agent (claude-code)')).toBeInTheDocument();
+        expect(screen.getByText('Test Session - AI Agent (claude-code)')).toBeInTheDocument();
       });
 
       // Show kill confirmation
@@ -1308,7 +1308,7 @@ describe('ProcessMonitor', () => {
       );
 
       await waitFor(() => {
-        expect(screen.getByText('AI Agent (claude-code)')).toBeInTheDocument();
+        expect(screen.getByText('Test Session - AI Agent (claude-code)')).toBeInTheDocument();
       });
 
       // Show kill confirmation
@@ -1338,7 +1338,7 @@ describe('ProcessMonitor', () => {
       );
 
       await waitFor(() => {
-        expect(screen.getByText('AI Agent (claude-code)')).toBeInTheDocument();
+        expect(screen.getByText('Test Session - AI Agent (claude-code)')).toBeInTheDocument();
       });
 
       // Show kill confirmation
@@ -1371,7 +1371,7 @@ describe('ProcessMonitor', () => {
       );
 
       await waitFor(() => {
-        expect(screen.getByText('AI Agent (claude-code)')).toBeInTheDocument();
+        expect(screen.getByText('Test Session - AI Agent (claude-code)')).toBeInTheDocument();
       });
 
       // Show kill confirmation
@@ -1402,7 +1402,7 @@ describe('ProcessMonitor', () => {
       );
 
       await waitFor(() => {
-        expect(screen.getByText('AI Agent (claude-code)')).toBeInTheDocument();
+        expect(screen.getByText('Test Session - AI Agent (claude-code)')).toBeInTheDocument();
       });
 
       // Show kill confirmation
@@ -1438,7 +1438,7 @@ describe('ProcessMonitor', () => {
       );
 
       await waitFor(() => {
-        expect(screen.getByText('AI Agent (claude-code)')).toBeInTheDocument();
+        expect(screen.getByText('Test Session - AI Agent (claude-code)')).toBeInTheDocument();
       });
 
       // Show kill confirmation
@@ -1476,7 +1476,7 @@ describe('ProcessMonitor', () => {
       );
 
       await waitFor(() => {
-        expect(screen.getByText('AI Agent (claude-code)')).toBeInTheDocument();
+        expect(screen.getByText('Test Session - AI Agent (claude-code)')).toBeInTheDocument();
       });
 
       // Show kill confirmation
@@ -1705,11 +1705,11 @@ describe('ProcessMonitor', () => {
       );
 
       await waitFor(() => {
-        expect(screen.getByText('AI Agent (claude-code)')).toBeInTheDocument();
+        expect(screen.getByText('Test Session - AI Agent (claude-code)')).toBeInTheDocument();
       });
 
       // Click the process
-      const processNode = screen.getByText('AI Agent (claude-code)').closest('div[tabindex="0"]');
+      const processNode = screen.getByText('Test Session - AI Agent (claude-code)').closest('div[tabindex="0"]');
       fireEvent.click(processNode!);
 
       // Process node should have selection style
@@ -1833,7 +1833,7 @@ describe('ProcessMonitor', () => {
       );
 
       await waitFor(() => {
-        expect(screen.getByText('AI Agent (claude-code)')).toBeInTheDocument();
+        expect(screen.getByText('Test Session - AI Agent (claude-code)')).toBeInTheDocument();
       });
     });
 
@@ -1852,7 +1852,7 @@ describe('ProcessMonitor', () => {
       );
 
       await waitFor(() => {
-        expect(screen.getByText('AI Agent (claude-code)')).toBeInTheDocument();
+        expect(screen.getByText('Test Session - AI Agent (claude-code)')).toBeInTheDocument();
       });
     });
 

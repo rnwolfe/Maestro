@@ -66,6 +66,8 @@ interface PhaseReviewScreenProps {
   ) => void;
   /** Start time of the wizard for duration calculation */
   wizardStartTime?: number;
+  /** Whether this screen was reached by resuming an interrupted session */
+  isResuming?: boolean;
 }
 
 /**
@@ -1543,6 +1545,7 @@ export function PhaseReviewScreen({
   onLaunchSession,
   onWizardComplete,
   wizardStartTime,
+  isResuming = false,
 }: PhaseReviewScreenProps): JSX.Element {
   const {
     state,
@@ -1609,10 +1612,11 @@ export function PhaseReviewScreen({
           directoryPath: state.directoryPath,
           projectName: state.agentName || 'My Project',
           conversationHistory: state.conversationHistory,
+          isResuming,
         },
         {
           onStart: () => {
-            setProgressMessage('Starting document generation...');
+            setProgressMessage(isResuming ? 'Resuming document generation...' : 'Starting document generation...');
           },
           onProgress: (message) => {
             setProgressMessage(message);
@@ -1709,6 +1713,7 @@ export function PhaseReviewScreen({
     setGeneratingDocuments,
     setGeneratedDocuments,
     setGenerationError,
+    isResuming,
   ]);
 
   /**

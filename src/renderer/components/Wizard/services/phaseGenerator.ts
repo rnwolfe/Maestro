@@ -21,6 +21,8 @@ export interface GenerationConfig {
   projectName: string;
   /** Full conversation history from project discovery */
   conversationHistory: WizardMessage[];
+  /** Whether this is a resumed session (interrupted during document generation) */
+  isResuming?: boolean;
 }
 
 /**
@@ -115,6 +117,7 @@ const GENERATION_TIMEOUT = 300000;
  * Generate the system prompt for document generation
  *
  * This prompt instructs the agent to:
+ * - First check for and intelligently handle any existing Auto Run documents
  * - Create multiple Auto Run documents
  * - Make Phase 1 achievable without user input
  * - Make Phase 1 deliver a working prototype
@@ -135,6 +138,21 @@ export function generateDocumentGenerationPrompt(config: GenerationConfig): stri
     .join('\n\n');
 
   return `You are an expert project planner creating actionable task documents for "${projectDisplay}".
+
+## FIRST: Check for Existing Documents
+
+Before creating any new documents, check \`${directoryPath}/${AUTO_RUN_FOLDER_NAME}/\` for existing Phase-XX-*.md files.
+
+If existing documents are found:
+1. **Read and analyze them** to understand what planning has already been done
+2. **Assess their quality and completeness** - are they well-formed? Do they follow the format below?
+3. **Decide how to proceed**:
+   - If they are high-quality and complete, you can keep them as-is or refine them based on the conversation
+   - If they are incomplete or low-quality, improve or replace them
+   - If the conversation reveals the user wants something different, replace them entirely
+   - Add any missing phases that the existing docs don't cover
+
+You have full autonomy to modify, delete, or keep existing documents based on your assessment and the project requirements from the conversation.
 
 ## Your Task
 

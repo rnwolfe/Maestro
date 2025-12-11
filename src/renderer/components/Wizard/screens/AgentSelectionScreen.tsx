@@ -510,7 +510,7 @@ export function AgentSelectionScreen({ theme }: AgentSelectionScreenProps): JSX.
   return (
     <div
       ref={containerRef}
-      className="flex flex-col flex-1 min-h-0 p-8 overflow-y-auto"
+      className="flex flex-col flex-1 min-h-0 px-8 py-6 overflow-y-auto"
       onKeyDown={handleKeyDown}
       tabIndex={-1}
     >
@@ -521,8 +521,8 @@ export function AgentSelectionScreen({ theme }: AgentSelectionScreenProps): JSX.
         politeness="polite"
       />
 
-      {/* Header */}
-      <div className="text-center mb-8">
+      {/* Section 1: Header */}
+      <div className="text-center">
         <h3
           className="text-2xl font-semibold mb-2"
           style={{ color: theme.colors.textMain }}
@@ -537,8 +537,11 @@ export function AgentSelectionScreen({ theme }: AgentSelectionScreenProps): JSX.
         </p>
       </div>
 
-      {/* Agent Grid */}
-      <div className="flex-1 flex items-center justify-center">
+      {/* Spacer */}
+      <div className="h-8" />
+
+      {/* Section 2: Agent Grid */}
+      <div className="flex justify-center">
         <div className="grid grid-cols-3 gap-4 max-w-3xl">
           {AGENT_TILES.map((tile, index) => {
             const isDetected = isAgentAvailable(tile.id);
@@ -655,49 +658,57 @@ export function AgentSelectionScreen({ theme }: AgentSelectionScreenProps): JSX.
         </div>
       </div>
 
-      {/* Project Name Input and Continue Button - horizontal layout */}
-      <div className="mt-8 flex items-center justify-center gap-4">
+      {/* Spacer */}
+      <div className="h-10" />
+
+      {/* Section 3: Name Your Agent - Prominent */}
+      <div className="flex flex-col items-center">
         <label
           htmlFor="project-name"
-          className="text-sm whitespace-nowrap"
-          style={{ color: theme.colors.textDim }}
+          className="text-lg font-medium mb-3"
+          style={{ color: theme.colors.textMain }}
         >
           Name Your Agent
         </label>
-        <input
-          ref={nameInputRef}
-          id="project-name"
-          type="text"
-          value={state.agentName}
-          onChange={(e) => setAgentName(e.target.value)}
-          onFocus={() => setIsNameFieldFocused(true)}
-          onBlur={() => setIsNameFieldFocused(false)}
-          placeholder=""
-          className="w-64 px-4 py-2 rounded-lg border outline-none transition-all"
-          style={{
-            backgroundColor: theme.colors.bgMain,
-            borderColor: isNameFieldFocused ? theme.colors.accent : theme.colors.border,
-            color: theme.colors.textMain,
-            boxShadow: isNameFieldFocused ? `0 0 0 2px ${theme.colors.accent}40` : 'none',
-          }}
-        />
-        <button
-          onClick={handleContinue}
-          disabled={!canProceedToNext()}
-          className="px-8 py-2 rounded-lg font-medium transition-all outline-none whitespace-nowrap"
-          style={{
-            backgroundColor: canProceedToNext() ? theme.colors.accent : theme.colors.border,
-            color: canProceedToNext() ? theme.colors.accentForeground : theme.colors.textDim,
-            cursor: canProceedToNext() ? 'pointer' : 'not-allowed',
-            opacity: canProceedToNext() ? 1 : 0.6,
-          }}
-        >
-          Continue
-        </button>
+        <div className="flex items-center gap-4">
+          <input
+            ref={nameInputRef}
+            id="project-name"
+            type="text"
+            value={state.agentName}
+            onChange={(e) => setAgentName(e.target.value)}
+            onFocus={() => setIsNameFieldFocused(true)}
+            onBlur={() => setIsNameFieldFocused(false)}
+            placeholder=""
+            className="w-72 px-4 py-2.5 rounded-lg border outline-none transition-all text-center"
+            style={{
+              backgroundColor: theme.colors.bgMain,
+              borderColor: isNameFieldFocused ? theme.colors.accent : theme.colors.border,
+              color: theme.colors.textMain,
+              boxShadow: isNameFieldFocused ? `0 0 0 2px ${theme.colors.accent}40` : 'none',
+            }}
+          />
+          <button
+            onClick={handleContinue}
+            disabled={!canProceedToNext()}
+            className="px-8 py-2.5 rounded-lg font-medium transition-all outline-none whitespace-nowrap"
+            style={{
+              backgroundColor: canProceedToNext() ? theme.colors.accent : theme.colors.border,
+              color: canProceedToNext() ? theme.colors.accentForeground : theme.colors.textDim,
+              cursor: canProceedToNext() ? 'pointer' : 'not-allowed',
+              opacity: canProceedToNext() ? 1 : 0.6,
+            }}
+          >
+            Continue
+          </button>
+        </div>
       </div>
 
-      {/* Keyboard hints */}
-      <div className="mt-4 flex justify-center gap-6">
+      {/* Flexible spacer to push footer down */}
+      <div className="flex-1 min-h-8" />
+
+      {/* Section 4: Keyboard hints (footer) */}
+      <div className="flex justify-center gap-6">
         <span
           className="text-xs flex items-center gap-1"
           style={{ color: theme.colors.textDim }}

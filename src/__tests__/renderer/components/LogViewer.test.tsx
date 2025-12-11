@@ -80,13 +80,14 @@ vi.mock('../../../renderer/components/ConfirmModal', () => ({
   ),
 }));
 
-// Add getLogs and clearLogs to the existing window.maestro.logger mock
+// Add getLogs, clearLogs, and onNewLog to the existing window.maestro.logger mock
 beforeEach(() => {
   vi.clearAllMocks();
 
-  // Extend window.maestro.logger with getLogs and clearLogs methods
+  // Extend window.maestro.logger with getLogs, clearLogs, and onNewLog methods
   (window.maestro.logger as Record<string, unknown>).getLogs = vi.fn().mockResolvedValue([]);
   (window.maestro.logger as Record<string, unknown>).clearLogs = vi.fn().mockResolvedValue(undefined);
+  (window.maestro.logger as Record<string, unknown>).onNewLog = vi.fn().mockReturnValue(() => {});
 });
 
 afterEach(() => {

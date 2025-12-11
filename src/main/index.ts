@@ -2260,6 +2260,13 @@ function setupIpcHandlers() {
     return logger.getMaxLogBuffer();
   });
 
+  // Subscribe to new log events and forward to renderer
+  logger.on('newLog', (entry) => {
+    if (mainWindow) {
+      mainWindow.webContents.send('logger:newLog', entry);
+    }
+  });
+
   // Claude Code sessions API
   // Sessions are stored in ~/.claude/projects/<encoded-project-path>/<session-id>.jsonl
   ipcMain.handle('claude:listSessions', async (_event, projectPath: string) => {

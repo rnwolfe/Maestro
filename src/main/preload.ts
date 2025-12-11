@@ -394,6 +394,12 @@ contextBridge.exposeInMainWorld('maestro', {
     // Convenience method for Auto Run workflow logging (cannot be turned off)
     autorun: (message: string, context?: string, data?: unknown) =>
       ipcRenderer.invoke('logger:log', 'autorun', message, context || 'AutoRun', data),
+    // Subscribe to new log entries in real-time
+    onNewLog: (callback: (log: { timestamp: number; level: string; message: string; context?: string; data?: unknown }) => void) => {
+      const handler = (_: any, log: any) => callback(log);
+      ipcRenderer.on('logger:newLog', handler);
+      return () => ipcRenderer.removeListener('logger:newLog', handler);
+    },
   },
 
   // Claude Code sessions API
@@ -843,6 +849,7 @@ export interface MaestroAPI {
     getLogLevel: () => Promise<string>;
     setMaxLogBuffer: (max: number) => Promise<void>;
     getMaxLogBuffer: () => Promise<number>;
+    onNewLog: (callback: (log: { timestamp: number; level: string; message: string; context?: string; data?: unknown }) => void) => () => void;
   };
   claude: {
     listSessions: (projectPath: string) => Promise<Array<{

@@ -112,9 +112,23 @@ export function LogViewer({ theme, onClose, logLevel = 'info', savedSelectedLeve
   const allExpanded = expandableIndices.length > 0 && expandableIndices.every(i => expandedData.has(i));
   const allCollapsed = expandedData.size === 0;
 
-  // Load logs on mount
+  // Load logs on mount and subscribe to new logs
   useEffect(() => {
     loadLogs();
+
+    // Subscribe to new log entries
+    const unsubscribe = window.maestro.logger.onNewLog((newLog: SystemLogEntry) => {
+      setLogs(prevLogs => {
+        // Add new log at the beginning (newest first)
+        const updated = [newLog, ...prevLogs];
+        // Keep only the last 50 logs (matching the initial load limit)
+        return updated.slice(0, 50);
+      });
+    });
+
+    return () => {
+      unsubscribe();
+    };
   }, []);
 
   // Filter logs whenever search query or selected levels changes
@@ -208,7 +222,8 @@ export function LogViewer({ theme, onClose, logLevel = 'info', savedSelectedLeve
   const loadLogs = async () => {
     try {
       const systemLogs = await window.maestro.logger.getLogs({ limit: 50 });
-      setLogs(systemLogs);
+      // Reverse to show newest first
+      setLogs(systemLogs.reverse());
     } catch (error) {
       console.error('Failed to load logs:', error);
     }

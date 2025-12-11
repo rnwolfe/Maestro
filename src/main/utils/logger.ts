@@ -3,6 +3,8 @@
  * Logs are stored in memory and can be retrieved via IPC
  */
 
+import { EventEmitter } from 'events';
+
 export type LogLevel = 'debug' | 'info' | 'warn' | 'error' | 'toast' | 'autorun';
 
 export interface LogEntry {
@@ -13,10 +15,14 @@ export interface LogEntry {
   data?: unknown;
 }
 
-class Logger {
+class Logger extends EventEmitter {
   private logs: LogEntry[] = [];
   private maxLogs = 1000; // Keep last 1000 log entries
   private minLevel: LogLevel = 'info'; // Default log level
+
+  constructor() {
+    super();
+  }
 
   private levelPriority: Record<LogLevel, number> = {
     debug: 0,
@@ -58,6 +64,9 @@ class Logger {
     if (this.logs.length > this.maxLogs) {
       this.logs = this.logs.slice(-this.maxLogs);
     }
+
+    // Emit event for real-time log streaming
+    this.emit('newLog', entry);
 
     // Also output to console for development
     const timestamp = new Date(entry.timestamp).toISOString();

@@ -392,6 +392,60 @@ describe('SessionList', () => {
 
       expect(toggleGlobalLive).toHaveBeenCalled();
     });
+
+    it('hides OFFLINE text when sidebar width is narrow (< 280px)', () => {
+      const props = createDefaultProps({
+        leftSidebarOpen: true,
+        leftSidebarWidthState: 256, // Minimum sidebar width
+        isLiveMode: false,
+      });
+      render(<SessionList {...props} />);
+
+      // Text should be hidden, only icon visible
+      expect(screen.queryByText('OFFLINE')).not.toBeInTheDocument();
+      // But the Radio icon should still be present
+      expect(screen.getByTestId('icon-radio')).toBeInTheDocument();
+    });
+
+    it('shows OFFLINE text when sidebar width is wide (>= 280px)', () => {
+      const props = createDefaultProps({
+        leftSidebarOpen: true,
+        leftSidebarWidthState: 300,
+        isLiveMode: false,
+      });
+      render(<SessionList {...props} />);
+
+      // Text should be visible
+      expect(screen.getByText('OFFLINE')).toBeInTheDocument();
+    });
+
+    it('hides LIVE text when sidebar width is narrow (< 280px)', () => {
+      const props = createDefaultProps({
+        leftSidebarOpen: true,
+        leftSidebarWidthState: 256, // Minimum sidebar width
+        isLiveMode: true,
+        webInterfaceUrl: 'http://localhost:3000',
+      });
+      render(<SessionList {...props} />);
+
+      // Text should be hidden, only icon visible
+      expect(screen.queryByText('LIVE')).not.toBeInTheDocument();
+      // But the Radio icon should still be present
+      expect(screen.getByTestId('icon-radio')).toBeInTheDocument();
+    });
+
+    it('shows LIVE text when sidebar width is wide (>= 280px)', () => {
+      const props = createDefaultProps({
+        leftSidebarOpen: true,
+        leftSidebarWidthState: 300,
+        isLiveMode: true,
+        webInterfaceUrl: 'http://localhost:3000',
+      });
+      render(<SessionList {...props} />);
+
+      // Text should be visible
+      expect(screen.getByText('LIVE')).toBeInTheDocument();
+    });
   });
 
   // ============================================================================

@@ -91,7 +91,8 @@ export const tourSteps: TourStepConfig[] = [
       'The hamburger menu gives you access to settings, themes, the project wizard, and more. You can also re-run this tour anytime from here under "Introductory Tour".',
     descriptionGeneric:
       'The hamburger menu gives you access to settings, themes, the New Agent Wizard, and more. You can re-run this tour anytime from here.',
-    selector: '[data-tour="hamburger-menu"]',
+    // Combine hamburger button and menu contents into one spotlight
+    selector: '[data-tour="hamburger-menu"], [data-tour="hamburger-menu-contents"]',
     position: 'right',
     uiActions: [
       { type: 'openHamburgerMenu' },

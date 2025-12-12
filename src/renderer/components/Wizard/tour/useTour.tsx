@@ -93,6 +93,8 @@ interface UseTourReturn {
   spotlight: SpotlightInfo | null;
   /** Whether currently transitioning between steps */
   isTransitioning: boolean;
+  /** Whether position has been calculated and tooltip is ready to show */
+  isPositionReady: boolean;
   /** Advance to next step */
   nextStep: () => void;
   /** Go back to previous step */
@@ -107,17 +109,50 @@ interface UseTourReturn {
 
 /**
  * Calculate element position for spotlight
+ * Supports multiple selectors separated by commas - combines their bounding boxes
  */
 function getElementRect(selector: string | null): DOMRect | null {
   if (!selector) return null;
 
-  const element = document.querySelector(selector);
-  if (!element) {
-    console.warn(`[Tour] Element not found for selector: ${selector}`);
+  // Support multiple selectors separated by commas
+  const selectors = selector.split(',').map(s => s.trim());
+  const rects: DOMRect[] = [];
+
+  for (const sel of selectors) {
+    const element = document.querySelector(sel);
+    if (element) {
+      rects.push(element.getBoundingClientRect());
+    }
+  }
+
+  if (rects.length === 0) {
+    console.warn(`[Tour] No elements found for selector(s): ${selector}`);
     return null;
   }
 
-  return element.getBoundingClientRect();
+  // If single element, return its rect directly
+  if (rects.length === 1) {
+    return rects[0];
+  }
+
+  // Combine multiple rects into one bounding box
+  const minX = Math.min(...rects.map(r => r.x));
+  const minY = Math.min(...rects.map(r => r.y));
+  const maxX = Math.max(...rects.map(r => r.x + r.width));
+  const maxY = Math.max(...rects.map(r => r.y + r.height));
+
+  // Create a synthetic DOMRect-like object
+  return {
+    x: minX,
+    y: minY,
+    width: maxX - minX,
+    height: maxY - minY,
+    top: minY,
+    left: minX,
+    bottom: maxY,
+    right: maxX,
+    toJSON: () => ({ x: minX, y: minY, width: maxX - minX, height: maxY - minY }),
+  } as DOMRect;
 }
 
 /**
@@ -145,6 +180,8 @@ export function useTour({
   const [currentStepIndex, setCurrentStepIndex] = useState(startStep);
   const [spotlight, setSpotlight] = useState<SpotlightInfo | null>(null);
   const [isTransitioning, setIsTransitioning] = useState(false);
+  // Track whether position has been calculated for current step
+  const [isPositionReady, setIsPositionReady] = useState(false);
   const transitionTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const repositionTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -158,6 +195,7 @@ export function useTour({
   const updateSpotlight = useCallback(() => {
     if (!currentStep) {
       setSpotlight(null);
+      setIsPositionReady(true);
       return;
     }
 
@@ -178,6 +216,9 @@ export function useTour({
       // No element found or no selector - no spotlight
       setSpotlight(null);
     }
+
+    // Mark position as ready after spotlight is set
+    setIsPositionReady(true);
   }, [currentStep]);
 
   /**
@@ -214,8 +255,9 @@ export function useTour({
         clearTimeout(repositionTimeoutRef.current);
       }
 
-      // Start transition
+      // Start transition - hide tooltip and mark position as not ready
       setIsTransitioning(true);
+      setIsPositionReady(false);
 
       // After short delay, update step and execute UI actions
       transitionTimeoutRef.current = setTimeout(() => {
@@ -226,7 +268,8 @@ export function useTour({
           executeUIActions(nextStep);
         }
 
-        // After UI actions settle, update spotlight position
+        // After UI actions settle, end transition phase
+        // Position will be calculated in updateSpotlight effect
         repositionTimeoutRef.current = setTimeout(() => {
           setIsTransitioning(false);
         }, 200);
@@ -266,6 +309,8 @@ export function useTour({
   // Initialize tour when opened
   useEffect(() => {
     if (isOpen) {
+      // Reset position ready state - will be set true after spotlight position is calculated
+      setIsPositionReady(false);
       setCurrentStepIndex(startStep);
       const initialStep = tourSteps[startStep];
       if (initialStep) {
@@ -313,6 +358,7 @@ export function useTour({
     totalSteps,
     spotlight,
     isTransitioning,
+    isPositionReady,
     nextStep,
     previousStep,
     goToStep,

@@ -29,6 +29,8 @@ interface TourStepProps {
   isLastStep: boolean;
   /** Whether currently transitioning between steps */
   isTransitioning: boolean;
+  /** Whether position has been calculated and tooltip is ready to show */
+  isPositionReady: boolean;
   /** Whether tour was launched from wizard (uses wizard-specific descriptions) */
   fromWizard?: boolean;
 }
@@ -228,6 +230,7 @@ export function TourStep({
   onSkip,
   isLastStep,
   isTransitioning,
+  isPositionReady,
   fromWizard = false,
 }: TourStepProps): JSX.Element {
   const { position, style } = calculateTooltipPosition(spotlight, step.position);
@@ -237,16 +240,23 @@ export function TourStep({
     ? step.description
     : (step.descriptionGeneric || step.description);
 
+  // Only show tooltip when position is ready and not transitioning
+  // This prevents flickering by ensuring position is calculated before becoming visible
+  const shouldShow = isPositionReady && !isTransitioning;
+
   return (
     <div
       className={`tour-step-tooltip rounded-xl shadow-2xl overflow-hidden ${
-        isTransitioning ? 'opacity-0' : 'tour-step-enter'
+        shouldShow ? 'tour-step-enter' : ''
       }`}
       style={{
         ...style,
         backgroundColor: theme.colors.bgSidebar,
         border: `1px solid ${theme.colors.border}`,
         transition: 'opacity 0.2s ease-out',
+        opacity: shouldShow ? 1 : 0,
+        // Use visibility to ensure element is positioned but not visible during calculation
+        visibility: isPositionReady ? 'visible' : 'hidden',
       }}
     >
       {/* Arrow pointer */}

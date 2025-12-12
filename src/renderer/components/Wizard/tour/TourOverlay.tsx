@@ -106,6 +106,7 @@ export function TourOverlay({
     totalSteps,
     spotlight,
     isTransitioning,
+    isPositionReady,
     nextStep,
     previousStep,
     goToStep,
@@ -251,7 +252,8 @@ export function TourOverlay({
             borderRadius: (spotlight.borderRadius || 8) + 2,
             border: `2px solid ${theme.colors.accent}`,
             boxShadow: `0 0 20px ${theme.colors.accent}40, inset 0 0 20px ${theme.colors.accent}20`,
-            opacity: isTransitioning ? 0 : 1,
+            // Only show when position is ready and not transitioning
+            opacity: isPositionReady && !isTransitioning ? 1 : 0,
           }}
         />
       )}
@@ -268,6 +270,7 @@ export function TourOverlay({
         onSkip={skipTour}
         isLastStep={isLastStep}
         isTransitioning={isTransitioning}
+        isPositionReady={isPositionReady}
         fromWizard={fromWizard}
       />
 

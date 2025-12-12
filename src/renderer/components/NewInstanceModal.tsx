@@ -1,8 +1,9 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Folder, X, RefreshCw } from 'lucide-react';
-import type { AgentConfig } from '../types';
+import type { AgentConfig, Session, ToolType } from '../types';
 import { useLayerStack } from '../contexts/LayerStackContext';
 import { MODAL_PRIORITIES } from '../constants/modalPriorities';
+import { validateNewSession } from '../utils/sessionValidation';
 
 interface AgentDebugInfo {
   agentId: string;
@@ -22,6 +23,7 @@ interface NewInstanceModalProps {
   onCreate: (agentId: string, workingDir: string, name: string) => void;
   theme: any;
   defaultAgent: string;
+  existingSessions: Session[];
 }
 
 export function NewInstanceModal({ isOpen, onClose, onCreate, theme, defaultAgent }: NewInstanceModalProps) {

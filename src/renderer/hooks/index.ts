@@ -20,6 +20,7 @@ export { useFilteredAndSortedSessions } from './useFilteredAndSortedSessions';
 export { useKeyboardShortcutHelpers } from './useKeyboardShortcutHelpers';
 export { useKeyboardNavigation } from './useKeyboardNavigation';
 export { useMainKeyboardHandler } from './useMainKeyboardHandler';
+export { useRemoteIntegration } from './useRemoteIntegration';
 
 export type { UseSettingsReturn } from './useSettings';
 export type { UseSessionManagerReturn } from './useSessionManager';
@@ -54,3 +55,7 @@ export type {
 export type {
   UseMainKeyboardHandlerReturn,
 } from './useMainKeyboardHandler';
+export type {
+  UseRemoteIntegrationDeps,
+  UseRemoteIntegrationReturn,
+} from './useRemoteIntegration';

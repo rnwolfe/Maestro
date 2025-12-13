@@ -1,5 +1,5 @@
 import React, { useRef, useEffect, useMemo, forwardRef, useState, useCallback, memo } from 'react';
-import { Activity, X, ChevronDown, ChevronUp, Filter, PlusCircle, MinusCircle, Trash2, Copy, Volume2, Square, Check, ArrowDown, Eye, FileText, RotateCcw } from 'lucide-react';
+import { Activity, X, ChevronDown, ChevronUp, Trash2, Copy, Volume2, Square, Check, ArrowDown, Eye, FileText, RotateCcw } from 'lucide-react';
 import type { Session, Theme, LogEntry } from '../types';
 import Convert from 'ansi-to-html';
 import DOMPurify from 'dompurify';
@@ -16,6 +16,7 @@ import {
 } from '../utils/textProcessing';
 import { MarkdownRenderer } from './MarkdownRenderer';
 import { QueuedItemsList } from './QueuedItemsList';
+import { LogFilterControls } from './LogFilterControls';
 
 // ============================================================================
 // LogItem - Memoized component for individual log entries
@@ -315,79 +316,18 @@ const LogItemComponent = memo(({
         {/* Local filter icon for system output only */}
         {log.source !== 'user' && isTerminal && (
           <div className="absolute top-2 right-2 flex items-center gap-2">
-            {activeLocalFilter === log.id || localFilterQuery ? (
-              <div className="flex items-center gap-2 p-2 rounded border" style={{ backgroundColor: theme.colors.bgSidebar, borderColor: theme.colors.border }}>
-                <button
-                  onMouseDown={(e) => e.preventDefault()}
-                  onClick={() => {
-                    onSetFilterMode(log.id, (current) => ({ ...current, mode: current.mode === 'include' ? 'exclude' : 'include' }));
-                  }}
-                  className="p-1 rounded hover:opacity-70 transition-opacity"
-                  style={{ color: filterMode.mode === 'include' ? theme.colors.success : theme.colors.error }}
-                  title={filterMode.mode === 'include' ? 'Include matching lines' : 'Exclude matching lines'}
-                >
-                  {filterMode.mode === 'include' ? <PlusCircle className="w-3.5 h-3.5" /> : <MinusCircle className="w-3.5 h-3.5" />}
-                </button>
-                <button
-                  onMouseDown={(e) => e.preventDefault()}
-                  onClick={() => {
-                    onSetFilterMode(log.id, (current) => ({ ...current, regex: !current.regex }));
-                  }}
-                  className="px-2 py-1 rounded hover:opacity-70 transition-opacity text-xs font-bold"
-                  style={{ fontFamily, color: filterMode.regex ? theme.colors.accent : theme.colors.textDim }}
-                  title={filterMode.regex ? 'Using regex' : 'Using plain text'}
-                >
-                  {filterMode.regex ? '.*' : 'Aa'}
-                </button>
-                <input
-                  type="text"
-                  value={localFilterQuery}
-                  onChange={(e) => onSetLocalFilterQuery(log.id, e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Escape') {
-                      e.stopPropagation();
-                      onClearLocalFilter(log.id);
-                    }
-                  }}
-                  onBlur={() => {
-                    if (!localFilterQuery) {
-                      onToggleLocalFilter(log.id);
-                    }
-                  }}
-                  placeholder={
-                    filterMode.mode === 'include'
-                      ? (filterMode.regex ? "Include by RegEx" : "Include by keyword")
-                      : (filterMode.regex ? "Exclude by RegEx" : "Exclude by keyword")
-                  }
-                  className="w-40 px-2 py-1 text-xs rounded border bg-transparent outline-none"
-                  style={{
-                    borderColor: theme.colors.accent,
-                    color: theme.colors.textMain,
-                    backgroundColor: theme.colors.bgMain
-                  }}
-                  autoFocus={activeLocalFilter === log.id}
-                />
-                <button
-                  onClick={() => onClearLocalFilter(log.id)}
-                  className="p-1 rounded hover:opacity-70 transition-opacity"
-                  style={{ color: theme.colors.textDim }}
-                >
-                  <X className="w-3 h-3" />
-                </button>
-              </div>
-            ) : (
-              <button
-                onClick={() => onToggleLocalFilter(log.id)}
-                className="p-1 rounded opacity-0 group-hover:opacity-100 hover:bg-opacity-10 transition-opacity"
-                style={{
-                  color: localFilterQuery ? theme.colors.accent : theme.colors.textDim,
-                  backgroundColor: localFilterQuery ? theme.colors.bgActivity : 'transparent'
-                }}
-                title="Filter this output"
-              >
-                <Filter className="w-3 h-3" />
-              </button>
-            )}
+            <LogFilterControls
+              logId={log.id}
+              fontFamily={fontFamily}
+              theme={theme}
+              filterQuery={localFilterQuery}
+              filterMode={filterMode}
+              isActive={activeLocalFilter === log.id}
+              onToggleFilter={onToggleLocalFilter}
+              onSetFilterQuery={onSetLocalFilterQuery}
+              onSetFilterMode={onSetFilterMode}
+              onClearFilter={onClearLocalFilter}
+            />
           </div>
         )}
         {log.images && log.images.length > 0 && (

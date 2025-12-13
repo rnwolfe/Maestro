@@ -11,6 +11,13 @@ import { useLayerStack } from '../contexts/LayerStackContext';
 import { MODAL_PRIORITIES } from '../constants/modalPriorities';
 import { getActiveTab } from '../utils/tabHelpers';
 import { useDebouncedValue, useThrottledCallback } from '../hooks/useThrottle';
+import {
+  processCarriageReturns,
+  processLogTextHelper,
+  filterTextByLinesHelper,
+  getCachedAnsiHtml,
+  stripMarkdown
+} from '../utils/textProcessing';
 
 // ============================================================================
 // CodeBlockWithCopy - Code block with copy button overlay
@@ -57,152 +64,6 @@ const CodeBlockWithCopy = memo(({ language, codeContent, theme, onCopy }: CodeBl
 });
 
 CodeBlockWithCopy.displayName = 'CodeBlockWithCopy';
-
-// ============================================================================
-// Pure helper functions (moved outside component to prevent recreation)
-// ============================================================================
-
-// Process carriage returns to simulate terminal line overwrites
-const processCarriageReturns = (text: string): string => {
-  const lines = text.split('\n');
-  const processedLines = lines.map(line => {
-    if (line.includes('\r')) {
-      const segments = line.split('\r');
-      for (let i = segments.length - 1; i >= 0; i--) {
-        if (segments[i].trim()) {
-          return segments[i];
-        }
-      }
-      return '';
-    }
-    return line;
-  });
-  return processedLines.join('\n');
-};
-
-// Filter out bash prompt lines and apply processing
-const processLogTextHelper = (text: string, isTerminal: boolean): string => {
-  let processed = processCarriageReturns(text);
-  if (!isTerminal) return processed;
-
-  const lines = processed.split('\n');
-  const filteredLines = lines.filter(line => {
-    const trimmed = line.trim();
-    if (!trimmed) return false;
-    if (/^(bash-\d+\.\d+\$|zsh[%#]|\$|#)\s*$/.test(trimmed)) return false;
-    return true;
-  });
-
-  return filteredLines.join('\n');
-};
-
-// Filter text by lines containing the query (local filter)
-const filterTextByLinesHelper = (text: string, query: string, mode: 'include' | 'exclude', useRegex: boolean): string => {
-  if (!query) return text;
-
-  const lines = text.split('\n');
-
-  try {
-    if (useRegex) {
-      const regex = new RegExp(query, 'i');
-      const filteredLines = lines.filter(line => {
-        const matches = regex.test(line);
-        return mode === 'include' ? matches : !matches;
-      });
-      return filteredLines.join('\n');
-    } else {
-      const lowerQuery = query.toLowerCase();
-      const filteredLines = lines.filter(line => {
-        const matches = line.toLowerCase().includes(lowerQuery);
-        return mode === 'include' ? matches : !matches;
-      });
-      return filteredLines.join('\n');
-    }
-  } catch (error) {
-    const lowerQuery = query.toLowerCase();
-    const filteredLines = lines.filter(line => {
-      const matches = line.toLowerCase().includes(lowerQuery);
-      return mode === 'include' ? matches : !matches;
-    });
-    return filteredLines.join('\n');
-  }
-};
-
-// ============================================================================
-// PERF: ANSI conversion cache - stores converted HTML by content hash
-// ============================================================================
-// LRU-style cache for ANSI to HTML conversions to avoid re-converting on every render
-// Cache key is hash of (text content + theme ID), value is sanitized HTML
-const ANSI_CACHE_MAX_SIZE = 500;
-const ansiCache = new Map<string, string>();
-
-/**
- * Get cached ANSI-to-HTML conversion or compute and cache it
- * @param text - Raw text with ANSI codes
- * @param themeId - Theme identifier (ANSI colors depend on theme)
- * @param converter - The ANSI converter instance
- * @returns Sanitized HTML string
- */
-function getCachedAnsiHtml(text: string, themeId: string, converter: Convert): string {
-  // Create a simple hash key from text and theme
-  // For performance, use a substring-based key for long texts
-  const textKey = text.length > 200 ? `${text.slice(0, 100)}|${text.length}|${text.slice(-100)}` : text;
-  const cacheKey = `${themeId}:${textKey}`;
-
-  const cached = ansiCache.get(cacheKey);
-  if (cached !== undefined) {
-    return cached;
-  }
-
-  // Convert and sanitize
-  const html = DOMPurify.sanitize(converter.toHtml(text));
-
-  // LRU eviction: remove oldest entries if cache is full
-  if (ansiCache.size >= ANSI_CACHE_MAX_SIZE) {
-    const firstKey = ansiCache.keys().next().value;
-    if (firstKey) ansiCache.delete(firstKey);
-  }
-
-  ansiCache.set(cacheKey, html);
-  return html;
-}
-
-// Strip markdown formatting to show plain text
-const stripMarkdown = (text: string): string => {
-  return text
-    // Remove code blocks (```...```)
-    .replace(/```[\s\S]*?```/g, (match) => {
-      // Extract just the code content without the fence
-      const lines = match.split('\n');
-      // Remove first line (```lang) and last line (```)
-      return lines.slice(1, -1).join('\n');
-    })
-    // Remove inline code backticks
-    .replace(/`([^`]+)`/g, '$1')
-    // Remove bold/italic (***text***, **text**, *text*, ___text___, __text__, _text_)
-    .replace(/\*\*\*(.+?)\*\*\*/g, '$1')
-    .replace(/\*\*(.+?)\*\*/g, '$1')
-    .replace(/\*(.+?)\*/g, '$1')
-    .replace(/___(.+?)___/g, '$1')
-    .replace(/__(.+?)__/g, '$1')
-    .replace(/_(.+?)_/g, '$1')
-    // Remove headers (# text)
-    .replace(/^#{1,6}\s+/gm, '')
-    // Remove blockquotes (> text)
-    .replace(/^>\s*/gm, '')
-    // Remove horizontal rules
-    .replace(/^[-*_]{3,}\s*$/gm, '---')
-    // Remove link formatting [text](url) -> text
-    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
-    // Remove image formatting ![alt](url) -> alt
-    .replace(/!\[([^\]]*)\]\([^)]+\)/g, '$1')
-    // Remove strikethrough
-    .replace(/~~(.+?)~~/g, '$1')
-    // Clean up bullet points - convert to simple dashes
-    .replace(/^[\s]*[-*+]\s+/gm, '- ')
-    // Clean up numbered lists - keep the numbers
-    .replace(/^[\s]*(\d+)\.\s+/gm, '$1. ');
-};
 
 // ============================================================================
 // LogItem - Memoized component for individual log entries

@@ -6,8 +6,16 @@ import { createWriteStream } from 'fs';
 import archiver from 'archiver';
 import AdmZip from 'adm-zip';
 import { logger } from '../../utils/logger';
+import { createIpcHandler, CreateHandlerOptions } from '../../utils/ipcHandler';
 
 const LOG_CONTEXT = '[Playbooks]';
+
+// Helper to create handler options with consistent context
+const handlerOpts = (operation: string, logSuccess = true): CreateHandlerOptions => ({
+  context: LOG_CONTEXT,
+  operation,
+  logSuccess,
+});
 
 /**
  * Dependencies required for playbooks handler registration
@@ -70,36 +78,34 @@ export function registerPlaybooksHandlers(deps: PlaybooksHandlerDependencies): v
   const { getMainWindow, app } = deps;
 
   // List all playbooks for a session
-  ipcMain.handle('playbooks:list', async (_event, sessionId: string) => {
-    try {
+  ipcMain.handle(
+    'playbooks:list',
+    createIpcHandler(handlerOpts('list'), async (sessionId: string) => {
       const playbooks = await readPlaybooks(app, sessionId);
       logger.info(`Listed ${playbooks.length} playbooks for session ${sessionId}`, LOG_CONTEXT);
-      return { success: true, playbooks };
-    } catch (error) {
-      logger.error('Error listing playbooks', LOG_CONTEXT, error);
-      return { success: false, playbooks: [], error: String(error) };
-    }
-  });
+      return { playbooks };
+    })
+  );
 
   // Create a new playbook
   ipcMain.handle(
     'playbooks:create',
-    async (
-      _event,
-      sessionId: string,
-      playbook: {
-        name: string;
-        documents: any[];
-        loopEnabled: boolean;
-        prompt: string;
-        worktreeSettings?: {
-          branchNameTemplate: string;
-          createPROnCompletion: boolean;
-          prTargetBranch?: string;
-        };
-      }
-    ) => {
-      try {
+    createIpcHandler(
+      handlerOpts('create'),
+      async (
+        sessionId: string,
+        playbook: {
+          name: string;
+          documents: any[];
+          loopEnabled: boolean;
+          prompt: string;
+          worktreeSettings?: {
+            branchNameTemplate: string;
+            createPROnCompletion: boolean;
+            prTargetBranch?: string;
+          };
+        }
+      ) => {
         const playbooks = await readPlaybooks(app, sessionId);
 
         // Create new playbook with generated ID and timestamps
@@ -137,41 +143,38 @@ export function registerPlaybooksHandlers(deps: PlaybooksHandlerDependencies): v
         await writePlaybooks(app, sessionId, playbooks);
 
         logger.info(`Created playbook "${playbook.name}" for session ${sessionId}`, LOG_CONTEXT);
-        return { success: true, playbook: newPlaybook };
-      } catch (error) {
-        logger.error('Error creating playbook', LOG_CONTEXT, error);
-        return { success: false, error: String(error) };
+        return { playbook: newPlaybook };
       }
-    }
+    )
   );
 
   // Update an existing playbook
   ipcMain.handle(
     'playbooks:update',
-    async (
-      _event,
-      sessionId: string,
-      playbookId: string,
-      updates: Partial<{
-        name: string;
-        documents: any[];
-        loopEnabled: boolean;
-        prompt: string;
-        updatedAt: number;
-        worktreeSettings?: {
-          branchNameTemplate: string;
-          createPROnCompletion: boolean;
-          prTargetBranch?: string;
-        };
-      }>
-    ) => {
-      try {
+    createIpcHandler(
+      handlerOpts('update'),
+      async (
+        sessionId: string,
+        playbookId: string,
+        updates: Partial<{
+          name: string;
+          documents: any[];
+          loopEnabled: boolean;
+          prompt: string;
+          updatedAt: number;
+          worktreeSettings?: {
+            branchNameTemplate: string;
+            createPROnCompletion: boolean;
+            prTargetBranch?: string;
+          };
+        }>
+      ) => {
         const playbooks = await readPlaybooks(app, sessionId);
 
         // Find the playbook to update
         const index = playbooks.findIndex((p: any) => p.id === playbookId);
         if (index === -1) {
-          return { success: false, error: 'Playbook not found' };
+          throw new Error('Playbook not found');
         }
 
         // Update the playbook
@@ -185,23 +188,21 @@ export function registerPlaybooksHandlers(deps: PlaybooksHandlerDependencies): v
         await writePlaybooks(app, sessionId, playbooks);
 
         logger.info(`Updated playbook "${updatedPlaybook.name}" for session ${sessionId}`, LOG_CONTEXT);
-        return { success: true, playbook: updatedPlaybook };
-      } catch (error) {
-        logger.error('Error updating playbook', LOG_CONTEXT, error);
-        return { success: false, error: String(error) };
+        return { playbook: updatedPlaybook };
       }
-    }
+    )
   );
 
   // Delete a playbook
-  ipcMain.handle('playbooks:delete', async (_event, sessionId: string, playbookId: string) => {
-    try {
+  ipcMain.handle(
+    'playbooks:delete',
+    createIpcHandler(handlerOpts('delete'), async (sessionId: string, playbookId: string) => {
       const playbooks = await readPlaybooks(app, sessionId);
 
       // Find the playbook to delete
       const index = playbooks.findIndex((p: any) => p.id === playbookId);
       if (index === -1) {
-        return { success: false, error: 'Playbook not found' };
+        throw new Error('Playbook not found');
       }
 
       const deletedName = playbooks[index].name;
@@ -211,33 +212,26 @@ export function registerPlaybooksHandlers(deps: PlaybooksHandlerDependencies): v
       await writePlaybooks(app, sessionId, playbooks);
 
       logger.info(`Deleted playbook "${deletedName}" from session ${sessionId}`, LOG_CONTEXT);
-      return { success: true };
-    } catch (error) {
-      logger.error('Error deleting playbook', LOG_CONTEXT, error);
-      return { success: false, error: String(error) };
-    }
-  });
+      return {};
+    })
+  );
 
   // Export a playbook as a ZIP file
   ipcMain.handle(
     'playbooks:export',
-    async (
-      _event,
-      sessionId: string,
-      playbookId: string,
-      autoRunFolderPath: string
-    ): Promise<{ success: boolean; filePath?: string; error?: string }> => {
-      try {
+    createIpcHandler(
+      handlerOpts('export'),
+      async (sessionId: string, playbookId: string, autoRunFolderPath: string) => {
         const playbooks = await readPlaybooks(app, sessionId);
         const playbook = playbooks.find((p: any) => p.id === playbookId);
 
         if (!playbook) {
-          return { success: false, error: 'Playbook not found' };
+          throw new Error('Playbook not found');
         }
 
         const mainWindow = getMainWindow();
         if (!mainWindow) {
-          return { success: false, error: 'No main window available' };
+          throw new Error('No main window available');
         }
 
         // Show save dialog
@@ -246,12 +240,12 @@ export function registerPlaybooksHandlers(deps: PlaybooksHandlerDependencies): v
           defaultPath: `${playbook.name.replace(/[^a-zA-Z0-9-_]/g, '_')}.maestro-playbook.zip`,
           filters: [
             { name: 'Maestro Playbook', extensions: ['maestro-playbook.zip'] },
-            { name: 'All Files', extensions: ['*'] }
-          ]
+            { name: 'All Files', extensions: ['*'] },
+          ],
         });
 
         if (result.canceled || !result.filePath) {
-          return { success: false, error: 'Export cancelled' };
+          throw new Error('Export cancelled');
         }
 
         const zipPath = result.filePath;
@@ -277,7 +271,7 @@ export function registerPlaybooksHandlers(deps: PlaybooksHandlerDependencies): v
           maxLoops: playbook.maxLoops,
           prompt: playbook.prompt,
           worktreeSettings: playbook.worktreeSettings,
-          exportedAt: Date.now()
+          exportedAt: Date.now(),
         };
 
         // Add manifest to archive
@@ -289,7 +283,7 @@ export function registerPlaybooksHandlers(deps: PlaybooksHandlerDependencies): v
           try {
             const content = await fs.readFile(docPath, 'utf-8');
             archive.append(content, { name: `documents/${doc.filename}.md` });
-          } catch (err) {
+          } catch {
             // Document file doesn't exist, skip it but log warning
             logger.warn(`Document ${doc.filename}.md not found during export`, LOG_CONTEXT);
           }
@@ -300,104 +294,92 @@ export function registerPlaybooksHandlers(deps: PlaybooksHandlerDependencies): v
         await archivePromise;
 
         logger.info(`Exported playbook "${playbook.name}" to ${zipPath}`, LOG_CONTEXT);
-        return { success: true, filePath: zipPath };
-      } catch (error) {
-        logger.error('Error exporting playbook', LOG_CONTEXT, error);
-        return { success: false, error: String(error) };
+        return { filePath: zipPath };
       }
-    }
+    )
   );
 
   // Import a playbook from a ZIP file
   ipcMain.handle(
     'playbooks:import',
-    async (
-      _event,
-      sessionId: string,
-      autoRunFolderPath: string
-    ): Promise<{ success: boolean; playbook?: any; importedDocs?: string[]; error?: string }> => {
-      try {
-        const mainWindow = getMainWindow();
-        if (!mainWindow) {
-          return { success: false, error: 'No main window available' };
-        }
-
-        // Show open dialog
-        const result = await dialog.showOpenDialog(mainWindow, {
-          title: 'Import Playbook',
-          filters: [
-            { name: 'Maestro Playbook', extensions: ['maestro-playbook.zip', 'zip'] },
-            { name: 'All Files', extensions: ['*'] }
-          ],
-          properties: ['openFile']
-        });
-
-        if (result.canceled || result.filePaths.length === 0) {
-          return { success: false, error: 'Import cancelled' };
-        }
-
-        const zipPath = result.filePaths[0];
-
-        // Read ZIP file
-        const zip = new AdmZip(zipPath);
-        const zipEntries = zip.getEntries();
-
-        // Find and parse manifest
-        const manifestEntry = zipEntries.find(e => e.entryName === 'manifest.json');
-        if (!manifestEntry) {
-          return { success: false, error: 'Invalid playbook file: missing manifest.json' };
-        }
-
-        const manifest = JSON.parse(manifestEntry.getData().toString('utf-8'));
-
-        // Validate manifest
-        if (!manifest.name || !Array.isArray(manifest.documents)) {
-          return { success: false, error: 'Invalid playbook manifest' };
-        }
-
-        // Extract document files to autorun folder
-        const importedDocs: string[] = [];
-        for (const entry of zipEntries) {
-          if (entry.entryName.startsWith('documents/') && entry.entryName.endsWith('.md')) {
-            const filename = path.basename(entry.entryName);
-            const destPath = path.join(autoRunFolderPath, filename);
-
-            // Ensure autorun folder exists
-            await fs.mkdir(autoRunFolderPath, { recursive: true });
-
-            // Write document file
-            await fs.writeFile(destPath, entry.getData().toString('utf-8'), 'utf-8');
-            importedDocs.push(filename.replace('.md', ''));
-          }
-        }
-
-        // Create new playbook entry
-        const playbooks = await readPlaybooks(app, sessionId);
-        const now = Date.now();
-
-        const newPlaybook = {
-          id: crypto.randomUUID(),
-          name: manifest.name,
-          createdAt: now,
-          updatedAt: now,
-          documents: manifest.documents,
-          loopEnabled: manifest.loopEnabled ?? false,
-          maxLoops: manifest.maxLoops,
-          prompt: manifest.prompt || '',
-          worktreeSettings: manifest.worktreeSettings
-        };
-
-        // Add to list and save
-        playbooks.push(newPlaybook);
-        await writePlaybooks(app, sessionId, playbooks);
-
-        logger.info(`Imported playbook "${manifest.name}" with ${importedDocs.length} documents`, LOG_CONTEXT);
-        return { success: true, playbook: newPlaybook, importedDocs };
-      } catch (error) {
-        logger.error('Error importing playbook', LOG_CONTEXT, error);
-        return { success: false, error: String(error) };
+    createIpcHandler(handlerOpts('import'), async (sessionId: string, autoRunFolderPath: string) => {
+      const mainWindow = getMainWindow();
+      if (!mainWindow) {
+        throw new Error('No main window available');
       }
-    }
+
+      // Show open dialog
+      const result = await dialog.showOpenDialog(mainWindow, {
+        title: 'Import Playbook',
+        filters: [
+          { name: 'Maestro Playbook', extensions: ['maestro-playbook.zip', 'zip'] },
+          { name: 'All Files', extensions: ['*'] },
+        ],
+        properties: ['openFile'],
+      });
+
+      if (result.canceled || result.filePaths.length === 0) {
+        throw new Error('Import cancelled');
+      }
+
+      const zipPath = result.filePaths[0];
+
+      // Read ZIP file
+      const zip = new AdmZip(zipPath);
+      const zipEntries = zip.getEntries();
+
+      // Find and parse manifest
+      const manifestEntry = zipEntries.find((e) => e.entryName === 'manifest.json');
+      if (!manifestEntry) {
+        throw new Error('Invalid playbook file: missing manifest.json');
+      }
+
+      const manifest = JSON.parse(manifestEntry.getData().toString('utf-8'));
+
+      // Validate manifest
+      if (!manifest.name || !Array.isArray(manifest.documents)) {
+        throw new Error('Invalid playbook manifest');
+      }
+
+      // Extract document files to autorun folder
+      const importedDocs: string[] = [];
+      for (const entry of zipEntries) {
+        if (entry.entryName.startsWith('documents/') && entry.entryName.endsWith('.md')) {
+          const filename = path.basename(entry.entryName);
+          const destPath = path.join(autoRunFolderPath, filename);
+
+          // Ensure autorun folder exists
+          await fs.mkdir(autoRunFolderPath, { recursive: true });
+
+          // Write document file
+          await fs.writeFile(destPath, entry.getData().toString('utf-8'), 'utf-8');
+          importedDocs.push(filename.replace('.md', ''));
+        }
+      }
+
+      // Create new playbook entry
+      const playbooks = await readPlaybooks(app, sessionId);
+      const now = Date.now();
+
+      const newPlaybook = {
+        id: crypto.randomUUID(),
+        name: manifest.name,
+        createdAt: now,
+        updatedAt: now,
+        documents: manifest.documents,
+        loopEnabled: manifest.loopEnabled ?? false,
+        maxLoops: manifest.maxLoops,
+        prompt: manifest.prompt || '',
+        worktreeSettings: manifest.worktreeSettings,
+      };
+
+      // Add to list and save
+      playbooks.push(newPlaybook);
+      await writePlaybooks(app, sessionId, playbooks);
+
+      logger.info(`Imported playbook "${manifest.name}" with ${importedDocs.length} documents`, LOG_CONTEXT);
+      return { playbook: newPlaybook, importedDocs };
+    })
   );
 
   logger.debug(`${LOG_CONTEXT} Playbooks IPC handlers registered`);

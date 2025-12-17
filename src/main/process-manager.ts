@@ -364,35 +364,74 @@ export class ProcessManager extends EventEmitter {
 
               try {
                 const msg = JSON.parse(line);
-                // Handle different message types from stream-json output
-                // Policy: Use 'result' for complete response, skip 'assistant' streaming messages
-                // This gives us the final complete response rather than incremental chunks
-                // Only emit once per process to prevent duplicates
-                if (msg.type === 'result' && msg.result && !managedProcess.resultEmitted) {
-                  managedProcess.resultEmitted = true;
-                  logger.debug('[ProcessManager] Emitting result data', 'ProcessManager', { sessionId, resultLength: msg.result.length });
-                  this.emit('data', sessionId, msg.result);
-                }
-                // Skip 'assistant' type - we prefer the complete 'result' over streaming chunks
-                // Capture session_id from the first message only (prevents duplicate emissions)
-                // Claude includes session_id in every message, but we only want to emit once
-                if (msg.session_id && !managedProcess.sessionIdEmitted) {
-                  managedProcess.sessionIdEmitted = true;
-                  this.emit('session-id', sessionId, msg.session_id);
-                }
-                // Extract slash commands from init message
-                // Claude Code emits available slash commands (built-in + user-defined) in the init message
-                if (msg.type === 'system' && msg.subtype === 'init' && msg.slash_commands) {
-                  this.emit('slash-commands', sessionId, msg.slash_commands);
-                }
-                // Extract usage statistics from stream-json messages (typically in 'result' type)
-                if (msg.modelUsage || msg.usage || msg.total_cost_usd !== undefined) {
-                  const usageStats = aggregateModelUsage(
-                    msg.modelUsage,
-                    msg.usage || {},
-                    msg.total_cost_usd || 0
-                  );
-                  this.emit('usage', sessionId, usageStats);
+
+                // Use output parser for agents that have one (Codex, OpenCode, Claude Code)
+                // This provides a unified way to extract session ID, usage, and data
+                if (outputParser) {
+                  const event = outputParser.parseJsonLine(line);
+                  if (event) {
+                    // Extract usage statistics
+                    const usage = outputParser.extractUsage(event);
+                    if (usage) {
+                      // Map parser's usage format to UsageStats
+                      const usageStats = {
+                        inputTokens: usage.inputTokens,
+                        outputTokens: usage.outputTokens,
+                        cacheReadInputTokens: usage.cacheReadTokens || 0,
+                        cacheCreationInputTokens: usage.cacheCreationTokens || 0,
+                        totalCostUsd: usage.costUsd || 0,
+                        contextWindow: usage.contextWindow || 200000,
+                        reasoningTokens: usage.reasoningTokens,
+                      };
+                      this.emit('usage', sessionId, usageStats);
+                    }
+
+                    // Extract session ID from parsed event (thread_id for Codex, session_id for Claude)
+                    const eventSessionId = outputParser.extractSessionId(event);
+                    if (eventSessionId && !managedProcess.sessionIdEmitted) {
+                      managedProcess.sessionIdEmitted = true;
+                      this.emit('session-id', sessionId, eventSessionId);
+                    }
+
+                    // Extract slash commands from init events
+                    const slashCommands = outputParser.extractSlashCommands(event);
+                    if (slashCommands) {
+                      this.emit('slash-commands', sessionId, slashCommands);
+                    }
+
+                    // Extract text data from result events (final complete response)
+                    if (outputParser.isResultMessage(event) && event.text && !managedProcess.resultEmitted) {
+                      managedProcess.resultEmitted = true;
+                      logger.debug('[ProcessManager] Emitting result data via parser', 'ProcessManager', {
+                        sessionId,
+                        resultLength: event.text.length
+                      });
+                      this.emit('data', sessionId, event.text);
+                    }
+                  }
+                } else {
+                  // Fallback for agents without parsers (legacy Claude Code format)
+                  // Handle different message types from stream-json output
+                  if (msg.type === 'result' && msg.result && !managedProcess.resultEmitted) {
+                    managedProcess.resultEmitted = true;
+                    logger.debug('[ProcessManager] Emitting result data', 'ProcessManager', { sessionId, resultLength: msg.result.length });
+                    this.emit('data', sessionId, msg.result);
+                  }
+                  if (msg.session_id && !managedProcess.sessionIdEmitted) {
+                    managedProcess.sessionIdEmitted = true;
+                    this.emit('session-id', sessionId, msg.session_id);
+                  }
+                  if (msg.type === 'system' && msg.subtype === 'init' && msg.slash_commands) {
+                    this.emit('slash-commands', sessionId, msg.slash_commands);
+                  }
+                  if (msg.modelUsage || msg.usage || msg.total_cost_usd !== undefined) {
+                    const usageStats = aggregateModelUsage(
+                      msg.modelUsage,
+                      msg.usage || {},
+                      msg.total_cost_usd || 0
+                    );
+                    this.emit('usage', sessionId, usageStats);
+                  }
                 }
               } catch (e) {
                 // If it's not valid JSON, emit as raw text

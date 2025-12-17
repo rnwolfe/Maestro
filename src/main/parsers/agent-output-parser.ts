@@ -79,6 +79,12 @@ export interface ParsedEvent {
     cacheCreationTokens?: number;
     contextWindow?: number;
     costUsd?: number;
+    /**
+     * Reasoning/thinking tokens (separate from outputTokens)
+     * Some models like OpenAI o3/o4-mini report reasoning tokens separately.
+     * These are already included in outputTokens but tracked separately for UI display.
+     */
+    reasoningTokens?: number;
   };
 
   /**

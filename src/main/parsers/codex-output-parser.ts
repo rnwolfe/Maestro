@@ -24,6 +24,7 @@
 import type { ToolType, AgentError } from '../../shared/types';
 import type { AgentOutputParser, ParsedEvent } from './agent-output-parser';
 import { getErrorPatterns, matchErrorPattern } from './error-patterns';
+import { CODEX_PRICING } from '../constants';
 
 /**
  * Raw message structure from Codex JSON output
@@ -253,18 +254,37 @@ export class CodexOutputParser implements AgentOutputParser {
 
     const usage = msg.usage;
 
+    const inputTokens = usage.input_tokens || 0;
+    const outputTokens = usage.output_tokens || 0;
+    const cachedInputTokens = usage.cached_input_tokens || 0;
+    const reasoningOutputTokens = usage.reasoning_output_tokens || 0;
+
     // Total output tokens = output_tokens + reasoning_output_tokens
-    const totalOutputTokens =
-      (usage.output_tokens || 0) + (usage.reasoning_output_tokens || 0);
+    const totalOutputTokens = outputTokens + reasoningOutputTokens;
+
+    // Calculate cost using OpenAI pricing (o4-mini pricing by default)
+    // Input tokens - uncached tokens are charged at full rate, cached at discounted rate
+    const uncachedInputTokens = Math.max(0, inputTokens - cachedInputTokens);
+    const inputCost =
+      (uncachedInputTokens / 1_000_000) * CODEX_PRICING.INPUT_PER_MILLION +
+      (cachedInputTokens / 1_000_000) * CODEX_PRICING.CACHED_INPUT_PER_MILLION;
+
+    // Output tokens - regular output tokens + reasoning tokens (same rate)
+    const outputCost =
+      (totalOutputTokens / 1_000_000) * CODEX_PRICING.OUTPUT_PER_MILLION;
+
+    const totalCostUsd = inputCost + outputCost;
 
     return {
-      inputTokens: usage.input_tokens || 0,
+      inputTokens,
       outputTokens: totalOutputTokens,
-      cacheReadTokens: usage.cached_input_tokens || 0,
+      cacheReadTokens: cachedInputTokens,
       // Note: Codex doesn't report cache creation tokens
       cacheCreationTokens: 0,
-      // Cost calculation would need OpenAI pricing - set to undefined for now
-      costUsd: undefined,
+      costUsd: totalCostUsd,
+      contextWindow: CODEX_PRICING.CONTEXT_WINDOW,
+      // Store reasoning tokens separately for UI display
+      reasoningTokens: reasoningOutputTokens,
     };
   }
 

@@ -48,6 +48,37 @@ export const CLAUDE_PRICING = {
 } as const;
 
 /**
+ * OpenAI Codex pricing (per million tokens)
+ * Based on OpenAI API pricing as of 2025
+ *
+ * The Codex CLI uses o3 or o4-mini models by default. We use o4-mini pricing
+ * as the default since it's the more commonly used cost-efficient option.
+ *
+ * o3 pricing: $10.00/$40.00 per million tokens (input/output)
+ * o4-mini pricing: $1.10/$4.40 per million tokens (input/output)
+ *
+ * Cached tokens get 75% discount on input pricing.
+ * Reasoning tokens are priced the same as output tokens.
+ *
+ * @see https://openai.com/api/pricing/
+ */
+export const CODEX_PRICING = {
+  // o4-mini model pricing (default)
+  INPUT_PER_MILLION: 1.10,
+  OUTPUT_PER_MILLION: 4.40,
+  // Cached input tokens get 75% discount
+  CACHED_INPUT_PER_MILLION: 0.275, // 1.10 * 0.25
+  // Reasoning tokens are typically output tokens
+  REASONING_PER_MILLION: 4.40,
+  // o3 model pricing (for reference)
+  O3_INPUT_PER_MILLION: 10.00,
+  O3_OUTPUT_PER_MILLION: 40.00,
+  O3_CACHED_INPUT_PER_MILLION: 2.50, // 10.00 * 0.25
+  // Context window for o3/o4-mini models
+  CONTEXT_WINDOW: 128000,
+} as const;
+
+/**
  * Type for CLAUDE_SESSION_PARSE_LIMITS object
  */
 export type ClaudeSessionParseLimits = typeof CLAUDE_SESSION_PARSE_LIMITS;
@@ -56,3 +87,8 @@ export type ClaudeSessionParseLimits = typeof CLAUDE_SESSION_PARSE_LIMITS;
  * Type for CLAUDE_PRICING object
  */
 export type ClaudePricing = typeof CLAUDE_PRICING;
+
+/**
+ * Type for CODEX_PRICING object
+ */
+export type CodexPricing = typeof CODEX_PRICING;

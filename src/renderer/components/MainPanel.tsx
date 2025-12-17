@@ -719,6 +719,18 @@ export const MainPanel = forwardRef<MainPanelHandle, MainPanelProps>(function Ma
                             {(activeTab?.usageStats?.outputTokens ?? 0).toLocaleString()}
                           </span>
                         </div>
+                        {/* Reasoning tokens - only shown for agents that report them (e.g., Codex o3/o4-mini) */}
+                        {(activeTab?.usageStats?.reasoningTokens ?? 0) > 0 && (
+                          <div className="flex justify-between items-center">
+                            <span className="text-xs" style={{ color: theme.colors.textDim }}>
+                              Reasoning Tokens
+                              <span className="ml-1 text-[10px] opacity-60">(in output)</span>
+                            </span>
+                            <span className="text-xs font-mono" style={{ color: theme.colors.textMain }}>
+                              {(activeTab?.usageStats?.reasoningTokens ?? 0).toLocaleString()}
+                            </span>
+                          </div>
+                        )}
                         <div className="flex justify-between items-center">
                           <span className="text-xs" style={{ color: theme.colors.textDim }}>Cache Read</span>
                           <span className="text-xs font-mono" style={{ color: theme.colors.textMain }}>

@@ -22,7 +22,7 @@ export interface SessionInfo {
   autoRunFolderPath?: string;
 }
 
-// Usage statistics from Claude Code CLI
+// Usage statistics from AI agent CLI (Claude Code, Codex, etc.)
 export interface UsageStats {
   inputTokens: number;
   outputTokens: number;
@@ -30,6 +30,12 @@ export interface UsageStats {
   cacheCreationInputTokens: number;
   totalCostUsd: number;
   contextWindow: number;
+  /**
+   * Reasoning/thinking tokens (separate from outputTokens)
+   * Some models like OpenAI o3/o4-mini report reasoning tokens separately.
+   * These are already included in outputTokens but tracked separately for UI display.
+   */
+  reasoningTokens?: number;
 }
 
 // History entry types for the History panel

@@ -61,6 +61,7 @@ interface UsageStats {
   cacheCreationInputTokens: number;
   totalCostUsd: number;
   contextWindow: number;
+  reasoningTokens?: number;  // Separate reasoning tokens (Codex o3/o4-mini)
 }
 
 type HistoryEntryType = 'AUTO' | 'USER';

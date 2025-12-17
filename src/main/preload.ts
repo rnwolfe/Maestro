@@ -205,6 +205,7 @@ contextBridge.exposeInMainWorld('maestro', {
       cacheCreationInputTokens: number;
       totalCostUsd: number;
       contextWindow: number;
+      reasoningTokens?: number;  // Separate reasoning tokens (Codex o3/o4-mini)
     }) => void) => {
       const handler = (_: any, sessionId: string, usageStats: any) => callback(sessionId, usageStats);
       ipcRenderer.on('process:usage', handler);
@@ -881,6 +882,7 @@ export interface MaestroAPI {
       cacheCreationInputTokens: number;
       totalCostUsd: number;
       contextWindow: number;
+      reasoningTokens?: number;
     }) => void) => () => void;
     onAgentError: (callback: (sessionId: string, error: {
       type: string;

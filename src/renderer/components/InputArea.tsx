@@ -4,6 +4,7 @@ import type { Session, Theme, BatchRunState } from '../types';
 import type { TabCompletionSuggestion, TabCompletionFilter } from '../hooks/useTabCompletion';
 import { ThinkingStatusPill } from './ThinkingStatusPill';
 import { ExecutionQueueIndicator } from './ExecutionQueueIndicator';
+import { useAgentCapabilities } from '../hooks/useAgentCapabilities';
 
 interface SlashCommand {
   command: string;
@@ -106,6 +107,9 @@ export const InputArea = React.memo(function InputArea(props: InputAreaProps) {
     tabSaveToHistory = false, onToggleTabSaveToHistory,
     onOpenPromptComposer
   } = props;
+
+  // Get agent capabilities for conditional feature rendering
+  const { hasCapability } = useAgentCapabilities(session.toolType);
 
   // Check if we're in read-only mode (auto mode OR manual toggle - Claude will be in plan mode)
   const isAutoReadOnly = isAutoModeActive && session.inputMode === 'ai';
@@ -676,9 +680,9 @@ export const InputArea = React.memo(function InputArea(props: InputAreaProps) {
                   <span>History</span>
                 </button>
               )}
-              {/* Read-only mode toggle - AI mode only */}
+              {/* Read-only mode toggle - AI mode only, if agent supports it */}
               {/* When AutoRun is active, pill is locked to enabled state */}
-              {session.inputMode === 'ai' && onToggleTabReadOnlyMode && (
+              {session.inputMode === 'ai' && onToggleTabReadOnlyMode && hasCapability('supportsReadOnlyMode') && (
                 <button
                   onClick={isAutoReadOnly ? undefined : onToggleTabReadOnlyMode}
                   disabled={isAutoReadOnly}

@@ -7,6 +7,47 @@ import type { Session, Theme } from '../../../renderer/types';
 // Mock scrollIntoView since jsdom doesn't support it
 Element.prototype.scrollIntoView = vi.fn();
 
+// Mock useAgentCapabilities hook - return claude-code capabilities by default
+vi.mock('../../../renderer/hooks/useAgentCapabilities', () => ({
+  useAgentCapabilities: vi.fn(() => ({
+    capabilities: {
+      supportsResume: true,
+      supportsReadOnlyMode: true,
+      supportsJsonOutput: true,
+      supportsSessionId: true,
+      supportsImageInput: true,
+      supportsSlashCommands: true,
+      supportsSessionStorage: true,
+      supportsCostTracking: true,
+      supportsUsageStats: true,
+      supportsBatchMode: true,
+      supportsStreaming: true,
+      supportsResultMessages: true,
+    },
+    loading: false,
+    error: null,
+    refresh: vi.fn(),
+    hasCapability: vi.fn((cap: string) => {
+      // Return true for claude-code capabilities
+      const capabilities: Record<string, boolean> = {
+        supportsResume: true,
+        supportsReadOnlyMode: true,
+        supportsJsonOutput: true,
+        supportsSessionId: true,
+        supportsImageInput: true,
+        supportsSlashCommands: true,
+        supportsSessionStorage: true,
+        supportsCostTracking: true,
+        supportsUsageStats: true,
+        supportsBatchMode: true,
+        supportsStreaming: true,
+        supportsResultMessages: true,
+      };
+      return capabilities[cap] ?? false;
+    }),
+  })),
+}));
+
 // Mock child components to isolate InputArea testing
 vi.mock('../../../renderer/components/ThinkingStatusPill', () => ({
   ThinkingStatusPill: vi.fn(({ sessions, onSessionClick }) => (

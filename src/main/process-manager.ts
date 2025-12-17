@@ -3,6 +3,16 @@ import { EventEmitter } from 'events';
 import * as pty from 'node-pty';
 import { stripControlSequences } from './utils/terminalFilter';
 import { logger } from './utils/logger';
+import { getOutputParser, type ParsedEvent, type AgentOutputParser } from './parsers';
+import { aggregateModelUsage } from './parsers/usage-aggregator';
+
+// Re-export parser types for consumers
+export type { ParsedEvent, AgentOutputParser } from './parsers';
+export { getOutputParser } from './parsers';
+
+// Re-export usage types for backwards compatibility
+export type { UsageStats, ModelStats } from './parsers/usage-aggregator';
+export { aggregateModelUsage } from './parsers/usage-aggregator';
 
 interface ProcessConfig {
   sessionId: string;
@@ -31,6 +41,7 @@ interface ManagedProcess {
   sessionIdEmitted?: boolean; // True after session_id has been emitted (prevents duplicate emissions)
   resultEmitted?: boolean; // True after result data has been emitted (prevents duplicate emissions)
   startTime: number; // Timestamp when process was spawned
+  outputParser?: AgentOutputParser; // Parser for agent-specific JSON output
 }
 
 /**
@@ -46,81 +57,8 @@ function parseDataUrl(dataUrl: string): { base64: string; mediaType: string } | 
   };
 }
 
-/**
- * Usage statistics extracted from model usage data
- */
-export interface UsageStats {
-  inputTokens: number;
-  outputTokens: number;
-  cacheReadInputTokens: number;
-  cacheCreationInputTokens: number;
-  totalCostUsd: number;
-  contextWindow: number;
-}
-
-/**
- * Model statistics from Claude Code modelUsage response
- */
-export interface ModelStats {
-  inputTokens?: number;
-  outputTokens?: number;
-  cacheReadInputTokens?: number;
-  cacheCreationInputTokens?: number;
-  contextWindow?: number;
-}
-
-/**
- * Aggregate token counts from modelUsage for accurate context tracking.
- * modelUsage contains per-model breakdown with actual context tokens (including cache hits).
- * Falls back to top-level usage if modelUsage isn't available.
- *
- * @param modelUsage - Per-model statistics object from Claude Code response
- * @param usage - Top-level usage object (fallback)
- * @param totalCostUsd - Total cost from response
- * @returns Aggregated usage statistics
- */
-export function aggregateModelUsage(
-  modelUsage: Record<string, ModelStats> | undefined,
-  usage: { input_tokens?: number; output_tokens?: number; cache_read_input_tokens?: number; cache_creation_input_tokens?: number } = {},
-  totalCostUsd: number = 0
-): UsageStats {
-  let aggregatedInputTokens = 0;
-  let aggregatedOutputTokens = 0;
-  let aggregatedCacheReadTokens = 0;
-  let aggregatedCacheCreationTokens = 0;
-  let contextWindow = 200000; // Default for Claude
-
-  if (modelUsage) {
-    for (const modelStats of Object.values(modelUsage)) {
-      aggregatedInputTokens += modelStats.inputTokens || 0;
-      aggregatedOutputTokens += modelStats.outputTokens || 0;
-      aggregatedCacheReadTokens += modelStats.cacheReadInputTokens || 0;
-      aggregatedCacheCreationTokens += modelStats.cacheCreationInputTokens || 0;
-      // Use the highest context window from any model
-      if (modelStats.contextWindow && modelStats.contextWindow > contextWindow) {
-        contextWindow = modelStats.contextWindow;
-      }
-    }
-  }
-
-  // Fall back to top-level usage if modelUsage isn't available
-  // This handles older CLI versions or different output formats
-  if (aggregatedInputTokens === 0 && aggregatedOutputTokens === 0) {
-    aggregatedInputTokens = usage.input_tokens || 0;
-    aggregatedOutputTokens = usage.output_tokens || 0;
-    aggregatedCacheReadTokens = usage.cache_read_input_tokens || 0;
-    aggregatedCacheCreationTokens = usage.cache_creation_input_tokens || 0;
-  }
-
-  return {
-    inputTokens: aggregatedInputTokens,
-    outputTokens: aggregatedOutputTokens,
-    cacheReadInputTokens: aggregatedCacheReadTokens,
-    cacheCreationInputTokens: aggregatedCacheCreationTokens,
-    totalCostUsd,
-    contextWindow
-  };
-}
+// UsageStats, ModelStats, and aggregateModelUsage are now imported from ./parsers/usage-aggregator
+// and re-exported above for backwards compatibility
 
 /**
  * Build a stream-json message for Claude Code with images and text
@@ -349,6 +287,9 @@ export class ProcessManager extends EventEmitter {
         // Detect stream-json mode from args (now default for Claude Code) or when images are present
         const isStreamJsonMode = finalArgs.includes('stream-json') || (hasImages && !!prompt);
 
+        // Get the output parser for this agent type (if available)
+        const outputParser = getOutputParser(toolType) || undefined;
+
         const managedProcess: ManagedProcess = {
           sessionId,
           toolType,
@@ -360,6 +301,7 @@ export class ProcessManager extends EventEmitter {
           isStreamJsonMode,
           jsonBuffer: isBatchMode ? '' : undefined,
           startTime: Date.now(),
+          outputParser,
         };
 
         this.processes.set(sessionId, managedProcess);
@@ -669,6 +611,30 @@ export class ProcessManager extends EventEmitter {
    */
   get(sessionId: string): ManagedProcess | undefined {
     return this.processes.get(sessionId);
+  }
+
+  /**
+   * Get the output parser for a session's agent type
+   * @param sessionId - The session ID
+   * @returns The parser or null if not available
+   */
+  getParser(sessionId: string): AgentOutputParser | null {
+    const process = this.processes.get(sessionId);
+    return process?.outputParser || null;
+  }
+
+  /**
+   * Parse a JSON line using the appropriate parser for the session
+   * @param sessionId - The session ID
+   * @param line - The JSON line to parse
+   * @returns ParsedEvent or null if no parser or invalid
+   */
+  parseLine(sessionId: string, line: string): ParsedEvent | null {
+    const parser = this.getParser(sessionId);
+    if (!parser) {
+      return null;
+    }
+    return parser.parseJsonLine(line);
   }
 
   /**

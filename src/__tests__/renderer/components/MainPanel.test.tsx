@@ -849,6 +849,30 @@ describe('MainPanel', () => {
 
       expect(screen.queryByText('Context Window')).not.toBeInTheDocument();
     });
+
+    it('should not display context window widget when agent does not support usage stats', () => {
+      // Pre-populate cache with capabilities where supportsUsageStats is false
+      clearCapabilitiesCache();
+      setCapabilitiesCache('claude-code', {
+        supportsResume: true,
+        supportsReadOnlyMode: true,
+        supportsJsonOutput: true,
+        supportsSessionId: true,
+        supportsImageInput: true,
+        supportsSlashCommands: true,
+        supportsSessionStorage: true,
+        supportsCostTracking: true,
+        supportsUsageStats: false, // Agent doesn't support usage stats
+        supportsBatchMode: true,
+        supportsStreaming: true,
+        supportsResultMessages: true,
+      });
+
+      render(<MainPanel {...defaultProps} />);
+
+      // Context Window widget should not be present
+      expect(screen.queryByText('Context Window')).not.toBeInTheDocument();
+    });
   });
 
   describe('Auto mode indicator', () => {

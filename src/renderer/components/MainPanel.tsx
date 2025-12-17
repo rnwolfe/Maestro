@@ -640,8 +640,8 @@ export const MainPanel = forwardRef<MainPanelHandle, MainPanelProps>(function Ma
                 </span>
               )}
 
-              {/* Context Window Widget with Tooltip - only show for tabs with Claude session */}
-              {activeSession.inputMode === 'ai' && activeTab?.agentSessionId && (
+              {/* Context Window Widget with Tooltip - only show for tabs with agent session and if agent supports usage stats */}
+              {activeSession.inputMode === 'ai' && activeTab?.agentSessionId && hasCapability('supportsUsageStats') && (
               <div
                 className="flex flex-col items-end mr-2 relative cursor-pointer"
                 onMouseEnter={() => {

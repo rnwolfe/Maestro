@@ -220,6 +220,12 @@ describe('NewInstanceModal', () => {
         />
       );
 
+      // Wait for agents to load, then click to expand
+      await waitFor(() => {
+        expect(screen.getByText('Claude Code')).toBeInTheDocument();
+      });
+      fireEvent.click(screen.getByText('Claude Code'));
+
       await waitFor(() => {
         expect(screen.getByText('/usr/bin/claude')).toBeInTheDocument();
       });
@@ -1279,6 +1285,12 @@ describe('NewInstanceModal', () => {
         />
       );
 
+      // Wait for agents to load, then click to expand
+      await waitFor(() => {
+        expect(screen.getByText('Claude Code')).toBeInTheDocument();
+      });
+      fireEvent.click(screen.getByText('Claude Code'));
+
       await waitFor(() => {
         expect(screen.getByPlaceholderText('/path/to/claude')).toBeInTheDocument();
         expect(screen.getByText('Custom Path (optional)')).toBeInTheDocument();
@@ -1304,6 +1316,12 @@ describe('NewInstanceModal', () => {
         />
       );
 
+      // Wait for agents to load, then click to expand
+      await waitFor(() => {
+        expect(screen.getByText('Claude Code')).toBeInTheDocument();
+      });
+      fireEvent.click(screen.getByText('Claude Code'));
+
       await waitFor(() => {
         const customPathInput = screen.getByPlaceholderText('/path/to/claude');
         expect(customPathInput).toHaveValue('/custom/path/to/claude');
@@ -1325,6 +1343,12 @@ describe('NewInstanceModal', () => {
         existingSessions={[]}
         />
       );
+
+      // Wait for agents to load, then click to expand
+      await waitFor(() => {
+        expect(screen.getByText('Claude Code')).toBeInTheDocument();
+      });
+      fireEvent.click(screen.getByText('Claude Code'));
 
       await waitFor(() => {
         expect(screen.getByPlaceholderText('/path/to/claude')).toBeInTheDocument();
@@ -1359,6 +1383,12 @@ describe('NewInstanceModal', () => {
         />
       );
 
+      // Wait for agents to load, then click to expand
+      await waitFor(() => {
+        expect(screen.getByText('Claude Code')).toBeInTheDocument();
+      });
+      fireEvent.click(screen.getByText('Claude Code'));
+
       await waitFor(() => {
         expect(screen.getByText('Clear')).toBeInTheDocument();
       });
@@ -1385,6 +1415,12 @@ describe('NewInstanceModal', () => {
         existingSessions={[]}
         />
       );
+
+      // Wait for agents to load, then click to expand
+      await waitFor(() => {
+        expect(screen.getByText('Claude Code')).toBeInTheDocument();
+      });
+      fireEvent.click(screen.getByText('Claude Code'));
 
       await waitFor(() => {
         expect(screen.getByPlaceholderText('/path/to/claude')).toBeInTheDocument();

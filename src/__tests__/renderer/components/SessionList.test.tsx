@@ -718,7 +718,7 @@ describe('SessionList', () => {
       });
       render(<SessionList {...props} />);
 
-      expect(screen.getByText('Ungrouped')).toBeInTheDocument();
+      expect(screen.getByText('Ungrouped Agents')).toBeInTheDocument();
       expect(screen.getByText('Ungrouped Session')).toBeInTheDocument();
     });
 
@@ -2229,7 +2229,7 @@ describe('SessionList', () => {
       render(<SessionList {...props} />);
 
       // Click on Ungrouped header to collapse
-      fireEvent.click(screen.getByText('Ungrouped'));
+      fireEvent.click(screen.getByText('Ungrouped Agents'));
 
       // Sessions should now be collapsed into palette indicators
     });
@@ -2253,7 +2253,7 @@ describe('SessionList', () => {
       const { container } = render(<SessionList {...props} />);
 
       // First collapse the ungrouped section
-      fireEvent.click(screen.getByText('Ungrouped'));
+      fireEvent.click(screen.getByText('Ungrouped Agents'));
 
       // Find the collapsed indicator
       const indicator = container.querySelector('.rounded-full.flex-1');
@@ -2282,7 +2282,7 @@ describe('SessionList', () => {
       const { container } = render(<SessionList {...props} />);
 
       // First collapse the ungrouped section
-      fireEvent.click(screen.getByText('Ungrouped'));
+      fireEvent.click(screen.getByText('Ungrouped Agents'));
 
       // Find the collapsed indicator
       const indicator = container.querySelector('.rounded-full.flex-1');
@@ -2314,7 +2314,7 @@ describe('SessionList', () => {
       const { container } = render(<SessionList {...props} />);
 
       // Collapse ungrouped section
-      fireEvent.click(screen.getByText('Ungrouped'));
+      fireEvent.click(screen.getByText('Ungrouped Agents'));
 
       // Find and click the indicator
       const indicator = container.querySelector('.rounded-full.flex-1');
@@ -2338,7 +2338,7 @@ describe('SessionList', () => {
       const { container } = render(<SessionList {...props} />);
 
       // Collapse ungrouped section
-      fireEvent.click(screen.getByText('Ungrouped'));
+      fireEvent.click(screen.getByText('Ungrouped Agents'));
 
       // Find and click the palette container (not the indicator)
       const paletteContainer = container.querySelector('.ml-8.mr-3.mt-1.mb-2.flex');

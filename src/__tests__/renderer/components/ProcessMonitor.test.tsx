@@ -489,7 +489,7 @@ describe('ProcessMonitor', () => {
         expect(screen.queryByText('Loading processes...')).not.toBeInTheDocument();
       });
 
-      expect(screen.getByText('UNGROUPED')).toBeInTheDocument();
+      expect(screen.getByText('UNGROUPED AGENTS')).toBeInTheDocument();
       expect(screen.getByText('Test Session')).toBeInTheDocument();
     });
 

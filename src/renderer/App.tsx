@@ -568,12 +568,25 @@ export default function MaestroConsole() {
           gitRefsCacheTime = Date.now();
         }
 
+        // Reset all tab states to idle - processes don't survive app restart
+        const resetAiTabs = correctedSession.aiTabs.map(tab => ({
+          ...tab,
+          state: 'idle' as const,
+          thinkingStartTime: undefined,
+        }));
+
         // Session restored - no superfluous messages added to AI Terminal or Command Terminal
         return {
           ...correctedSession,
           aiPid: aiSpawnResult.pid,
           terminalPid: 0,  // Terminal uses runCommand (fresh shells per command)
           state: 'idle' as SessionState,
+          // Reset runtime-only busy state - processes don't survive app restart
+          busySource: undefined,
+          thinkingStartTime: undefined,
+          currentCycleTokens: undefined,
+          currentCycleBytes: undefined,
+          statusMessage: undefined,
           isGitRepo,  // Update Git status
           gitBranches,
           gitTags,
@@ -581,6 +594,7 @@ export default function MaestroConsole() {
           isLive: false,  // Always start offline on app restart
           liveUrl: undefined,  // Clear any stale URL
           aiLogs: [],  // Deprecated - logs are now in aiTabs
+          aiTabs: resetAiTabs,  // Reset tab states
           shellLogs: correctedSession.shellLogs,  // Preserve existing Command Terminal logs
           executionQueue: correctedSession.executionQueue || [],  // Ensure backwards compatibility
           activeTimeMs: correctedSession.activeTimeMs || 0,  // Ensure backwards compatibility
@@ -4356,6 +4370,62 @@ export default function MaestroConsole() {
 
   // Update ref for processQueuedItem so batch exit handler can use it
   processQueuedItemRef.current = processQueuedItem;
+
+  // Process any queued items left over from previous session (after app restart)
+  // This ensures queued messages aren't stuck forever when app restarts
+  const processedQueuesOnStartup = useRef(false);
+  useEffect(() => {
+    // Only run once after sessions are loaded
+    if (!sessionsLoaded || processedQueuesOnStartup.current) return;
+    processedQueuesOnStartup.current = true;
+
+    // Find sessions with queued items that are idle (stuck from previous session)
+    const sessionsWithQueuedItems = sessions.filter(
+      s => s.state === 'idle' && s.executionQueue && s.executionQueue.length > 0
+    );
+
+    if (sessionsWithQueuedItems.length > 0) {
+      console.log(`[App] Found ${sessionsWithQueuedItems.length} session(s) with leftover queued items from previous session`);
+
+      // Process the first queued item from each session
+      // Delay to ensure all refs and handlers are set up
+      setTimeout(() => {
+        sessionsWithQueuedItems.forEach(session => {
+          const firstItem = session.executionQueue[0];
+          console.log(`[App] Processing leftover queued item for session ${session.id}:`, firstItem);
+
+          // Set session to busy and remove item from queue
+          setSessions(prev => prev.map(s => {
+            if (s.id !== session.id) return s;
+
+            const [, ...remainingQueue] = s.executionQueue;
+            const targetTab = s.aiTabs.find(tab => tab.id === firstItem.tabId) || getActiveTab(s);
+
+            // Set the target tab to busy
+            const updatedAiTabs = s.aiTabs.map(tab =>
+              tab.id === targetTab?.id
+                ? { ...tab, state: 'busy' as const, thinkingStartTime: Date.now() }
+                : tab
+            );
+
+            return {
+              ...s,
+              state: 'busy' as SessionState,
+              busySource: 'ai',
+              thinkingStartTime: Date.now(),
+              currentCycleTokens: 0,
+              currentCycleBytes: 0,
+              executionQueue: remainingQueue,
+              aiTabs: updatedAiTabs,
+            };
+          }));
+
+          // Process the item
+          processQueuedItem(session.id, firstItem);
+        });
+      }, 500); // Small delay to ensure everything is initialized
+    }
+  }, [sessionsLoaded, sessions]);
 
   const handleInterrupt = async () => {
     if (!activeSession) return;

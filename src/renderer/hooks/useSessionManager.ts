@@ -42,7 +42,11 @@ const prepareSessionForLoad = (session: Session): Session => {
 /**
  * Prepare a session for persistence by:
  * 1. Truncating logs in each AI tab to MAX_PERSISTED_LOGS_PER_TAB entries
- * 2. Excluding runtime-only fields (closedTabHistory, agentError, etc.)
+ * 2. Resetting runtime-only state (busy state, thinking time, etc.)
+ * 3. Excluding runtime-only fields (closedTabHistory, agentError, etc.)
+ *
+ * This ensures sessions don't get stuck in busy state after app restart,
+ * since underlying processes are gone after restart.
  */
 const prepareSessionForPersistence = (session: Session): Session => {
   // If no aiTabs, return as-is (shouldn't happen after migration)
@@ -69,6 +73,8 @@ const prepareSessionForPersistence = (session: Session): Session => {
     busySource: undefined,
     thinkingStartTime: undefined,
     currentCycleTokens: undefined,
+    currentCycleBytes: undefined,
+    statusMessage: undefined,
     // Explicitly exclude closedTabHistory - it's runtime-only
     closedTabHistory: [],
     // Don't persist error state - no agent is running on next launch

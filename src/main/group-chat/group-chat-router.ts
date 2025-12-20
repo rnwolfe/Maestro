@@ -203,14 +203,29 @@ export async function routeUserMessage(
   agentDetector?: AgentDetector,
   readOnly?: boolean
 ): Promise<void> {
+  console.log(`[GroupChat:Debug] ========== ROUTE USER MESSAGE ==========`);
+  console.log(`[GroupChat:Debug] Group Chat ID: ${groupChatId}`);
+  console.log(`[GroupChat:Debug] Message length: ${message.length}`);
+  console.log(`[GroupChat:Debug] Read-only: ${readOnly ?? false}`);
+  console.log(`[GroupChat:Debug] Has processManager: ${!!processManager}`);
+  console.log(`[GroupChat:Debug] Has agentDetector: ${!!agentDetector}`);
+
   let chat = await loadGroupChat(groupChatId);
   if (!chat) {
+    console.log(`[GroupChat:Debug] ERROR: Group chat not found!`);
     throw new Error(`Group chat not found: ${groupChatId}`);
   }
 
+  console.log(`[GroupChat:Debug] Chat loaded: "${chat.name}"`);
+  console.log(`[GroupChat:Debug] Current participants: ${chat.participants.map(p => p.name).join(', ') || '(none)'}`);
+  console.log(`[GroupChat:Debug] Moderator Agent ID: ${chat.moderatorAgentId}`);
+
   if (!isModeratorActive(groupChatId)) {
+    console.log(`[GroupChat:Debug] ERROR: Moderator is not active!`);
     throw new Error(`Moderator is not active for group chat: ${groupChatId}`);
   }
+
+  console.log(`[GroupChat:Debug] Moderator is active: true`);
 
   // Auto-add participants mentioned by the user if they match available sessions
   if (processManager && agentDetector && getSessionsCallback) {
@@ -287,19 +302,29 @@ export async function routeUserMessage(
   // Spawn a batch process for the moderator to handle this message
   // The response will be captured via the process:data event handler in index.ts
   if (processManager && agentDetector) {
+    console.log(`[GroupChat:Debug] Preparing to spawn moderator batch process...`);
     const sessionIdPrefix = getModeratorSessionId(groupChatId);
+    console.log(`[GroupChat:Debug] Session ID prefix: ${sessionIdPrefix}`);
+
     if (sessionIdPrefix) {
       // Create a unique session ID for this message
       const sessionId = `${sessionIdPrefix}-${Date.now()}`;
+      console.log(`[GroupChat:Debug] Generated full session ID: ${sessionId}`);
 
       // Resolve the agent configuration to get the executable command
       const agent = await agentDetector.getAgent(chat.moderatorAgentId);
+      console.log(`[GroupChat:Debug] Agent resolved: ${agent?.command || 'null'}`);
+      console.log(`[GroupChat:Debug] Agent available: ${agent?.available ?? false}`);
+
       if (!agent || !agent.available) {
+        console.log(`[GroupChat:Debug] ERROR: Agent not available!`);
         throw new Error(`Agent '${chat.moderatorAgentId}' is not available`);
       }
 
       // Use custom path from moderator config if set, otherwise use resolved path
       const command = chat.moderatorConfig?.customPath || agent.path || agent.command;
+      console.log(`[GroupChat:Debug] Command to execute: ${command}`);
+
       // Get the base args from the agent configuration
       const args = [...agent.args];
       // Append custom args from moderator config if set
@@ -312,6 +337,7 @@ export async function routeUserMessage(
           args.push(...customArgsArray.map(arg => arg.replace(/^["']|["']$/g, '')));
         }
       }
+      console.log(`[GroupChat:Debug] Args: ${JSON.stringify(args)}`);
 
       // Build participant context
       const participantContext = chat.participants.length > 0
@@ -322,6 +348,7 @@ export async function routeUserMessage(
       let availableSessionsContext = '';
       if (getSessionsCallback) {
         const sessions = getSessionsCallback();
+        console.log(`[GroupChat:Debug] Available sessions from callback: ${sessions.map(s => s.name).join(', ')}`);
         const participantNames = new Set(chat.participants.map(p => p.name));
         const availableSessions = sessions.filter(s =>
           s.toolType !== 'terminal' && !participantNames.has(s.name)
@@ -333,6 +360,8 @@ export async function routeUserMessage(
 
       // Build the prompt with context
       const chatHistory = await readLog(chat.logPath);
+      console.log(`[GroupChat:Debug] Chat history entries: ${chatHistory.length}`);
+
       const historyContext = chatHistory.slice(-20).map(m =>
         `[${m.from}]: ${m.content}`
       ).join('\n');
@@ -348,12 +377,21 @@ ${historyContext}
 ## User Request${readOnly ? ' (READ-ONLY MODE - do not make changes)' : ''}:
 ${message}`;
 
+      console.log(`[GroupChat:Debug] Full prompt length: ${fullPrompt.length} chars`);
+      console.log(`[GroupChat:Debug] ========== SPAWNING MODERATOR PROCESS ==========`);
+      console.log(`[GroupChat:Debug] Session ID: ${sessionId}`);
+      console.log(`[GroupChat:Debug] Tool Type: ${chat.moderatorAgentId}`);
+      console.log(`[GroupChat:Debug] CWD: ${process.env.HOME || '/tmp'}`);
+      console.log(`[GroupChat:Debug] Command: ${command}`);
+      console.log(`[GroupChat:Debug] ReadOnly: true`);
+
       // Spawn the moderator process in batch mode
       try {
         // Emit state change to show moderator is thinking
         groupChatEmitters.emitStateChange?.(groupChatId, 'moderator-thinking');
+        console.log(`[GroupChat:Debug] Emitted state change: moderator-thinking`);
 
-        processManager.spawn({
+        const spawnResult = processManager.spawn({
           sessionId,
           toolType: chat.moderatorAgentId,
           cwd: process.env.HOME || '/tmp',
@@ -363,15 +401,25 @@ ${message}`;
           prompt: fullPrompt,
           customEnvVars: chat.moderatorConfig?.customEnvVars,
         });
+
+        console.log(`[GroupChat:Debug] Spawn result: ${JSON.stringify(spawnResult)}`);
+        console.log(`[GroupChat:Debug] Moderator process spawned successfully`);
+        console.log(`[GroupChat:Debug] =================================================`);
       } catch (error) {
+        console.error(`[GroupChat:Debug] SPAWN ERROR:`, error);
         console.error(`[GroupChatRouter] Failed to spawn moderator for ${groupChatId}:`, error);
         groupChatEmitters.emitStateChange?.(groupChatId, 'idle');
         throw new Error(`Failed to spawn moderator: ${error instanceof Error ? error.message : String(error)}`);
       }
+    } else {
+      console.log(`[GroupChat:Debug] WARNING: No session ID prefix found for moderator`);
     }
   } else if (processManager && !agentDetector) {
+    console.error(`[GroupChat:Debug] ERROR: AgentDetector not available!`);
     console.error(`[GroupChatRouter] AgentDetector not available, cannot spawn moderator`);
     throw new Error('AgentDetector not available');
+  } else {
+    console.log(`[GroupChat:Debug] WARNING: No processManager provided, skipping spawn`);
   }
 }
 
@@ -395,13 +443,23 @@ export async function routeModeratorResponse(
   agentDetector?: AgentDetector,
   readOnly?: boolean
 ): Promise<void> {
+  console.log(`[GroupChat:Debug] ========== ROUTE MODERATOR RESPONSE ==========`);
+  console.log(`[GroupChat:Debug] Group Chat ID: ${groupChatId}`);
+  console.log(`[GroupChat:Debug] Message length: ${message.length}`);
+  console.log(`[GroupChat:Debug] Message preview: "${message.substring(0, 300)}${message.length > 300 ? '...' : ''}"`);
+  console.log(`[GroupChat:Debug] Read-only: ${readOnly ?? false}`);
+
   const chat = await loadGroupChat(groupChatId);
   if (!chat) {
+    console.log(`[GroupChat:Debug] ERROR: Group chat not found!`);
     throw new Error(`Group chat not found: ${groupChatId}`);
   }
 
+  console.log(`[GroupChat:Debug] Chat loaded: "${chat.name}"`);
+
   // Log the message as coming from moderator
   await appendToLog(chat.logPath, 'moderator', message);
+  console.log(`[GroupChat:Debug] Message appended to log`);
 
   // Emit message event to renderer so it shows immediately
   const moderatorMessage: GroupChatMessage = {
@@ -410,14 +468,19 @@ export async function routeModeratorResponse(
     content: message,
   };
   groupChatEmitters.emitMessage?.(groupChatId, moderatorMessage);
+  console.log(`[GroupChat:Debug] Emitted moderator message to renderer`);
 
   // Extract ALL mentions from the message
   const allMentions = extractAllMentions(message);
+  console.log(`[GroupChat:Debug] Extracted @mentions: ${allMentions.join(', ') || '(none)'}`);
+
   const existingParticipantNames = new Set(chat.participants.map(p => p.name));
+  console.log(`[GroupChat:Debug] Existing participants: ${Array.from(existingParticipantNames).join(', ') || '(none)'}`);
 
   // Check for mentions that aren't already participants but match available sessions
   if (processManager && getSessionsCallback) {
     const sessions = getSessionsCallback();
+    console.log(`[GroupChat:Debug] Available sessions for auto-add: ${sessions.map(s => s.name).join(', ')}`);
 
     for (const mentionedName of allMentions) {
       // Skip if already a participant (check both exact and normalized names)
@@ -468,16 +531,21 @@ export async function routeModeratorResponse(
   // Reload chat to get updated participants list
   const updatedChat = await loadGroupChat(groupChatId);
   if (!updatedChat) {
+    console.log(`[GroupChat:Debug] WARNING: Could not reload chat after participant updates`);
     return;
   }
 
   const mentions = extractMentions(message, updatedChat.participants);
+  console.log(`[GroupChat:Debug] Valid participant mentions found: ${mentions.join(', ') || '(none)'}`);
 
   // Track participants that will need to respond for synthesis round
   const participantsToRespond = new Set<string>();
 
   // Spawn batch processes for each mentioned participant
   if (processManager && agentDetector && mentions.length > 0) {
+    console.log(`[GroupChat:Debug] ========== SPAWNING PARTICIPANT AGENTS ==========`);
+    console.log(`[GroupChat:Debug] Will spawn ${mentions.length} participant agent(s)`);
+
     // Get available sessions for cwd lookup
     const sessions = getSessionsCallback?.() || [];
 
@@ -488,23 +556,30 @@ export async function routeModeratorResponse(
     ).join('\n');
 
     for (const participantName of mentions) {
+      console.log(`[GroupChat:Debug] --- Spawning participant: @${participantName} ---`);
+
       // Find the participant info
       const participant = updatedChat.participants.find(p => p.name === participantName);
       if (!participant) {
-        console.warn(`[GroupChatRouter] Participant ${participantName} not found in chat`);
+        console.warn(`[GroupChat:Debug] Participant ${participantName} not found in chat - skipping`);
         continue;
       }
+
+      console.log(`[GroupChat:Debug] Participant agent ID: ${participant.agentId}`);
 
       // Find matching session to get cwd
       const matchingSession = sessions.find(s =>
         mentionMatches(s.name, participantName) || s.name === participantName
       );
       const cwd = matchingSession?.cwd || process.env.HOME || '/tmp';
+      console.log(`[GroupChat:Debug] CWD for participant: ${cwd}`);
 
       // Resolve agent configuration
       const agent = await agentDetector.getAgent(participant.agentId);
+      console.log(`[GroupChat:Debug] Agent resolved: ${agent?.command || 'null'}, available: ${agent?.available ?? false}`);
+
       if (!agent || !agent.available) {
-        console.error(`[GroupChatRouter] Agent '${participant.agentId}' not available for ${participantName}`);
+        console.error(`[GroupChat:Debug] ERROR: Agent '${participant.agentId}' not available for ${participantName}`);
         continue;
       }
 
@@ -530,6 +605,7 @@ Please respond to this request.${readOnly ? ' Remember: READ-ONLY mode is active
 
       // Create a unique session ID for this batch process
       const sessionId = `group-chat-${groupChatId}-participant-${participantName}-${Date.now()}`;
+      console.log(`[GroupChat:Debug] Generated session ID: ${sessionId}`);
 
       // Get custom env vars for this agent
       const customEnvVars = getCustomEnvVarsCallback?.(participant.agentId);
@@ -537,8 +613,9 @@ Please respond to this request.${readOnly ? ' Remember: READ-ONLY mode is active
       try {
         // Emit participant state change to show this participant is working
         groupChatEmitters.emitParticipantState?.(groupChatId, participantName, 'working');
+        console.log(`[GroupChat:Debug] Emitted participant state: working`);
 
-        processManager.spawn({
+        const spawnResult = processManager.spawn({
           sessionId,
           toolType: participant.agentId,
           cwd,
@@ -549,23 +626,33 @@ Please respond to this request.${readOnly ? ' Remember: READ-ONLY mode is active
           customEnvVars,
         });
 
+        console.log(`[GroupChat:Debug] Spawn result for ${participantName}: ${JSON.stringify(spawnResult)}`);
+
         // Track this participant as pending response
         participantsToRespond.add(participantName);
-        console.log(`[GroupChatRouter] Spawned batch process for participant @${participantName} (session ${sessionId}, readOnly=${readOnly ?? false})`);
+        console.log(`[GroupChat:Debug] Spawned batch process for participant @${participantName} (session ${sessionId}, readOnly=${readOnly ?? false})`);
       } catch (error) {
-        console.error(`[GroupChatRouter] Failed to spawn batch process for ${participantName}:`, error);
+        console.error(`[GroupChat:Debug] SPAWN ERROR for ${participantName}:`, error);
         // Continue with other participants even if one fails
       }
     }
+    console.log(`[GroupChat:Debug] =================================================`);
+  } else if (mentions.length === 0) {
+    console.log(`[GroupChat:Debug] No participant @mentions found - moderator response is final`);
+    // Set state back to idle since no agents are being spawned
+    groupChatEmitters.emitStateChange?.(groupChatId, 'idle');
+    console.log(`[GroupChat:Debug] Emitted state change: idle`);
   }
 
   // Store pending participants for synthesis tracking
   if (participantsToRespond.size > 0) {
     pendingParticipantResponses.set(groupChatId, participantsToRespond);
-    console.log(`[GroupChatRouter] Waiting for ${participantsToRespond.size} participant(s) to respond: ${[...participantsToRespond].join(', ')}`);
+    console.log(`[GroupChat:Debug] Waiting for ${participantsToRespond.size} participant(s) to respond: ${[...participantsToRespond].join(', ')}`);
     // Set state to show agents are working
     groupChatEmitters.emitStateChange?.(groupChatId, 'agent-working');
+    console.log(`[GroupChat:Debug] Emitted state change: agent-working`);
   }
+  console.log(`[GroupChat:Debug] ===================================================`);
 }
 
 /**
@@ -585,19 +672,30 @@ export async function routeAgentResponse(
   message: string,
   _processManager?: IProcessManager
 ): Promise<void> {
+  console.log(`[GroupChat:Debug] ========== ROUTE AGENT RESPONSE ==========`);
+  console.log(`[GroupChat:Debug] Group Chat ID: ${groupChatId}`);
+  console.log(`[GroupChat:Debug] Participant: ${participantName}`);
+  console.log(`[GroupChat:Debug] Message length: ${message.length}`);
+  console.log(`[GroupChat:Debug] Message preview: "${message.substring(0, 200)}${message.length > 200 ? '...' : ''}"`);
+
   const chat = await loadGroupChat(groupChatId);
   if (!chat) {
+    console.log(`[GroupChat:Debug] ERROR: Group chat not found!`);
     throw new Error(`Group chat not found: ${groupChatId}`);
   }
 
   // Verify participant exists
   const participant = chat.participants.find((p) => p.name === participantName);
   if (!participant) {
+    console.log(`[GroupChat:Debug] ERROR: Participant '${participantName}' not found!`);
     throw new Error(`Participant '${participantName}' not found in group chat`);
   }
 
+  console.log(`[GroupChat:Debug] Participant verified: ${participantName} (agent: ${participant.agentId})`);
+
   // Log the message as coming from the participant
   await appendToLog(chat.logPath, participantName, message);
+  console.log(`[GroupChat:Debug] Message appended to log`);
 
   // Emit message event to renderer so it shows immediately
   const agentMessage: GroupChatMessage = {
@@ -668,19 +766,30 @@ export async function spawnModeratorSynthesis(
   processManager: IProcessManager,
   agentDetector: AgentDetector
 ): Promise<void> {
+  console.log(`[GroupChat:Debug] ========== SPAWN MODERATOR SYNTHESIS ==========`);
+  console.log(`[GroupChat:Debug] Group Chat ID: ${groupChatId}`);
+  console.log(`[GroupChat:Debug] All participants have responded, starting synthesis round...`);
+
   const chat = await loadGroupChat(groupChatId);
   if (!chat) {
+    console.error(`[GroupChat:Debug] ERROR: Chat not found for synthesis!`);
     console.error(`[GroupChatRouter] Cannot spawn synthesis - chat not found: ${groupChatId}`);
     return;
   }
 
+  console.log(`[GroupChat:Debug] Chat loaded: "${chat.name}"`);
+
   if (!isModeratorActive(groupChatId)) {
+    console.error(`[GroupChat:Debug] ERROR: Moderator not active for synthesis!`);
     console.error(`[GroupChatRouter] Cannot spawn synthesis - moderator not active for: ${groupChatId}`);
     return;
   }
 
   const sessionIdPrefix = getModeratorSessionId(groupChatId);
+  console.log(`[GroupChat:Debug] Session ID prefix: ${sessionIdPrefix}`);
+
   if (!sessionIdPrefix) {
+    console.error(`[GroupChat:Debug] ERROR: No session ID prefix for synthesis!`);
     console.error(`[GroupChatRouter] Cannot spawn synthesis - no moderator session ID for: ${groupChatId}`);
     return;
   }
@@ -690,16 +799,22 @@ export async function spawnModeratorSynthesis(
   // so the exit handler routes through routeModeratorResponse, which will
   // check for @mentions - if present, route to agents; if not, it's the final response
   const sessionId = `${sessionIdPrefix}-${Date.now()}`;
+  console.log(`[GroupChat:Debug] Generated synthesis session ID: ${sessionId}`);
 
   // Resolve the agent configuration
   const agent = await agentDetector.getAgent(chat.moderatorAgentId);
+  console.log(`[GroupChat:Debug] Agent resolved: ${agent?.command || 'null'}, available: ${agent?.available ?? false}`);
+
   if (!agent || !agent.available) {
+    console.error(`[GroupChat:Debug] ERROR: Agent not available for synthesis!`);
     console.error(`[GroupChatRouter] Agent '${chat.moderatorAgentId}' is not available for synthesis`);
     return;
   }
 
   // Use custom path from moderator config if set
   const command = chat.moderatorConfig?.customPath || agent.path || agent.command;
+  console.log(`[GroupChat:Debug] Command: ${command}`);
+
   const args = [...agent.args];
   if (chat.moderatorConfig?.customArgs) {
     const customArgsStr = chat.moderatorConfig.customArgs.trim();
@@ -708,9 +823,12 @@ export async function spawnModeratorSynthesis(
       args.push(...customArgsArray.map(arg => arg.replace(/^["']|["']$/g, '')));
     }
   }
+  console.log(`[GroupChat:Debug] Args: ${JSON.stringify(args)}`);
 
   // Build the synthesis prompt with recent chat history
   const chatHistory = await readLog(chat.logPath);
+  console.log(`[GroupChat:Debug] Chat history entries for synthesis: ${chatHistory.length}`);
+
   const historyContext = chatHistory.slice(-30).map(m =>
     `[${m.from}]: ${m.content}`
   ).join('\n');
@@ -735,13 +853,16 @@ Review the agent responses above. Either:
 1. Synthesize into a final answer for the user (NO @mentions) if the question is fully answered
 2. @mention specific agents for follow-up if you need more information`;
 
+  console.log(`[GroupChat:Debug] Synthesis prompt length: ${synthesisPrompt.length} chars`);
+
   // Spawn the synthesis process
   try {
-    console.log(`[GroupChatRouter] Spawning moderator synthesis for ${groupChatId}`);
+    console.log(`[GroupChat:Debug] Spawning synthesis moderator process...`);
     // Emit state change to show moderator is thinking (synthesizing)
     groupChatEmitters.emitStateChange?.(groupChatId, 'moderator-thinking');
+    console.log(`[GroupChat:Debug] Emitted state change: moderator-thinking`);
 
-    processManager.spawn({
+    const spawnResult = processManager.spawn({
       sessionId,
       toolType: chat.moderatorAgentId,
       cwd: process.env.HOME || '/tmp',
@@ -751,7 +872,12 @@ Review the agent responses above. Either:
       prompt: synthesisPrompt,
       customEnvVars: chat.moderatorConfig?.customEnvVars,
     });
+
+    console.log(`[GroupChat:Debug] Synthesis spawn result: ${JSON.stringify(spawnResult)}`);
+    console.log(`[GroupChat:Debug] Synthesis moderator process spawned successfully`);
+    console.log(`[GroupChat:Debug] ================================================`);
   } catch (error) {
+    console.error(`[GroupChat:Debug] SYNTHESIS SPAWN ERROR:`, error);
     console.error(`[GroupChatRouter] Failed to spawn moderator synthesis for ${groupChatId}:`, error);
     groupChatEmitters.emitStateChange?.(groupChatId, 'idle');
   }

@@ -1904,9 +1904,14 @@ function setupProcessListeners() {
       // Session ID format: group-chat-{groupChatId}-moderator-{uuid} or group-chat-{groupChatId}-moderator-synthesis-{uuid}
       const moderatorMatch = sessionId.match(/^group-chat-(.+)-moderator-/);
       if (moderatorMatch) {
+        const groupChatId = moderatorMatch[1];
+        console.log(`[GroupChat:Debug] MODERATOR DATA received for chat ${groupChatId}`);
+        console.log(`[GroupChat:Debug] Session ID: ${sessionId}`);
+        console.log(`[GroupChat:Debug] Data length: ${data.length}`);
         // Buffer the output - will be routed on process exit
         const existing = groupChatOutputBuffers.get(sessionId) || '';
         groupChatOutputBuffers.set(sessionId, existing + data);
+        console.log(`[GroupChat:Debug] Buffered total: ${(existing + data).length} chars`);
         return; // Don't send to regular process:data handler
       }
 
@@ -1914,9 +1919,14 @@ function setupProcessListeners() {
       // Session ID format: group-chat-{groupChatId}-participant-{name}-{uuid|timestamp}
       const participantInfo = parseParticipantSessionId(sessionId);
       if (participantInfo) {
+        console.log(`[GroupChat:Debug] PARTICIPANT DATA received`);
+        console.log(`[GroupChat:Debug] Chat: ${participantInfo.groupChatId}, Participant: ${participantInfo.participantName}`);
+        console.log(`[GroupChat:Debug] Session ID: ${sessionId}`);
+        console.log(`[GroupChat:Debug] Data length: ${data.length}`);
         // Buffer the output - will be routed on process exit
         const existing = groupChatOutputBuffers.get(sessionId) || '';
         groupChatOutputBuffers.set(sessionId, existing + data);
+        console.log(`[GroupChat:Debug] Buffered total: ${(existing + data).length} chars`);
         return; // Don't send to regular process:data handler
       }
 
@@ -1971,42 +1981,62 @@ function setupProcessListeners() {
       const moderatorMatch = sessionId.match(/^group-chat-(.+)-moderator-/);
       if (moderatorMatch) {
         const groupChatId = moderatorMatch[1];
+        console.log(`[GroupChat:Debug] ========== MODERATOR PROCESS EXIT ==========`);
+        console.log(`[GroupChat:Debug] Group Chat ID: ${groupChatId}`);
+        console.log(`[GroupChat:Debug] Session ID: ${sessionId}`);
+        console.log(`[GroupChat:Debug] Exit code: ${code}`);
         logger.debug(`[GroupChat] Moderator exit: groupChatId=${groupChatId}`, 'ProcessListener', { sessionId });
         // Route the buffered output now that process is complete
         const bufferedOutput = groupChatOutputBuffers.get(sessionId);
+        console.log(`[GroupChat:Debug] Buffered output length: ${bufferedOutput?.length ?? 0}`);
         if (bufferedOutput) {
+          console.log(`[GroupChat:Debug] Raw buffered output preview: "${bufferedOutput.substring(0, 300)}${bufferedOutput.length > 300 ? '...' : ''}"`);
           logger.debug(`[GroupChat] Moderator has buffered output (${bufferedOutput.length} chars)`, 'ProcessListener', { groupChatId });
           void (async () => {
             try {
               const chat = await loadGroupChat(groupChatId);
+              console.log(`[GroupChat:Debug] Chat loaded for parsing: ${chat?.name || 'null'}`);
               const agentType = chat?.moderatorAgentId;
+              console.log(`[GroupChat:Debug] Agent type for parsing: ${agentType}`);
               const parsedText = extractTextFromStreamJson(bufferedOutput, agentType);
+              console.log(`[GroupChat:Debug] Parsed text length: ${parsedText.length}`);
+              console.log(`[GroupChat:Debug] Parsed text preview: "${parsedText.substring(0, 300)}${parsedText.length > 300 ? '...' : ''}"`);
               if (parsedText.trim()) {
+                console.log(`[GroupChat:Debug] Routing moderator response...`);
                 logger.info(`[GroupChat] Routing moderator response (${parsedText.length} chars)`, 'ProcessListener', { groupChatId });
                 const readOnly = getGroupChatReadOnlyState(groupChatId);
+                console.log(`[GroupChat:Debug] Read-only state: ${readOnly}`);
                 routeModeratorResponse(groupChatId, parsedText, processManager ?? undefined, agentDetector ?? undefined, readOnly).catch(err => {
+                  console.error(`[GroupChat:Debug] ERROR routing moderator response:`, err);
                   logger.error('[GroupChat] Failed to route moderator response', 'ProcessListener', { error: String(err) });
                 });
               } else {
+                console.log(`[GroupChat:Debug] WARNING: Parsed text is empty!`);
                 logger.warn('[GroupChat] Moderator output parsed to empty string', 'ProcessListener', { groupChatId, bufferedLength: bufferedOutput.length });
               }
             } catch (err) {
+              console.error(`[GroupChat:Debug] ERROR loading chat:`, err);
               logger.error('[GroupChat] Failed to load chat for moderator output parsing', 'ProcessListener', { error: String(err) });
               const parsedText = extractTextFromStreamJson(bufferedOutput);
               if (parsedText.trim()) {
                 const readOnly = getGroupChatReadOnlyState(groupChatId);
                 routeModeratorResponse(groupChatId, parsedText, processManager ?? undefined, agentDetector ?? undefined, readOnly).catch(routeErr => {
+                  console.error(`[GroupChat:Debug] ERROR routing moderator response (fallback):`, routeErr);
                   logger.error('[GroupChat] Failed to route moderator response', 'ProcessListener', { error: String(routeErr) });
                 });
               }
             }
           })().finally(() => {
             groupChatOutputBuffers.delete(sessionId);
+            console.log(`[GroupChat:Debug] Cleared output buffer for session`);
           });
         } else {
+          console.log(`[GroupChat:Debug] WARNING: No buffered output!`);
           logger.warn('[GroupChat] Moderator exit with no buffered output', 'ProcessListener', { groupChatId, sessionId });
         }
         groupChatEmitters.emitStateChange?.(groupChatId, 'idle');
+        console.log(`[GroupChat:Debug] Emitted state change: idle`);
+        console.log(`[GroupChat:Debug] =============================================`);
         // Don't send to regular exit handler
         return;
       }
@@ -2016,50 +2046,75 @@ function setupProcessListeners() {
       const participantExitInfo = parseParticipantSessionId(sessionId);
       if (participantExitInfo) {
         const { groupChatId, participantName } = participantExitInfo;
+        console.log(`[GroupChat:Debug] ========== PARTICIPANT PROCESS EXIT ==========`);
+        console.log(`[GroupChat:Debug] Group Chat ID: ${groupChatId}`);
+        console.log(`[GroupChat:Debug] Participant: ${participantName}`);
+        console.log(`[GroupChat:Debug] Session ID: ${sessionId}`);
+        console.log(`[GroupChat:Debug] Exit code: ${code}`);
         logger.debug(`[GroupChat] Participant exit: ${participantName} (groupChatId=${groupChatId})`, 'ProcessListener', { sessionId });
 
         // Emit participant state change to show this participant is done working
         groupChatEmitters.emitParticipantState?.(groupChatId, participantName, 'idle');
+        console.log(`[GroupChat:Debug] Emitted participant state: idle`);
 
         // Route the buffered output now that process is complete
         const bufferedOutput = groupChatOutputBuffers.get(sessionId);
+        console.log(`[GroupChat:Debug] Buffered output length: ${bufferedOutput?.length ?? 0}`);
         if (bufferedOutput) {
+          console.log(`[GroupChat:Debug] Raw buffered output preview: "${bufferedOutput.substring(0, 300)}${bufferedOutput.length > 300 ? '...' : ''}"`);
           void (async () => {
             try {
               const chat = await loadGroupChat(groupChatId);
+              console.log(`[GroupChat:Debug] Chat loaded for participant parsing: ${chat?.name || 'null'}`);
               const agentType = chat?.participants.find(p => p.name === participantName)?.agentId;
+              console.log(`[GroupChat:Debug] Agent type for parsing: ${agentType}`);
               const parsedText = extractTextFromStreamJson(bufferedOutput, agentType);
+              console.log(`[GroupChat:Debug] Parsed text length: ${parsedText.length}`);
+              console.log(`[GroupChat:Debug] Parsed text preview: "${parsedText.substring(0, 200)}${parsedText.length > 200 ? '...' : ''}"`);
               if (parsedText.trim()) {
+                console.log(`[GroupChat:Debug] Routing agent response from ${participantName}...`);
                 routeAgentResponse(groupChatId, participantName, parsedText, processManager ?? undefined).catch(err => {
+                  console.error(`[GroupChat:Debug] ERROR routing agent response:`, err);
                   logger.error('[GroupChat] Failed to route agent response', 'ProcessListener', { error: String(err), participant: participantName });
                 });
+              } else {
+                console.log(`[GroupChat:Debug] WARNING: Parsed text is empty for ${participantName}!`);
               }
             } catch (err) {
+              console.error(`[GroupChat:Debug] ERROR loading chat for participant:`, err);
               logger.error('[GroupChat] Failed to load chat for participant output parsing', 'ProcessListener', { error: String(err), participant: participantName });
               const parsedText = extractTextFromStreamJson(bufferedOutput);
               if (parsedText.trim()) {
                 routeAgentResponse(groupChatId, participantName, parsedText, processManager ?? undefined).catch(routeErr => {
+                  console.error(`[GroupChat:Debug] ERROR routing agent response (fallback):`, routeErr);
                   logger.error('[GroupChat] Failed to route agent response', 'ProcessListener', { error: String(routeErr), participant: participantName });
                 });
               }
             }
           })().finally(() => {
             groupChatOutputBuffers.delete(sessionId);
+            console.log(`[GroupChat:Debug] Cleared output buffer for participant session`);
           });
+        } else {
+          console.log(`[GroupChat:Debug] WARNING: No buffered output for participant ${participantName}!`);
         }
 
         // Mark participant as responded and check if we should spawn synthesis
         const isLastParticipant = markParticipantResponded(groupChatId, participantName);
+        console.log(`[GroupChat:Debug] Is last participant to respond: ${isLastParticipant}`);
         if (isLastParticipant && processManager && agentDetector) {
           // All participants have responded - spawn moderator synthesis round
+          console.log(`[GroupChat:Debug] All participants responded - spawning synthesis round...`);
           logger.info('[GroupChat] All participants responded, spawning moderator synthesis', 'ProcessListener', { groupChatId });
           spawnModeratorSynthesis(groupChatId, processManager, agentDetector).catch(err => {
+            console.error(`[GroupChat:Debug] ERROR spawning synthesis:`, err);
             logger.error('[GroupChat] Failed to spawn moderator synthesis', 'ProcessListener', { error: String(err), groupChatId });
           });
-        } else {
-          // More participants pending, set state back to idle temporarily
-          groupChatEmitters.emitStateChange?.(groupChatId, 'idle');
+        } else if (!isLastParticipant) {
+          // More participants pending
+          console.log(`[GroupChat:Debug] Waiting for more participants to respond...`);
         }
+        console.log(`[GroupChat:Debug] ===============================================`);
         // Don't send to regular exit handler
         return;
       }

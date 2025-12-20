@@ -105,18 +105,31 @@ export async function addParticipant(
   agentDetector?: AgentDetector,
   customEnvVars?: Record<string, string>
 ): Promise<GroupChatParticipant> {
+  console.log(`[GroupChat:Debug] ========== ADD PARTICIPANT ==========`);
+  console.log(`[GroupChat:Debug] Group Chat ID: ${groupChatId}`);
+  console.log(`[GroupChat:Debug] Participant Name: ${name}`);
+  console.log(`[GroupChat:Debug] Agent ID: ${agentId}`);
+  console.log(`[GroupChat:Debug] CWD: ${cwd}`);
+
   const chat = await loadGroupChat(groupChatId);
   if (!chat) {
+    console.log(`[GroupChat:Debug] ERROR: Group chat not found!`);
     throw new Error(`Group chat not found: ${groupChatId}`);
   }
 
+  console.log(`[GroupChat:Debug] Chat loaded: "${chat.name}"`);
+
   // Check if moderator is active
   if (!isModeratorActive(groupChatId)) {
+    console.log(`[GroupChat:Debug] ERROR: Moderator not active!`);
     throw new Error(`Moderator must be active before adding participants to group chat: ${groupChatId}`);
   }
 
+  console.log(`[GroupChat:Debug] Moderator is active: true`);
+
   // Check for duplicate name
   if (chat.participants.some(p => p.name === name)) {
+    console.log(`[GroupChat:Debug] ERROR: Duplicate participant name!`);
     throw new Error(`Participant with name '${name}' already exists in group chat`);
   }
 
@@ -126,20 +139,27 @@ export async function addParticipant(
 
   if (agentDetector) {
     const agent = await agentDetector.getAgent(agentId);
+    console.log(`[GroupChat:Debug] Agent resolved: ${agent?.command || 'null'}, available: ${agent?.available ?? false}`);
     if (!agent || !agent.available) {
+      console.log(`[GroupChat:Debug] ERROR: Agent not available!`);
       throw new Error(`Agent '${agentId}' is not available`);
     }
     command = agent.path || agent.command;
     args = [...agent.args];
   }
 
+  console.log(`[GroupChat:Debug] Command: ${command}`);
+  console.log(`[GroupChat:Debug] Args: ${JSON.stringify(args)}`);
+
   // Generate session ID for this participant
   const sessionId = `group-chat-${groupChatId}-participant-${name}-${uuidv4()}`;
+  console.log(`[GroupChat:Debug] Generated session ID: ${sessionId}`);
 
   // Generate system prompt for the participant
   const prompt = getParticipantSystemPrompt(name, chat.name, chat.logPath);
 
   // Spawn the participant agent
+  console.log(`[GroupChat:Debug] Spawning participant agent...`);
   const result = processManager.spawn({
     sessionId,
     toolType: agentId,
@@ -151,7 +171,10 @@ export async function addParticipant(
     customEnvVars,
   });
 
+  console.log(`[GroupChat:Debug] Spawn result: ${JSON.stringify(result)}`);
+
   if (!result.success) {
+    console.log(`[GroupChat:Debug] ERROR: Spawn failed!`);
     throw new Error(`Failed to spawn participant '${name}' for group chat ${groupChatId}`);
   }
 
@@ -165,9 +188,12 @@ export async function addParticipant(
 
   // Store the session mapping
   activeParticipantSessions.set(getParticipantKey(groupChatId, name), sessionId);
+  console.log(`[GroupChat:Debug] Session stored in active map`);
 
   // Add participant to the group chat
   await addParticipantToChat(groupChatId, participant);
+  console.log(`[GroupChat:Debug] Participant added to chat storage`);
+  console.log(`[GroupChat:Debug] =====================================`);
 
   return participant;
 }

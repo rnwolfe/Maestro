@@ -282,11 +282,23 @@ export function registerGroupChatHandlers(deps: GroupChatHandlerDependencies): v
   ipcMain.handle(
     'groupChat:sendToModerator',
     withIpcErrorLogging(handlerOpts('sendToModerator'), async (id: string, message: string, images?: string[], readOnly?: boolean): Promise<void> => {
+      console.log(`[GroupChat:Debug] ========== USER MESSAGE RECEIVED ==========`);
+      console.log(`[GroupChat:Debug] Group Chat ID: ${id}`);
+      console.log(`[GroupChat:Debug] Message: "${message.substring(0, 200)}${message.length > 200 ? '...' : ''}"`);
+      console.log(`[GroupChat:Debug] Read-only: ${readOnly ?? false}`);
+      console.log(`[GroupChat:Debug] Images: ${images?.length ?? 0}`);
+
       const processManager = getProcessManager();
       const agentDetector = getAgentDetector();
 
+      console.log(`[GroupChat:Debug] Process manager available: ${!!processManager}`);
+      console.log(`[GroupChat:Debug] Agent detector available: ${!!agentDetector}`);
+
       // Route through the user message router which handles logging and forwarding
       await routeUserMessage(id, message, processManager ?? undefined, agentDetector ?? undefined, readOnly);
+
+      console.log(`[GroupChat:Debug] User message routed to moderator`);
+      console.log(`[GroupChat:Debug] ===========================================`);
 
       logger.debug(`Sent message to moderator in ${id}`, LOG_CONTEXT, {
         messageLength: message.length,

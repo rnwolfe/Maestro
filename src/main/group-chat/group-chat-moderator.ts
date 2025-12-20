@@ -170,9 +170,16 @@ export async function spawnModerator(
   _processManager: IProcessManager,
   _cwd: string = process.env.HOME || '/tmp'
 ): Promise<string> {
+  console.log(`[GroupChat:Debug] ========== SPAWNING MODERATOR ==========`);
+  console.log(`[GroupChat:Debug] Chat ID: ${chat.id}`);
+  console.log(`[GroupChat:Debug] Chat Name: ${chat.name}`);
+  console.log(`[GroupChat:Debug] Moderator Agent ID: ${chat.moderatorAgentId}`);
+
   // Generate a session ID prefix for this group chat's moderator
   // Each message will use this prefix with a timestamp suffix
   const sessionIdPrefix = `group-chat-${chat.id}-moderator`;
+
+  console.log(`[GroupChat:Debug] Generated session ID prefix: ${sessionIdPrefix}`);
 
   // Store the session mapping (using prefix as identifier)
   activeModeratorSessions.set(chat.id, sessionIdPrefix);
@@ -182,6 +189,10 @@ export async function spawnModerator(
 
   // Update the group chat with the moderator session ID prefix
   await updateGroupChat(chat.id, { moderatorSessionId: sessionIdPrefix });
+
+  console.log(`[GroupChat:Debug] Moderator initialized and stored in active sessions`);
+  console.log(`[GroupChat:Debug] Active moderator sessions count: ${activeModeratorSessions.size}`);
+  console.log(`[GroupChat:Debug] ==========================================`);
 
   return sessionIdPrefix;
 }

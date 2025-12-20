@@ -8,6 +8,7 @@
 import { MessageSquare, Copy, Check, DollarSign } from 'lucide-react';
 import { useState, useCallback } from 'react';
 import type { Theme, GroupChatParticipant, SessionState } from '../types';
+import { getStatusColor } from '../utils/theme';
 
 interface ParticipantCardProps {
   theme: Theme;
@@ -54,18 +55,8 @@ export function ParticipantCard({
     }
   }, [agentSessionId]);
 
-  const getStatusColor = (): string => {
-    switch (state) {
-      case 'busy':
-        return theme.colors.warning;
-      case 'error':
-        return theme.colors.error;
-      case 'connecting':
-        return theme.colors.warning;
-      default:
-        return theme.colors.success;
-    }
-  };
+  // Determine if state should animate (busy or connecting)
+  const shouldPulse = state === 'busy' || state === 'connecting';
 
   const getStatusLabel = (): string => {
     switch (state) {
@@ -97,8 +88,8 @@ export function ParticipantCard({
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2 min-w-0">
           <div
-            className="w-2 h-2 rounded-full shrink-0"
-            style={{ backgroundColor: getStatusColor() }}
+            className={`w-2 h-2 rounded-full shrink-0 ${shouldPulse ? 'animate-pulse' : ''}`}
+            style={{ backgroundColor: getStatusColor(state, theme) }}
             title={getStatusLabel()}
           />
           <span

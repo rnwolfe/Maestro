@@ -21,7 +21,11 @@ const MAX_PERSISTED_LOGS_PER_TAB = 100;
 /**
  * Prepare a session for persistence by:
  * 1. Truncating logs in each AI tab to MAX_PERSISTED_LOGS_PER_TAB entries
- * 2. Excluding runtime-only fields (closedTabHistory, agentError, etc.)
+ * 2. Resetting runtime-only state (busy state, thinking time, etc.)
+ * 3. Excluding runtime-only fields (closedTabHistory, agentError, etc.)
+ *
+ * This ensures sessions don't get stuck in busy state after app restart,
+ * since underlying processes are gone after restart.
  *
  * This is a copy of the function from useSessionManager.ts to avoid circular imports.
  */
@@ -31,16 +35,16 @@ const prepareSessionForPersistence = (session: Session): Session => {
     return session;
   }
 
-  // Truncate logs in each tab to MAX_PERSISTED_LOGS_PER_TAB
-  const truncatedTabs = session.aiTabs.map(tab => {
-    if (tab.logs.length > MAX_PERSISTED_LOGS_PER_TAB) {
-      return {
-        ...tab,
-        logs: tab.logs.slice(-MAX_PERSISTED_LOGS_PER_TAB),
-      };
-    }
-    return tab;
-  });
+  // Truncate logs and reset runtime state in each tab
+  const truncatedTabs = session.aiTabs.map(tab => ({
+    ...tab,
+    logs: tab.logs.length > MAX_PERSISTED_LOGS_PER_TAB
+      ? tab.logs.slice(-MAX_PERSISTED_LOGS_PER_TAB)
+      : tab.logs,
+    // Reset runtime-only tab state - processes don't survive app restart
+    state: 'idle' as const,
+    thinkingStartTime: undefined,
+  }));
 
   // Return session without runtime-only fields
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -49,6 +53,13 @@ const prepareSessionForPersistence = (session: Session): Session => {
   return {
     ...sessionWithoutRuntimeFields,
     aiTabs: truncatedTabs,
+    // Reset runtime-only session state - processes don't survive app restart
+    state: 'idle',
+    busySource: undefined,
+    thinkingStartTime: undefined,
+    currentCycleTokens: undefined,
+    currentCycleBytes: undefined,
+    statusMessage: undefined,
   } as Session;
 };
 

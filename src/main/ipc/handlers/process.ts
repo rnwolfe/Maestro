@@ -189,7 +189,7 @@ export function registerProcessHandlers(deps: ProcessHandlerDependencies): void 
       });
 
       // Get contextWindow from agent config (for agents like OpenCode/Codex that need user configuration)
-      // Falls back to the agent's configOptions default (e.g., 200000 for Codex, 128000 for OpenCode)
+      // Falls back to the agent's configOptions default (e.g., 400000 for Codex, 128000 for OpenCode)
       const contextWindow = getContextWindowValue(agent, agentConfigValues);
 
       const result = processManager.spawn({

@@ -57,6 +57,8 @@ const MODEL_CONTEXT_WINDOWS: Record<string, number> = {
   'gpt-5': 200000,
   'gpt-5.1': 200000,
   'gpt-5.1-codex-max': 200000,
+  'gpt-5.2': 400000,
+  'gpt-5.2-codex-max': 400000,
   // Default fallback
   'default': 128000,
 };
@@ -169,7 +171,7 @@ export class CodexOutputParser implements AgentOutputParser {
   constructor() {
     // Read config once at initialization
     const config = readCodexConfig();
-    this.model = config.model || 'gpt-5.1-codex-max';
+    this.model = config.model || 'gpt-5.2-codex-max';
 
     // Priority: 1) explicit model_context_window in config, 2) lookup by model name
     this.contextWindow = config.contextWindow || getModelContextWindow(this.model);

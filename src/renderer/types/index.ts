@@ -216,7 +216,7 @@ export interface UsageStats {
   cacheReadInputTokens: number;
   cacheCreationInputTokens: number;
   totalCostUsd: number;
-  contextWindow: number; // e.g., 200000 for Claude/GPT-5.2, 128000 for GPT-4o
+  contextWindow: number; // e.g., 400000 for Claude/GPT-5.2, 128000 for GPT-4o
   /**
    * Reasoning/thinking tokens (separate from outputTokens)
    * Some models like OpenAI o3/o4-mini report reasoning tokens separately.

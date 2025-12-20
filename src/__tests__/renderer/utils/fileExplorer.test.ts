@@ -300,9 +300,11 @@ describe('fileExplorer utils', () => {
       const error = new Error('Permission denied');
       vi.mocked(window.maestro.fs.readDir).mockRejectedValue(error);
 
+      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
       await expect(loadFileTree('/restricted')).rejects.toThrow(
         'Permission denied'
       );
+      consoleSpy.mockRestore();
     });
 
     it('respects default maxDepth of 10', async () => {

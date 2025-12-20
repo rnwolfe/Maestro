@@ -57,6 +57,7 @@ interface ProcessConfig {
   imageArgs?: (imagePath: string) => string[]; // Function to build image CLI args (e.g., ['-i', path] for Codex)
   contextWindow?: number; // Configured context window size (0 or undefined = not configured, hide UI)
   customEnvVars?: Record<string, string>; // Custom environment variables from user configuration
+  noPromptSeparator?: boolean; // If true, don't add '--' before the prompt (e.g., OpenCode doesn't support it)
 }
 
 interface ManagedProcess {
@@ -194,10 +195,10 @@ export class ProcessManager extends EventEmitter {
    * Spawn a new process for a session
    */
   spawn(config: ProcessConfig): { pid: number; success: boolean } {
-    const { sessionId, toolType, cwd, command, args, requiresPty, prompt, shell, shellArgs, shellEnvVars, images, imageArgs, contextWindow, customEnvVars } = config;
+    const { sessionId, toolType, cwd, command, args, requiresPty, prompt, shell, shellArgs, shellEnvVars, images, imageArgs, contextWindow, customEnvVars, noPromptSeparator } = config;
 
     // For batch mode with images, use stream-json mode and send message via stdin
-    // For batch mode without images, append prompt to args with -- separator
+    // For batch mode without images, append prompt to args with -- separator (unless noPromptSeparator is true)
     const hasImages = images && images.length > 0;
     const capabilities = getAgentCapabilities(toolType);
     let finalArgs: string[];
@@ -219,8 +220,12 @@ export class ProcessManager extends EventEmitter {
           finalArgs = [...finalArgs, ...imageArgs(tempPath)];
         }
       }
-      // Add the prompt at the end
-      finalArgs = [...finalArgs, '--', prompt];
+      // Add the prompt at the end (with or without -- separator)
+      if (noPromptSeparator) {
+        finalArgs = [...finalArgs, prompt];
+      } else {
+        finalArgs = [...finalArgs, '--', prompt];
+      }
       logger.debug('[ProcessManager] Using file-based image args', 'ProcessManager', {
         sessionId,
         imageCount: images.length,
@@ -229,7 +234,12 @@ export class ProcessManager extends EventEmitter {
     } else if (prompt) {
       // Regular batch mode - prompt as CLI arg
       // The -- ensures prompt is treated as positional arg, not a flag (even if it starts with --)
-      finalArgs = [...args, '--', prompt];
+      // Some agents (e.g., OpenCode) don't support the -- separator
+      if (noPromptSeparator) {
+        finalArgs = [...args, prompt];
+      } else {
+        finalArgs = [...args, '--', prompt];
+      }
     } else {
       finalArgs = args;
     }
@@ -494,6 +504,13 @@ export class ProcessManager extends EventEmitter {
           childProcess.stdout.on('data', (data: Buffer | string) => {
           const output = data.toString();
 
+          // Debug: Log all stdout data for group chat sessions
+          if (sessionId.includes('group-chat-')) {
+            console.log(`[GroupChat:Debug:ProcessManager] STDOUT received for session ${sessionId}`);
+            console.log(`[GroupChat:Debug:ProcessManager] Raw output length: ${output.length}`);
+            console.log(`[GroupChat:Debug:ProcessManager] Raw output preview: "${output.substring(0, 500)}${output.length > 500 ? '...' : ''}"`);
+          }
+
           if (isStreamJsonMode) {
             // In stream-json mode, each line is a JSONL message
             // Accumulate and process complete lines
@@ -668,6 +685,13 @@ export class ProcessManager extends EventEmitter {
             const stderrData = data.toString();
             logger.debug('[ProcessManager] stderr event fired', 'ProcessManager', { sessionId, dataPreview: stderrData.substring(0, 100) });
 
+            // Debug: Log all stderr data for group chat sessions
+            if (sessionId.includes('group-chat-')) {
+              console.log(`[GroupChat:Debug:ProcessManager] STDERR received for session ${sessionId}`);
+              console.log(`[GroupChat:Debug:ProcessManager] Stderr length: ${stderrData.length}`);
+              console.log(`[GroupChat:Debug:ProcessManager] Stderr preview: "${stderrData.substring(0, 500)}${stderrData.length > 500 ? '...' : ''}"`);
+            }
+
             // Accumulate stderr for error detection at exit (with size limit to prevent memory exhaustion)
             managedProcess.stderrBuffer = appendToBuffer(managedProcess.stderrBuffer || '', stderrData);
 
@@ -705,6 +729,19 @@ export class ProcessManager extends EventEmitter {
             jsonBufferLength: managedProcess.jsonBuffer?.length || 0,
             jsonBufferPreview: managedProcess.jsonBuffer?.substring(0, 200)
           });
+
+          // Debug: Log exit details for group chat sessions
+          if (sessionId.includes('group-chat-')) {
+            console.log(`[GroupChat:Debug:ProcessManager] EXIT for session ${sessionId}`);
+            console.log(`[GroupChat:Debug:ProcessManager] Exit code: ${code}`);
+            console.log(`[GroupChat:Debug:ProcessManager] isStreamJsonMode: ${isStreamJsonMode}`);
+            console.log(`[GroupChat:Debug:ProcessManager] isBatchMode: ${isBatchMode}`);
+            console.log(`[GroupChat:Debug:ProcessManager] resultEmitted: ${managedProcess.resultEmitted}`);
+            console.log(`[GroupChat:Debug:ProcessManager] streamedText length: ${managedProcess.streamedText?.length || 0}`);
+            console.log(`[GroupChat:Debug:ProcessManager] jsonBuffer length: ${managedProcess.jsonBuffer?.length || 0}`);
+            console.log(`[GroupChat:Debug:ProcessManager] stderrBuffer length: ${managedProcess.stderrBuffer?.length || 0}`);
+            console.log(`[GroupChat:Debug:ProcessManager] stderrBuffer preview: "${(managedProcess.stderrBuffer || '').substring(0, 500)}"`);
+          }
           if (isBatchMode && !isStreamJsonMode && managedProcess.jsonBuffer) {
             // Parse JSON response from regular batch mode (not stream-json)
             try {

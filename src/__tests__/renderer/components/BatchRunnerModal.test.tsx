@@ -139,7 +139,12 @@ describe('BatchRunnerModal', () => {
     };
 
     (window.maestro.git as Record<string, unknown>).branches = vi.fn().mockResolvedValue({ branches: ['main', 'develop'] });
-    (window.maestro.git as Record<string, unknown>).checkGhCli = vi.fn().mockResolvedValue({ installed: true, authenticated: true });
+    (window.maestro.git as Record<string, unknown>).checkGhCli = vi.fn(() => ({
+      then: (cb: (value: { installed: boolean; authenticated: boolean }) => void) => {
+        cb({ installed: true, authenticated: true });
+        return Promise.resolve({ installed: true, authenticated: true });
+      },
+    }));
     (window.maestro.git as Record<string, unknown>).worktreeInfo = vi.fn().mockResolvedValue({
       success: true,
       exists: false,

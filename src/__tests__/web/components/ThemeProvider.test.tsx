@@ -36,6 +36,16 @@ vi.mock('../../../web/hooks/useDeviceColorScheme', () => ({
 
 const mockedCssCustomProperties = vi.mocked(cssCustomProperties);
 const mockedUseDeviceColorScheme = vi.mocked(useDeviceColorSchemeModule.useDeviceColorScheme);
+let consoleErrorSpy: ReturnType<typeof vi.spyOn> | undefined;
+
+beforeEach(() => {
+  consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+});
+
+afterEach(() => {
+  consoleErrorSpy?.mockRestore();
+  consoleErrorSpy = undefined;
+});
 
 // Test themes
 const customDarkTheme: Theme = {

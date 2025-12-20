@@ -459,6 +459,7 @@ Binary files /dev/null and b/image.png differ`;
 
     describe('diffText preservation', () => {
       it('preserves the original diff text in the result', () => {
+        const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
         const diffText = `diff --git a/file.ts b/file.ts
 --- a/file.ts
 +++ b/file.ts
@@ -473,6 +474,7 @@ Binary files /dev/null and b/image.png differ`;
         const result = parseGitDiff(diffText);
 
         expect(result[0].diffText).toBe(diffText);
+        consoleSpy.mockRestore();
       });
 
       it('preserves individual diff sections for multiple files', () => {

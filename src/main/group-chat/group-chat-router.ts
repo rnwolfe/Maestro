@@ -384,6 +384,7 @@ ${message}`;
       // Get the base args from the agent configuration
       const args = [...agent.args];
       const agentConfigValues = getAgentConfigCallback?.(chat.moderatorAgentId) || {};
+      console.log(`[GroupChat:Debug] agentConfigValues for ${chat.moderatorAgentId}: ${JSON.stringify(agentConfigValues)}`);
       const baseArgs = buildAgentArgs(agent, {
         baseArgs: args,
         prompt: fullPrompt,
@@ -422,10 +423,12 @@ ${message}`;
           prompt: fullPrompt,
           contextWindow: getContextWindowValue(agent, agentConfigValues),
           customEnvVars: configResolution.effectiveCustomEnvVars ?? getCustomEnvVarsCallback?.(chat.moderatorAgentId),
+          noPromptSeparator: agent.noPromptSeparator,
         });
 
         console.log(`[GroupChat:Debug] Spawn result: ${JSON.stringify(spawnResult)}`);
         console.log(`[GroupChat:Debug] Moderator process spawned successfully`);
+        console.log(`[GroupChat:Debug] noPromptSeparator: ${agent.noPromptSeparator ?? false}`);
         console.log(`[GroupChat:Debug] =================================================`);
       } catch (error) {
         console.error(`[GroupChat:Debug] SPAWN ERROR:`, error);
@@ -679,9 +682,11 @@ Please respond to this request.${readOnly ? ' Remember: READ-ONLY mode is active
           prompt: participantPrompt,
           contextWindow: getContextWindowValue(agent, agentConfigValues),
           customEnvVars: configResolution.effectiveCustomEnvVars ?? getCustomEnvVarsCallback?.(participant.agentId),
+          noPromptSeparator: agent.noPromptSeparator,
         });
 
         console.log(`[GroupChat:Debug] Spawn result for ${participantName}: ${JSON.stringify(spawnResult)}`);
+        console.log(`[GroupChat:Debug] noPromptSeparator: ${agent.noPromptSeparator ?? false}`);
 
         // Track this participant as pending response
         participantsToRespond.add(participantName);
@@ -933,10 +938,12 @@ Review the agent responses above. Either:
       prompt: synthesisPrompt,
       contextWindow: getContextWindowValue(agent, agentConfigValues),
       customEnvVars: configResolution.effectiveCustomEnvVars ?? getCustomEnvVarsCallback?.(chat.moderatorAgentId),
+      noPromptSeparator: agent.noPromptSeparator,
     });
 
     console.log(`[GroupChat:Debug] Synthesis spawn result: ${JSON.stringify(spawnResult)}`);
     console.log(`[GroupChat:Debug] Synthesis moderator process spawned successfully`);
+    console.log(`[GroupChat:Debug] noPromptSeparator: ${agent.noPromptSeparator ?? false}`);
     console.log(`[GroupChat:Debug] ================================================`);
   } catch (error) {
     console.error(`[GroupChat:Debug] SYNTHESIS SPAWN ERROR:`, error);

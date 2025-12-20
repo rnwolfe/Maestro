@@ -200,9 +200,11 @@ export async function addParticipant(
     prompt,
     contextWindow: getContextWindowValue(agentConfig, agentConfigValues || {}),
     customEnvVars: configResolution.effectiveCustomEnvVars ?? effectiveEnvVars,
+    noPromptSeparator: agentConfig?.noPromptSeparator,
   });
 
   console.log(`[GroupChat:Debug] Spawn result: ${JSON.stringify(result)}`);
+  console.log(`[GroupChat:Debug] noPromptSeparator: ${agentConfig?.noPromptSeparator ?? false}`);
 
   if (!result.success) {
     console.log(`[GroupChat:Debug] ERROR: Spawn failed!`);

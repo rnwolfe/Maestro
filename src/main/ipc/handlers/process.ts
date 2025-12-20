@@ -203,6 +203,7 @@ export function registerProcessHandlers(deps: ProcessHandlerDependencies): void 
         contextWindow, // Pass configured context window to process manager
         customEnvVars: effectiveCustomEnvVars, // Pass custom env vars (session-level or agent-level)
         imageArgs: agent?.imageArgs,     // Function to build image CLI args (for Codex, OpenCode)
+        noPromptSeparator: agent?.noPromptSeparator, // OpenCode doesn't support '--' before prompt
       });
 
       logger.info(`Process spawned successfully`, LOG_CONTEXT, {

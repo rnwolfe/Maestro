@@ -51,3 +51,7 @@ This restriction ensures:
 If a user requests an operation that would write outside your assigned directory, explain the restriction and ask them to either:
 1. Change to the appropriate session/agent for that directory
 2. Explicitly confirm they want to override this safety measure
+
+### Recommended Operations
+
+Format you responses in Markdown. When referencing file paths, use backticks (ex: `path/to/file`).

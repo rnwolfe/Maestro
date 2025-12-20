@@ -30,6 +30,7 @@ export interface IProcessManager {
     prompt?: string;
     customEnvVars?: Record<string, string>;
     contextWindow?: number;
+    noPromptSeparator?: boolean;
   }): { pid: number; success: boolean };
 
   write(sessionId: string, data: string): boolean;

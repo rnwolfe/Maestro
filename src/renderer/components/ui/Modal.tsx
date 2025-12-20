@@ -233,6 +233,8 @@ export interface ModalFooterProps {
   confirmClassName?: string;
   /** Ref to attach to confirm button for focus management */
   confirmButtonRef?: React.RefObject<HTMLButtonElement>;
+  /** Ref to attach to cancel button for focus management */
+  cancelButtonRef?: React.RefObject<HTMLButtonElement>;
 }
 
 export function ModalFooter({
@@ -246,14 +248,16 @@ export function ModalFooter({
   showCancel = true,
   confirmClassName = '',
   confirmButtonRef,
+  cancelButtonRef,
 }: ModalFooterProps) {
   return (
     <>
       {showCancel && (
         <button
+          ref={cancelButtonRef}
           type="button"
           onClick={onCancel}
-          className="px-4 py-2 rounded border hover:bg-white/5 transition-colors"
+          className="px-4 py-2 rounded border hover:bg-white/5 transition-colors outline-none focus:ring-2 focus:ring-offset-1"
           style={{
             borderColor: theme.colors.border,
             color: theme.colors.textMain,

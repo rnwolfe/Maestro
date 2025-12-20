@@ -49,6 +49,21 @@ vi.mock('../../../renderer/components/MermaidRenderer', () => ({
   ),
 }));
 
+vi.mock('../../../renderer/components/ui/Modal', () => ({
+  Modal: ({ children, title, footer, onClose }: any) => (
+    <div data-testid="modal" data-title={title}>
+      <div data-testid="modal-content">{children}</div>
+      <div data-testid="modal-footer">{footer}</div>
+    </div>
+  ),
+  ModalFooter: ({ onCancel, onConfirm, cancelLabel, confirmLabel }: any) => (
+    <>
+      <button data-testid="modal-cancel" onClick={onCancel}>{cancelLabel}</button>
+      <button data-testid="modal-confirm" onClick={onConfirm}>{confirmLabel}</button>
+    </>
+  ),
+}));
+
 vi.mock('js-tiktoken', () => ({
   getEncoding: vi.fn(() => ({
     encode: vi.fn((text: string) => new Array(Math.ceil(text.length / 4))),
@@ -2198,5 +2213,315 @@ describe('Gigabyte file size formatting', () => {
     await waitFor(() => {
       expect(screen.getByText('2.3 GB')).toBeInTheDocument();
     });
+  });
+});
+
+// =============================================================================
+// UNSAVED CHANGES CONFIRMATION MODAL
+// =============================================================================
+
+describe('unsaved changes confirmation modal', () => {
+  const markdownFile = {
+    name: 'test.md',
+    content: '# Original Content',
+    path: '/project/test.md',
+  };
+
+  it('shows confirmation modal when pressing Escape with unsaved changes', async () => {
+    render(
+      <FilePreview
+        file={markdownFile}
+        onClose={vi.fn()}
+        theme={createMockTheme()}
+        markdownEditMode={true}
+        setMarkdownEditMode={vi.fn()}
+        shortcuts={createMockShortcuts()}
+      />
+    );
+
+    // Modify the content in the textarea
+    const textarea = screen.getByRole('textbox');
+    fireEvent.change(textarea, { target: { value: '# Modified Content' } });
+
+    // The layer's onEscape handler should show the modal when there are changes
+    // We need to simulate the escape handler being called
+    // The mockRegisterLayer captures the onEscape callback
+    const registerCall = mockRegisterLayer.mock.calls[mockRegisterLayer.mock.calls.length - 1];
+    const layerConfig = registerCall[0];
+
+    // Call the onEscape handler
+    layerConfig.onEscape();
+
+    await waitFor(() => {
+      expect(screen.getByTestId('modal')).toBeInTheDocument();
+      expect(screen.getByText(/unsaved changes/i)).toBeInTheDocument();
+    });
+  });
+
+  it('closes without modal when no changes have been made', async () => {
+    const onClose = vi.fn();
+
+    render(
+      <FilePreview
+        file={markdownFile}
+        onClose={onClose}
+        theme={createMockTheme()}
+        markdownEditMode={true}
+        setMarkdownEditMode={vi.fn()}
+        shortcuts={createMockShortcuts()}
+      />
+    );
+
+    // Don't modify the content - just get the escape handler
+    const registerCall = mockRegisterLayer.mock.calls[mockRegisterLayer.mock.calls.length - 1];
+    const layerConfig = registerCall[0];
+
+    // Call the onEscape handler - should close directly since no changes
+    layerConfig.onEscape();
+
+    // Should not show modal
+    expect(screen.queryByTestId('modal')).not.toBeInTheDocument();
+    expect(onClose).toHaveBeenCalled();
+  });
+
+  it('stays open when clicking "No, Stay" in confirmation modal', async () => {
+    const onClose = vi.fn();
+
+    render(
+      <FilePreview
+        file={markdownFile}
+        onClose={onClose}
+        theme={createMockTheme()}
+        markdownEditMode={true}
+        setMarkdownEditMode={vi.fn()}
+        shortcuts={createMockShortcuts()}
+      />
+    );
+
+    // Modify the content
+    const textarea = screen.getByRole('textbox');
+    fireEvent.change(textarea, { target: { value: '# Modified Content' } });
+
+    // Get and call the escape handler
+    const registerCall = mockRegisterLayer.mock.calls[mockRegisterLayer.mock.calls.length - 1];
+    const layerConfig = registerCall[0];
+    layerConfig.onEscape();
+
+    await waitFor(() => {
+      expect(screen.getByTestId('modal')).toBeInTheDocument();
+    });
+
+    // Click "No, Stay"
+    const cancelButton = screen.getByTestId('modal-cancel');
+    fireEvent.click(cancelButton);
+
+    await waitFor(() => {
+      expect(screen.queryByTestId('modal')).not.toBeInTheDocument();
+    });
+
+    // onClose should NOT have been called
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it('closes when clicking "Yes, Discard" in confirmation modal', async () => {
+    const onClose = vi.fn();
+
+    render(
+      <FilePreview
+        file={markdownFile}
+        onClose={onClose}
+        theme={createMockTheme()}
+        markdownEditMode={true}
+        setMarkdownEditMode={vi.fn()}
+        shortcuts={createMockShortcuts()}
+      />
+    );
+
+    // Modify the content
+    const textarea = screen.getByRole('textbox');
+    fireEvent.change(textarea, { target: { value: '# Modified Content' } });
+
+    // Get and call the escape handler
+    const registerCall = mockRegisterLayer.mock.calls[mockRegisterLayer.mock.calls.length - 1];
+    const layerConfig = registerCall[0];
+    layerConfig.onEscape();
+
+    await waitFor(() => {
+      expect(screen.getByTestId('modal')).toBeInTheDocument();
+    });
+
+    // Click "Yes, Discard"
+    const confirmButton = screen.getByTestId('modal-confirm');
+    fireEvent.click(confirmButton);
+
+    await waitFor(() => {
+      expect(onClose).toHaveBeenCalled();
+    });
+  });
+
+  it('does not show modal in preview mode (not edit mode)', async () => {
+    const onClose = vi.fn();
+
+    render(
+      <FilePreview
+        file={markdownFile}
+        onClose={onClose}
+        theme={createMockTheme()}
+        markdownEditMode={false}
+        setMarkdownEditMode={vi.fn()}
+        shortcuts={createMockShortcuts()}
+      />
+    );
+
+    // Get and call the escape handler
+    const registerCall = mockRegisterLayer.mock.calls[mockRegisterLayer.mock.calls.length - 1];
+    const layerConfig = registerCall[0];
+    layerConfig.onEscape();
+
+    // Should close directly without modal
+    expect(screen.queryByTestId('modal')).not.toBeInTheDocument();
+    expect(onClose).toHaveBeenCalled();
+  });
+});
+
+// =============================================================================
+// NAVIGATION DISABLED IN EDIT MODE
+// =============================================================================
+
+describe('navigation disabled in edit mode', () => {
+  const markdownFile = {
+    name: 'test.md',
+    content: '# Test',
+    path: '/project/test.md',
+  };
+
+  it('hides navigation buttons in edit mode', () => {
+    render(
+      <FilePreview
+        file={markdownFile}
+        onClose={vi.fn()}
+        theme={createMockTheme()}
+        markdownEditMode={true}
+        setMarkdownEditMode={vi.fn()}
+        shortcuts={createMockShortcuts()}
+        canGoBack={true}
+        canGoForward={true}
+        onNavigateBack={vi.fn()}
+        onNavigateForward={vi.fn()}
+      />
+    );
+
+    // Navigation buttons should be hidden in edit mode
+    expect(screen.queryByTitle('Go back (⌘←)')).not.toBeInTheDocument();
+    expect(screen.queryByTitle('Go forward (⌘→)')).not.toBeInTheDocument();
+  });
+
+  it('shows navigation buttons in preview mode', () => {
+    render(
+      <FilePreview
+        file={markdownFile}
+        onClose={vi.fn()}
+        theme={createMockTheme()}
+        markdownEditMode={false}
+        setMarkdownEditMode={vi.fn()}
+        shortcuts={createMockShortcuts()}
+        canGoBack={true}
+        canGoForward={true}
+        onNavigateBack={vi.fn()}
+        onNavigateForward={vi.fn()}
+      />
+    );
+
+    // Navigation buttons should be visible in preview mode
+    expect(screen.getByTitle('Go back (⌘←)')).toBeInTheDocument();
+    expect(screen.getByTitle('Go forward (⌘→)')).toBeInTheDocument();
+  });
+
+  it('does not navigate with Cmd+Left in edit mode', () => {
+    const onNavigateBack = vi.fn();
+
+    render(
+      <FilePreview
+        file={markdownFile}
+        onClose={vi.fn()}
+        theme={createMockTheme()}
+        markdownEditMode={true}
+        setMarkdownEditMode={vi.fn()}
+        shortcuts={createMockShortcuts()}
+        canGoBack={true}
+        onNavigateBack={onNavigateBack}
+      />
+    );
+
+    const container = screen.getByText('test.md').closest('[tabindex="0"]');
+    fireEvent.keyDown(container!, { key: 'ArrowLeft', metaKey: true });
+
+    expect(onNavigateBack).not.toHaveBeenCalled();
+  });
+
+  it('does not navigate with Cmd+Right in edit mode', () => {
+    const onNavigateForward = vi.fn();
+
+    render(
+      <FilePreview
+        file={markdownFile}
+        onClose={vi.fn()}
+        theme={createMockTheme()}
+        markdownEditMode={true}
+        setMarkdownEditMode={vi.fn()}
+        shortcuts={createMockShortcuts()}
+        canGoForward={true}
+        onNavigateForward={onNavigateForward}
+      />
+    );
+
+    const container = screen.getByText('test.md').closest('[tabindex="0"]');
+    fireEvent.keyDown(container!, { key: 'ArrowRight', metaKey: true });
+
+    expect(onNavigateForward).not.toHaveBeenCalled();
+  });
+
+  it('navigates with Cmd+Left in preview mode', () => {
+    const onNavigateBack = vi.fn();
+
+    render(
+      <FilePreview
+        file={markdownFile}
+        onClose={vi.fn()}
+        theme={createMockTheme()}
+        markdownEditMode={false}
+        setMarkdownEditMode={vi.fn()}
+        shortcuts={createMockShortcuts()}
+        canGoBack={true}
+        onNavigateBack={onNavigateBack}
+      />
+    );
+
+    const container = screen.getByText('test.md').closest('[tabindex="0"]');
+    fireEvent.keyDown(container!, { key: 'ArrowLeft', metaKey: true });
+
+    expect(onNavigateBack).toHaveBeenCalled();
+  });
+
+  it('navigates with Cmd+Right in preview mode', () => {
+    const onNavigateForward = vi.fn();
+
+    render(
+      <FilePreview
+        file={markdownFile}
+        onClose={vi.fn()}
+        theme={createMockTheme()}
+        markdownEditMode={false}
+        setMarkdownEditMode={vi.fn()}
+        shortcuts={createMockShortcuts()}
+        canGoForward={true}
+        onNavigateForward={onNavigateForward}
+      />
+    );
+
+    const container = screen.getByText('test.md').closest('[tabindex="0"]');
+    fireEvent.keyDown(container!, { key: 'ArrowRight', metaKey: true });
+
+    expect(onNavigateForward).toHaveBeenCalled();
   });
 });

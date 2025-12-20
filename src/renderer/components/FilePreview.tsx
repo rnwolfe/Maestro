@@ -4,10 +4,11 @@ import remarkGfm from 'remark-gfm';
 import rehypeRaw from 'rehype-raw';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
-import { FileCode, X, Copy, FileText, Eye, ChevronUp, ChevronDown, ChevronLeft, ChevronRight, Clipboard, Loader2, Image, Globe, Save, Edit, FolderOpen } from 'lucide-react';
+import { FileCode, X, Copy, FileText, Eye, ChevronUp, ChevronDown, ChevronLeft, ChevronRight, Clipboard, Loader2, Image, Globe, Save, Edit, FolderOpen, AlertTriangle } from 'lucide-react';
 import { visit } from 'unist-util-visit';
 import { useLayerStack } from '../contexts/LayerStackContext';
 import { MODAL_PRIORITIES } from '../constants/modalPriorities';
+import { Modal, ModalFooter } from './ui/Modal';
 import { MermaidRenderer } from './MermaidRenderer';
 import { getEncoding } from 'js-tiktoken';
 import { formatShortcutKeys } from '../utils/shortcutFormatter';
@@ -428,6 +429,7 @@ export function FilePreview({ file, onClose, theme, markdownEditMode, setMarkdow
   // Edit mode state
   const [editContent, setEditContent] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+  const [showUnsavedChangesModal, setShowUnsavedChangesModal] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const codeContainerRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
@@ -436,6 +438,7 @@ export function FilePreview({ file, onClose, theme, markdownEditMode, setMarkdow
   const markdownContainerRef = useRef<HTMLDivElement>(null);
   const layerIdRef = useRef<string>();
   const matchElementsRef = useRef<HTMLElement[]>([]);
+  const cancelButtonRef = useRef<HTMLButtonElement>(null);
 
   // Track if content has been modified
   const hasChanges = markdownEditMode && editContent !== file?.content;
@@ -591,6 +594,21 @@ export function FilePreview({ file, onClose, theme, markdownEditMode, setMarkdow
     containerRef.current?.focus();
   }, [file.path]); // Run on mount and when navigating to a different file
 
+  // Helper to handle escape key - shows confirmation modal if there are unsaved changes
+  const handleEscapeRequest = useCallback(() => {
+    if (searchOpen) {
+      setSearchOpen(false);
+      setSearchQuery('');
+      // Refocus container so keyboard navigation (arrow keys) still works
+      containerRef.current?.focus();
+    } else if (hasChanges) {
+      // Show confirmation modal if there are unsaved changes
+      setShowUnsavedChangesModal(true);
+    } else {
+      onClose();
+    }
+  }, [searchOpen, hasChanges, onClose]);
+
   // Register layer on mount
   useEffect(() => {
     layerIdRef.current = registerLayer({
@@ -600,16 +618,7 @@ export function FilePreview({ file, onClose, theme, markdownEditMode, setMarkdow
       capturesFocus: true,
       focusTrap: 'lenient',
       ariaLabel: 'File Preview',
-      onEscape: () => {
-        if (searchOpen) {
-          setSearchOpen(false);
-          setSearchQuery('');
-          // Refocus container so keyboard navigation (arrow keys) still works
-          containerRef.current?.focus();
-        } else {
-          onClose();
-        }
-      },
+      onEscape: handleEscapeRequest,
       allowClickOutside: false
     });
 
@@ -618,23 +627,14 @@ export function FilePreview({ file, onClose, theme, markdownEditMode, setMarkdow
         unregisterLayer(layerIdRef.current);
       }
     };
-  }, [registerLayer, unregisterLayer]);
+  }, [registerLayer, unregisterLayer, handleEscapeRequest]);
 
   // Update handler when dependencies change
   useEffect(() => {
     if (layerIdRef.current) {
-      updateLayerHandler(layerIdRef.current, () => {
-        if (searchOpen) {
-          setSearchOpen(false);
-          setSearchQuery('');
-          // Refocus container so keyboard navigation (arrow keys) still works
-          containerRef.current?.focus();
-        } else {
-          onClose();
-        }
-      });
+      updateLayerHandler(layerIdRef.current, handleEscapeRequest);
     }
-  }, [searchOpen, onClose, updateLayerHandler]);
+  }, [handleEscapeRequest, updateLayerHandler]);
 
   // Keep search input focused when search is open
   useEffect(() => {
@@ -1673,6 +1673,38 @@ export function FilePreview({ file, onClose, theme, markdownEditMode, setMarkdow
         >
           {copyNotificationMessage}
         </div>
+      )}
+
+      {/* Unsaved Changes Confirmation Modal */}
+      {showUnsavedChangesModal && (
+        <Modal
+          theme={theme}
+          title="Unsaved Changes"
+          priority={MODAL_PRIORITIES.CONFIRM}
+          onClose={() => setShowUnsavedChangesModal(false)}
+          width={450}
+          zIndex={10000}
+          headerIcon={<AlertTriangle className="w-5 h-5" style={{ color: theme.colors.warning }} />}
+          initialFocusRef={cancelButtonRef}
+          footer={
+            <ModalFooter
+              theme={theme}
+              onCancel={() => setShowUnsavedChangesModal(false)}
+              onConfirm={() => {
+                setShowUnsavedChangesModal(false);
+                onClose();
+              }}
+              cancelLabel="No, Stay"
+              confirmLabel="Yes, Discard"
+              destructive
+              cancelButtonRef={cancelButtonRef}
+            />
+          }
+        >
+          <p className="text-sm leading-relaxed" style={{ color: theme.colors.textMain }}>
+            You have unsaved changes. Are you sure you want to close without saving?
+          </p>
+        </Modal>
       )}
 
     </div>

@@ -16,6 +16,8 @@ interface GroupChatPanelProps {
   groupChat: GroupChat;
   messages: GroupChatMessage[];
   state: GroupChatState;
+  /** Total accumulated cost from all participants (including moderator) */
+  totalCost?: number;
   onSendMessage: (content: string, images?: string[], readOnly?: boolean) => void;
   onClose: () => void;
   onRename: () => void;
@@ -62,6 +64,7 @@ export function GroupChatPanel({
   groupChat,
   messages,
   state,
+  totalCost,
   onSendMessage,
   onClose,
   onRename,
@@ -100,6 +103,7 @@ export function GroupChatPanel({
         theme={theme}
         name={groupChat.name}
         participantCount={groupChat.participants.length}
+        totalCost={totalCost}
         onClose={onClose}
         onRename={onRename}
         onShowInfo={onShowInfo}

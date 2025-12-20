@@ -5,7 +5,7 @@
  * and provides actions for rename, info, and close.
  */
 
-import { X, Info, Edit2, Columns } from 'lucide-react';
+import { X, Info, Edit2, Columns, DollarSign } from 'lucide-react';
 import type { Theme, Shortcut } from '../types';
 import { formatShortcutKeys } from '../utils/shortcutFormatter';
 
@@ -13,6 +13,8 @@ interface GroupChatHeaderProps {
   theme: Theme;
   name: string;
   participantCount: number;
+  /** Total accumulated cost from all participants (including moderator) */
+  totalCost?: number;
   onClose: () => void;
   onRename: () => void;
   onShowInfo: () => void;
@@ -25,6 +27,7 @@ export function GroupChatHeader({
   theme,
   name,
   participantCount,
+  totalCost,
   onClose,
   onRename,
   onShowInfo,
@@ -66,6 +69,20 @@ export function GroupChatHeader({
         >
           {participantCount} participant{participantCount !== 1 ? 's' : ''}
         </span>
+        {/* Total cost pill - only show when there's a cost */}
+        {totalCost !== undefined && totalCost > 0 && (
+          <span
+            className="flex items-center gap-1 text-xs px-2 py-0.5 rounded-full"
+            style={{
+              backgroundColor: `${theme.colors.success}20`,
+              color: theme.colors.success,
+            }}
+            title="Total accumulated cost"
+          >
+            <DollarSign className="w-3 h-3" />
+            {totalCost.toFixed(2)}
+          </span>
+        )}
       </div>
 
       <div className="flex items-center gap-2">

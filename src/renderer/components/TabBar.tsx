@@ -2,6 +2,7 @@ import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { X, Plus, Star, Copy, Edit2, Mail, Pencil, Search } from 'lucide-react';
 import type { AITab, Theme } from '../types';
+import { hasDraft } from '../utils/tabHelpers';
 
 interface TabBarProps {
   tabs: AITab[];
@@ -484,9 +485,6 @@ export function TabBar({
 
   // Count unread tabs for the filter toggle tooltip
   const unreadCount = tabs.filter(t => t.hasUnread).length;
-
-  // Check if a tab has draft content (unsent input or staged images)
-  const hasDraft = (tab: AITab) => (tab.inputValue && tab.inputValue.trim() !== '') || (tab.stagedImages && tab.stagedImages.length > 0);
 
   // Filter tabs based on unread filter state
   // When filter is on, show: unread tabs + active tab + tabs with drafts

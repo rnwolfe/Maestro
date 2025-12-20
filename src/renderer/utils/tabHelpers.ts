@@ -9,8 +9,12 @@ const MAX_CLOSED_TAB_HISTORY = 25;
 
 /**
  * Check if a tab has draft content (unsent input or staged images).
+ * Used for determining if a tab should be shown in "unread only" filter mode.
+ *
+ * @param tab - The AI tab to check
+ * @returns True if the tab has unsent text input or staged images
  */
-function hasDraft(tab: AITab): boolean {
+export function hasDraft(tab: AITab): boolean {
   return (tab.inputValue && tab.inputValue.trim() !== '') || (tab.stagedImages && tab.stagedImages.length > 0);
 }
 

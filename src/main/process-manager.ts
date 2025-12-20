@@ -775,12 +775,15 @@ export class ProcessManager extends EventEmitter {
             }
           }
 
-          // Check for errors on non-zero exit code using the parser (if not already emitted)
-          if (code !== 0 && outputParser && !managedProcess.errorEmitted) {
+          // Check for errors using the parser (if not already emitted)
+          // Note: Some agents (OpenCode) may exit with code 0 but still have errors
+          // The parser's detectErrorFromExit handles both non-zero exit and the
+          // "exit 0 with stderr but no stdout" case
+          if (outputParser && !managedProcess.errorEmitted) {
             const agentError = outputParser.detectErrorFromExit(
-              code || 1,
+              code || 0,
               managedProcess.stderrBuffer || '',
-              managedProcess.stdoutBuffer || ''
+              managedProcess.stdoutBuffer || managedProcess.streamedText || ''
             );
             if (agentError) {
               managedProcess.errorEmitted = true;

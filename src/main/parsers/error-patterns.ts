@@ -405,6 +405,24 @@ export const CODEX_ERROR_PATTERNS: AgentErrorPatterns = {
       message: 'An unexpected error occurred in the agent.',
       recoverable: true,
     },
+    {
+      // OpenCode provider/model configuration errors
+      // Matches errors like "provider not found", "unknown model", etc.
+      pattern: /provider(?:s)?(?:\s+not\s+found|\s+\w+\s+not\s+found|ID)/i,
+      message: 'Invalid model or provider. Check the model setting in session or agent configuration.',
+      recoverable: true,
+    },
+    {
+      // Match fuzzysort suggestions (indicates failed lookup)
+      pattern: /fuzzysort/i,
+      message: 'Invalid model or provider. Check the model setting in configuration.',
+      recoverable: true,
+    },
+    {
+      pattern: /unknown\s+(model|provider)/i,
+      message: 'Unknown model or provider. Check the model setting in configuration.',
+      recoverable: true,
+    },
   ],
 };
 

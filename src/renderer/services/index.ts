@@ -18,14 +18,6 @@ export type {
   ProcessSessionIdHandler,
 } from './process';
 
-// IPC wrapper utilities
-export {
-  createIpcMethod,
-  createIpcMethodFactory,
-  wrapService,
-} from './ipcWrapper';
-export type {
-  IpcMethodOptionsWithDefault,
-  IpcMethodOptionsRethrow,
-  IpcMethodOptions,
-} from './ipcWrapper';
+// IPC wrapper utility
+export { createIpcMethod } from './ipcWrapper';
+export type { IpcMethodOptions } from './ipcWrapper';

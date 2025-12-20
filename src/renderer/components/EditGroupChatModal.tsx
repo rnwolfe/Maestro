@@ -53,6 +53,8 @@ export function EditGroupChatModal({
   const [configWasModified, setConfigWasModified] = useState(false);
 
   const nameInputRef = useRef<HTMLInputElement>(null);
+  // Ref to track latest agentConfig for async save operations
+  const agentConfigRef = useRef<Record<string, any>>({});
 
   // Initialize state from groupChat when modal opens
   useEffect(() => {
@@ -166,6 +168,7 @@ export function EditGroupChatModal({
     // Load agent config
     const config = await window.maestro.agents.getConfig(selectedAgent);
     setAgentConfig(config || {});
+    agentConfigRef.current = config || {};
 
     // Load models if agent supports it
     const agent = detectedAgents.find(a => a.id === selectedAgent);
@@ -335,12 +338,15 @@ export function EditGroupChatModal({
             onEnvVarsBlur={() => {/* Local state only */}}
             agentConfig={agentConfig}
             onConfigChange={(key, value) => {
-              setAgentConfig(prev => ({ ...prev, [key]: value }));
+              const newConfig = { ...agentConfig, [key]: value };
+              setAgentConfig(newConfig);
+              agentConfigRef.current = newConfig;
               setConfigWasModified(true);
             }}
             onConfigBlur={async () => {
               if (selectedAgent) {
-                await window.maestro.agents.setConfig(selectedAgent, agentConfig);
+                // Use ref to get latest config (state may be stale in async callback)
+                await window.maestro.agents.setConfig(selectedAgent, agentConfigRef.current);
                 setConfigWasModified(true);
               }
             }}

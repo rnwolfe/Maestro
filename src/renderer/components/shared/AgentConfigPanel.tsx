@@ -54,8 +54,17 @@ function ModelTextInput({
 }: ModelTextInputProps): JSX.Element {
   const [showDropdown, setShowDropdown] = useState(false);
   const [filterText, setFilterText] = useState('');
+  // Track whether we're in filter mode (typing to filter dropdown vs direct input)
+  const [isFiltering, setIsFiltering] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  // Keep track of the committed value (what was actually selected/saved)
+  const committedValueRef = useRef(value);
+
+  // Update committed value when value prop changes from outside
+  useEffect(() => {
+    committedValueRef.current = value;
+  }, [value]);
 
   // Filter models based on input
   const filteredModels = useMemo(() => {
@@ -69,16 +78,24 @@ function ModelTextInput({
     const handleClickOutside = (e: MouseEvent) => {
       if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
         setShowDropdown(false);
+        // Reset to committed value if we were filtering
+        if (isFiltering) {
+          setFilterText('');
+          setIsFiltering(false);
+        }
       }
     };
     if (showDropdown) {
       document.addEventListener('mousedown', handleClickOutside);
       return () => document.removeEventListener('mousedown', handleClickOutside);
     }
-  }, [showDropdown]);
+  }, [showDropdown, isFiltering]);
 
   const isModelField = option.key === 'model';
   const hasModels = availableModels.length > 0;
+
+  // Display value: when filtering, show filter text; otherwise show actual value
+  const displayValue = isFiltering ? filterText : value;
 
   return (
     <>
@@ -87,12 +104,17 @@ function ModelTextInput({
           <input
             ref={inputRef}
             type="text"
-            value={value}
+            value={displayValue}
             onChange={(e) => {
-              onChange(e.target.value);
               if (isModelField && hasModels) {
+                // When typing with dropdown available, we're in filter mode
+                // Don't update the actual value until selection or explicit blur
                 setFilterText(e.target.value);
+                setIsFiltering(true);
                 setShowDropdown(true);
+              } else {
+                // No dropdown - direct text input
+                onChange(e.target.value);
               }
             }}
             onFocus={() => {
@@ -105,6 +127,16 @@ function ModelTextInput({
               // Delay to allow click on dropdown item
               setTimeout(() => {
                 setShowDropdown(false);
+                if (isFiltering) {
+                  // If user was filtering but didn't select, keep the filter text as the value
+                  // (they might have typed a custom model name)
+                  if (filterText && filterText !== committedValueRef.current) {
+                    onChange(filterText);
+                    committedValueRef.current = filterText;
+                  }
+                  setIsFiltering(false);
+                  setFilterText('');
+                }
                 onBlur();
               }, 150);
             }}
@@ -143,8 +175,10 @@ function ModelTextInput({
                   onClick={(e) => {
                     e.stopPropagation();
                     onChange(model);
+                    committedValueRef.current = model;
                     setShowDropdown(false);
                     setFilterText('');
+                    setIsFiltering(false);
                   }}
                   className="w-full text-left px-3 py-2 text-xs font-mono hover:bg-white/10 transition-colors"
                   style={{

@@ -1,12 +1,10 @@
 /**
- * Tests for IPC Wrapper Factory
+ * Tests for IPC Wrapper Utility
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import {
   createIpcMethod,
-  createIpcMethodFactory,
-  wrapService,
   IpcMethodOptionsWithDefault,
   IpcMethodOptionsRethrow,
 } from '../../../renderer/services/ipcWrapper';

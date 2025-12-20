@@ -1,8 +1,10 @@
 /**
- * IPC Wrapper Factory
+ * IPC Wrapper Utility
  *
- * Provides utilities for wrapping IPC calls with consistent error handling patterns.
+ * Provides a utility for wrapping IPC calls with consistent error handling patterns.
  * Reduces boilerplate in service files by abstracting try-catch patterns.
+ *
+ * Used by: git.ts, process.ts
  *
  * @example
  * // For methods that return a default value on error (swallow errors):
@@ -15,7 +17,7 @@
  * @example
  * // For methods that rethrow errors (propagate errors):
  * const spawn = createIpcMethod({
- *   call: () => window.maestro.process.spawn(sessionId, config),
+ *   call: () => window.maestro.process.spawn(config),
  *   errorContext: 'Process spawn',
  *   rethrow: true,
  * });
@@ -98,116 +100,3 @@ export async function createIpcMethod<T>(options: IpcMethodOptions<T>): Promise<
   }
 }
 
-/**
- * Creates a reusable IPC method factory.
- *
- * Use this when you need to create multiple methods with similar error handling patterns.
- *
- * @param errorContext - Base context string for error logging
- * @param defaultBehavior - Whether to use default value ('default') or rethrow ('rethrow')
- * @returns A factory function that creates IPC methods
- *
- * @example
- * const createGitMethod = createIpcMethodFactory('Git', 'default');
- *
- * export const gitService = {
- *   getBranches: (cwd: string) => createGitMethod(
- *     () => window.maestro.git.branches(cwd),
- *     [],
- *     'branches'
- *   ),
- *   getTags: (cwd: string) => createGitMethod(
- *     () => window.maestro.git.tags(cwd),
- *     [],
- *     'tags'
- *   ),
- * };
- */
-export function createIpcMethodFactory(
-  errorContext: string,
-  defaultBehavior: 'default'
-): <T>(call: () => Promise<T>, defaultValue: T, operation?: string) => Promise<T>;
-export function createIpcMethodFactory(
-  errorContext: string,
-  defaultBehavior: 'rethrow'
-): <T>(call: () => Promise<T>, operation?: string) => Promise<T>;
-export function createIpcMethodFactory(
-  errorContext: string,
-  defaultBehavior: 'default' | 'rethrow'
-) {
-  if (defaultBehavior === 'rethrow') {
-    return async <T>(call: () => Promise<T>, operation?: string): Promise<T> => {
-      const context = operation ? `${errorContext} ${operation}` : errorContext;
-      return createIpcMethod({
-        call,
-        errorContext: context,
-        rethrow: true,
-      });
-    };
-  }
-
-  return async <T>(
-    call: () => Promise<T>,
-    defaultValue: T,
-    operation?: string
-  ): Promise<T> => {
-    const context = operation ? `${errorContext} ${operation}` : errorContext;
-    return createIpcMethod({
-      call,
-      errorContext: context,
-      defaultValue,
-    });
-  };
-}
-
-/**
- * Wraps an entire service object, adding error handling to all async methods.
- *
- * Note: This is a more advanced utility for wrapping existing IPC APIs.
- * For new services, prefer using createIpcMethod or createIpcMethodFactory directly.
- *
- * @param serviceName - Name of the service for error context
- * @param methods - Object containing async methods to wrap
- * @param options - Configuration options
- * @returns Wrapped service object with error handling
- *
- * @example
- * const wrappedGit = wrapService('Git', {
- *   getBranches: (cwd: string) => window.maestro.git.branches(cwd),
- *   getTags: (cwd: string) => window.maestro.git.tags(cwd),
- * }, {
- *   defaultValues: {
- *     getBranches: [],
- *     getTags: [],
- *   },
- * });
- */
-export function wrapService<T extends Record<string, (...args: unknown[]) => Promise<unknown>>>(
-  serviceName: string,
-  methods: T,
-  options: {
-    /** Default values to return on error for each method */
-    defaultValues?: Partial<{ [K in keyof T]: Awaited<ReturnType<T[K]>> }>;
-    /** Methods that should rethrow errors instead of returning defaults */
-    rethrowMethods?: (keyof T)[];
-  } = {}
-): T {
-  const wrapped: Record<string, (...args: unknown[]) => Promise<unknown>> = {};
-
-  for (const [methodName, method] of Object.entries(methods)) {
-    const shouldRethrow = options.rethrowMethods?.includes(methodName);
-    const defaultValue = options.defaultValues?.[methodName];
-
-    wrapped[methodName] = async (...args: unknown[]) => {
-      return createIpcMethod({
-        call: () => method(...args),
-        errorContext: `${serviceName} ${methodName}`,
-        ...(shouldRethrow
-          ? { rethrow: true as const }
-          : { defaultValue, rethrow: false as const }),
-      });
-    };
-  }
-
-  return wrapped as T;
-}

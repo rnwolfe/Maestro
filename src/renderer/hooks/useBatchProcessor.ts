@@ -5,12 +5,15 @@ import { getBadgeForTime, getNextBadge, formatTimeRemaining } from '../constants
 import { autorunSynopsisPrompt } from '../../prompts';
 import { parseSynopsis } from '../../shared/synopsis';
 
-// Regex to count unchecked markdown checkboxes: - [ ] task
-const UNCHECKED_TASK_REGEX = /^[\s]*-\s*\[\s*\]\s*.+$/gm;
+// Regex to count unchecked markdown checkboxes: - [ ] task (also * [ ])
+const UNCHECKED_TASK_REGEX = /^[\s]*[-*]\s*\[\s*\]\s*.+$/gm;
+
+// Regex to count checked markdown checkboxes: - [x] task (also * [x])
+const CHECKED_TASK_COUNT_REGEX = /^[\s]*[-*]\s*\[[xX✓✔]\]\s*.+$/gm;
 
 // Regex to match checked markdown checkboxes for reset-on-completion
 // Matches both [x] and [X] with various checkbox formats (standard and GitHub-style)
-const CHECKED_TASK_REGEX = /^(\s*-\s*)\[[xX✓✔]\]/gm;
+const CHECKED_TASK_REGEX = /^(\s*[-*]\s*)\[[xX✓✔]\]/gm;
 
 // Default empty batch state
 const DEFAULT_BATCH_STATE: BatchRunState = {
@@ -194,6 +197,14 @@ function createLoopSummaryEntry(params: LoopSummaryParams): Omit<HistoryEntry, '
  */
 export function countUnfinishedTasks(content: string): number {
   const matches = content.match(UNCHECKED_TASK_REGEX);
+  return matches ? matches.length : 0;
+}
+
+/**
+ * Count checked tasks in markdown content
+ */
+function countCheckedTasks(content: string): number {
+  const matches = content.match(CHECKED_TASK_COUNT_REGEX);
   return matches ? matches.length : 0;
 }
 
@@ -708,6 +719,8 @@ ${docList}
 
         // Read document and count tasks
         let { taskCount: remainingTasks, content: docContent } = await readDocAndCountTasks(folderPath, docEntry.filename);
+        let docCheckedCount = countCheckedTasks(docContent);
+        let docTasksTotal = remainingTasks;
 
         // Handle documents with no unchecked tasks
         if (remainingTasks === 0) {
@@ -756,7 +769,7 @@ ${docList}
           [sessionId]: {
             ...prev[sessionId],
             currentDocumentIndex: docIndex,
-            currentDocTasksTotal: remainingTasks,
+            currentDocTasksTotal: docTasksTotal,
             currentDocTasksCompleted: 0
           }
         }));
@@ -820,8 +833,11 @@ ${docList}
 
             // Re-read document to get updated task count and content
             const { taskCount: newRemainingTasks, content: contentAfterTask } = await readDocAndCountTasks(folderPath, docEntry.filename);
-            // Calculate tasks completed - ensure it's never negative (Claude may have added tasks)
-            const tasksCompletedThisRun = Math.max(0, remainingTasks - newRemainingTasks);
+            const newCheckedCount = countCheckedTasks(contentAfterTask);
+            // Calculate tasks completed based on newly checked tasks.
+            // This remains accurate even if new unchecked tasks are added.
+            const tasksCompletedThisRun = Math.max(0, newCheckedCount - docCheckedCount);
+            const addedUncheckedTasks = Math.max(0, newRemainingTasks - remainingTasks);
 
             // Detect stalling: if document content is unchanged and no tasks were checked off
             const documentUnchanged = contentBeforeTask === contentAfterTask;
@@ -855,18 +871,30 @@ ${docList}
             }
 
             // Update progress state
-            updateBatchStateAndBroadcast(sessionId, prev => ({
-              ...prev,
-              [sessionId]: {
-                ...prev[sessionId],
-                currentDocTasksCompleted: docTasksCompleted,
-                completedTasksAcrossAllDocs: totalCompletedTasks,
-                // Legacy fields
-                completedTasks: totalCompletedTasks,
-                currentTaskIndex: totalCompletedTasks,
-                sessionIds: [...(prev[sessionId]?.sessionIds || []), result.agentSessionId || '']
-              }
-            }));
+            if (addedUncheckedTasks > 0) {
+              docTasksTotal += addedUncheckedTasks;
+            }
+
+            updateBatchStateAndBroadcast(sessionId, prev => {
+              const prevState = prev[sessionId];
+              const nextTotalAcrossAllDocs = Math.max(0, prevState.totalTasksAcrossAllDocs + addedUncheckedTasks);
+              const nextTotalTasks = Math.max(0, prevState.totalTasks + addedUncheckedTasks);
+              return {
+                ...prev,
+                [sessionId]: {
+                  ...prevState,
+                  currentDocTasksCompleted: docTasksCompleted,
+                  currentDocTasksTotal: docTasksTotal,
+                  completedTasksAcrossAllDocs: totalCompletedTasks,
+                  totalTasksAcrossAllDocs: nextTotalAcrossAllDocs,
+                  // Legacy fields
+                  completedTasks: totalCompletedTasks,
+                  totalTasks: nextTotalTasks,
+                  currentTaskIndex: totalCompletedTasks,
+                  sessionIds: [...(prevState?.sessionIds || []), result.agentSessionId || '']
+                }
+              };
+            });
 
             // Generate synopsis for successful tasks with an agent session
             let shortSummary = `[${docEntry.filename}] Task completed`;
@@ -977,6 +1005,7 @@ ${docList}
               break; // Break out of the inner while loop for this document
             }
 
+            docCheckedCount = newCheckedCount;
             remainingTasks = newRemainingTasks;
             console.log(`[BatchProcessor] Document ${docEntry.filename}: ${remainingTasks} tasks remaining`);
 

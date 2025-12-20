@@ -1,10 +1,11 @@
 // Agent spawner service for CLI
-// Spawns Claude Code and parses its output
+// Spawns agent CLIs (Claude Code, Codex) and parses their output
 
 import { spawn, SpawnOptions } from 'child_process';
 import * as os from 'os';
 import * as fs from 'fs';
-import type { UsageStats } from '../../shared/types';
+import type { ToolType, UsageStats } from '../../shared/types';
+import { CodexOutputParser } from '../../main/parsers/codex-output-parser';
 import { getAgentCustomPath } from './storage';
 
 // Claude Code default command and arguments (same as Electron app)
@@ -13,6 +14,13 @@ const CLAUDE_ARGS = ['--print', '--verbose', '--output-format', 'stream-json', '
 
 // Cached Claude path (resolved once at startup)
 let cachedClaudePath: string | null = null;
+
+// Codex default command and arguments (batch mode)
+const CODEX_DEFAULT_COMMAND = 'codex';
+const CODEX_ARGS = ['exec', '--json', '--dangerously-bypass-approvals-and-sandbox', '--skip-git-repo-check'];
+
+// Cached Codex path (resolved once at startup)
+let cachedCodexPath: string | null = null;
 
 // Result from spawning an agent
 export interface AgentResult {
@@ -118,6 +126,35 @@ async function findClaudeInPath(): Promise<string | undefined> {
 }
 
 /**
+ * Find Codex in PATH using 'which' command
+ */
+async function findCodexInPath(): Promise<string | undefined> {
+  return new Promise((resolve) => {
+    const env = { ...process.env, PATH: getExpandedPath() };
+    const command = process.platform === 'win32' ? 'where' : 'which';
+
+    const proc = spawn(command, [CODEX_DEFAULT_COMMAND], { env });
+    let stdout = '';
+
+    proc.stdout?.on('data', (data) => {
+      stdout += data.toString();
+    });
+
+    proc.on('close', (code) => {
+      if (code === 0 && stdout.trim()) {
+        resolve(stdout.trim().split('\n')[0]); // First match
+      } else {
+        resolve(undefined);
+      }
+    });
+
+    proc.on('error', () => {
+      resolve(undefined);
+    });
+  });
+}
+
+/**
  * Check if Claude Code is available
  * First checks for a custom path in settings, then falls back to PATH detection
  */
@@ -149,6 +186,33 @@ export async function detectClaude(): Promise<{ available: boolean; path?: strin
 }
 
 /**
+ * Check if Codex CLI is available
+ * First checks for a custom path in settings, then falls back to PATH detection
+ */
+export async function detectCodex(): Promise<{ available: boolean; path?: string; source?: 'settings' | 'path' }> {
+  if (cachedCodexPath) {
+    return { available: true, path: cachedCodexPath, source: 'settings' };
+  }
+
+  const customPath = getAgentCustomPath('codex');
+  if (customPath) {
+    if (await isExecutable(customPath)) {
+      cachedCodexPath = customPath;
+      return { available: true, path: customPath, source: 'settings' };
+    }
+    console.error(`Warning: Custom Codex path "${customPath}" is not executable, falling back to PATH detection`);
+  }
+
+  const pathResult = await findCodexInPath();
+  if (pathResult) {
+    cachedCodexPath = pathResult;
+    return { available: true, path: pathResult, source: 'path' };
+  }
+
+  return { available: false };
+}
+
+/**
  * Get the resolved Claude command/path for spawning
  * Uses cached path from detectClaude() or falls back to default command
  */
@@ -157,9 +221,17 @@ export function getClaudeCommand(): string {
 }
 
 /**
+ * Get the resolved Codex command/path for spawning
+ * Uses cached path from detectCodex() or falls back to default command
+ */
+export function getCodexCommand(): string {
+  return cachedCodexPath || CODEX_DEFAULT_COMMAND;
+}
+
+/**
  * Spawn Claude Code with a prompt and return the result
  */
-export async function spawnAgent(
+async function spawnClaudeAgent(
   cwd: string,
   prompt: string,
   agentSessionId?: string
@@ -307,6 +379,157 @@ export async function spawnAgent(
       });
     });
   });
+}
+
+function mergeUsageStats(current: UsageStats | undefined, next: {
+  inputTokens: number;
+  outputTokens: number;
+  cacheReadTokens?: number;
+  cacheCreationTokens?: number;
+  costUsd?: number;
+  contextWindow?: number;
+  reasoningTokens?: number;
+}): UsageStats {
+  const merged: UsageStats = {
+    inputTokens: (current?.inputTokens || 0) + (next.inputTokens || 0),
+    outputTokens: (current?.outputTokens || 0) + (next.outputTokens || 0),
+    cacheReadInputTokens: (current?.cacheReadInputTokens || 0) + (next.cacheReadTokens || 0),
+    cacheCreationInputTokens: (current?.cacheCreationInputTokens || 0) + (next.cacheCreationTokens || 0),
+    totalCostUsd: (current?.totalCostUsd || 0) + (next.costUsd || 0),
+    contextWindow: Math.max(current?.contextWindow || 0, next.contextWindow || 0),
+    reasoningTokens: (current?.reasoningTokens || 0) + (next.reasoningTokens || 0),
+  };
+
+  if (!next.reasoningTokens && !current?.reasoningTokens) {
+    delete merged.reasoningTokens;
+  }
+
+  return merged;
+}
+
+/**
+ * Spawn Codex with a prompt and return the result
+ */
+async function spawnCodexAgent(
+  cwd: string,
+  prompt: string,
+  agentSessionId?: string
+): Promise<AgentResult> {
+  return new Promise((resolve) => {
+    const env: NodeJS.ProcessEnv = {
+      ...process.env,
+      PATH: getExpandedPath(),
+    };
+
+    const args = [...CODEX_ARGS];
+    args.push('-C', cwd);
+
+    if (agentSessionId) {
+      args.push('resume', agentSessionId);
+    }
+
+    args.push('--', prompt);
+
+    const options: SpawnOptions = {
+      cwd,
+      env,
+      stdio: ['pipe', 'pipe', 'pipe'],
+    };
+
+    const codexCommand = getCodexCommand();
+    const child = spawn(codexCommand, args, options);
+
+    const parser = new CodexOutputParser();
+    let jsonBuffer = '';
+    let result: string | undefined;
+    let sessionId: string | undefined;
+    let usageStats: UsageStats | undefined;
+    let stderr = '';
+    let errorText: string | undefined;
+
+    child.stdout?.on('data', (data: Buffer) => {
+      jsonBuffer += data.toString();
+      const lines = jsonBuffer.split('\n');
+      jsonBuffer = lines.pop() || '';
+
+      for (const line of lines) {
+        if (!line.trim()) continue;
+        const event = parser.parseJsonLine(line);
+        if (!event) continue;
+
+        if (event.type === 'init' && event.sessionId && !sessionId) {
+          sessionId = event.sessionId;
+        }
+
+        if (event.type === 'result' && event.text) {
+          result = result ? `${result}\n${event.text}` : event.text;
+        }
+
+        if (event.type === 'error' && event.text && !errorText) {
+          errorText = event.text;
+        }
+
+        const usage = parser.extractUsage(event);
+        if (usage) {
+          usageStats = mergeUsageStats(usageStats, usage);
+        }
+      }
+    });
+
+    child.stderr?.on('data', (data: Buffer) => {
+      stderr += data.toString();
+    });
+
+    child.stdin?.end();
+
+    child.on('close', (code) => {
+      if (code === 0 && !errorText) {
+        resolve({
+          success: true,
+          response: result,
+          agentSessionId: sessionId,
+          usageStats,
+        });
+      } else {
+        resolve({
+          success: false,
+          error: errorText || stderr || `Process exited with code ${code}`,
+          agentSessionId: sessionId,
+          usageStats,
+        });
+      }
+    });
+
+    child.on('error', (error) => {
+      resolve({
+        success: false,
+        error: `Failed to spawn Codex: ${error.message}`,
+      });
+    });
+  });
+}
+
+/**
+ * Spawn an agent with a prompt and return the result
+ */
+export async function spawnAgent(
+  toolType: ToolType,
+  cwd: string,
+  prompt: string,
+  agentSessionId?: string
+): Promise<AgentResult> {
+  if (toolType === 'codex') {
+    return spawnCodexAgent(cwd, prompt, agentSessionId);
+  }
+
+  if (toolType === 'claude' || toolType === 'claude-code') {
+    return spawnClaudeAgent(cwd, prompt, agentSessionId);
+  }
+
+  return {
+    success: false,
+    error: `Unsupported agent type for batch mode: ${toolType}`,
+  };
 }
 
 /**

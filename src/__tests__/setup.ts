@@ -23,7 +23,7 @@ vi.mock('lucide-react', () => {
   return new Proxy({}, {
     get(_target, prop: string) {
       // Ignore internal properties
-      if (prop === '__esModule' || prop === 'default' || typeof prop === 'symbol') {
+      if (prop === '__esModule' || prop === 'default' || prop === 'then' || typeof prop === 'symbol') {
         return undefined;
       }
 
@@ -32,6 +32,23 @@ vi.mock('lucide-react', () => {
         iconCache.set(prop, createMockIcon(prop));
       }
       return iconCache.get(prop);
+    },
+    has(_target, prop: string) {
+      if (prop === '__esModule' || prop === 'default' || prop === 'then' || typeof prop === 'symbol') {
+        return false;
+      }
+      return true;
+    },
+    getOwnPropertyDescriptor(_target, prop: string) {
+      if (prop === '__esModule' || prop === 'default' || prop === 'then' || typeof prop === 'symbol') {
+        return undefined;
+      }
+      return {
+        configurable: true,
+        enumerable: true,
+        writable: false,
+        value: this.get?.(_target, prop),
+      };
     },
   });
 });

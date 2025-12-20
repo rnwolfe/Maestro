@@ -6,7 +6,7 @@
  */
 
 import { useRef, useEffect, useCallback, useMemo, useState } from 'react';
-import { BookOpen, Eye, FileText, Copy, ChevronDown, ChevronUp } from 'lucide-react';
+import { Eye, FileText, Copy, ChevronDown, ChevronUp } from 'lucide-react';
 import type { GroupChatMessage, GroupChatParticipant, GroupChatState, Theme } from '../types';
 import { MarkdownRenderer } from './MarkdownRenderer';
 import { stripMarkdown } from '../utils/textProcessing';
@@ -198,7 +198,7 @@ export function GroupChatMessages({
 
               {/* Message bubble */}
               <div
-                className={`flex-1 min-w-0 p-4 pb-10 ${isUser && msg.readOnly ? 'pt-8' : ''} rounded-xl border ${isUser ? 'rounded-tr-none' : 'rounded-tl-none'} relative overflow-hidden`}
+                className={`flex-1 min-w-0 p-4 pb-10 rounded-xl border ${isUser ? 'rounded-tr-none' : 'rounded-tl-none'} relative overflow-hidden`}
                 style={{
                   backgroundColor: isUser
                     ? `color-mix(in srgb, ${theme.colors.accent} 20%, ${theme.colors.bgSidebar})`
@@ -211,24 +211,6 @@ export function GroupChatMessages({
                   color: theme.colors.textMain,
                 }}
               >
-                {/* Read-only badge for user messages */}
-                {isUser && msg.readOnly && (
-                  <div className="absolute top-2 right-2">
-                    <span
-                      className="flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full"
-                      style={{
-                        backgroundColor: `${theme.colors.warning}25`,
-                        color: theme.colors.warning,
-                        border: `1px solid ${theme.colors.warning}50`
-                      }}
-                      title="Sent in read-only mode"
-                    >
-                      <BookOpen className="w-3 h-3" />
-                      <span>Read-only</span>
-                    </span>
-                  </div>
-                )}
-
                 {/* Sender label for non-user messages */}
                 {!isUser && (
                   <div

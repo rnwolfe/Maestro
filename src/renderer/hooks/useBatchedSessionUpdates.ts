@@ -305,19 +305,20 @@ export function useBatchedSessionUpdates(
           // Session-level usage
           const sessionUsageDelta = acc.usageDeltas.get(null);
           if (sessionUsageDelta) {
-            const existing = updatedSession.usageStats;
-            updatedSession = {
-              ...updatedSession,
-              usageStats: {
-                inputTokens: (existing?.inputTokens || 0) + sessionUsageDelta.inputTokens,
-                outputTokens: (existing?.outputTokens || 0) + sessionUsageDelta.outputTokens,
-                cacheReadInputTokens: (existing?.cacheReadInputTokens || 0) + sessionUsageDelta.cacheReadInputTokens,
-                cacheCreationInputTokens: (existing?.cacheCreationInputTokens || 0) + sessionUsageDelta.cacheCreationInputTokens,
-                totalCostUsd: (existing?.totalCostUsd || 0) + sessionUsageDelta.totalCostUsd,
-                contextWindow: sessionUsageDelta.contextWindow
+                const existing = updatedSession.usageStats;
+                updatedSession = {
+                  ...updatedSession,
+                  usageStats: {
+                    inputTokens: (existing?.inputTokens || 0) + sessionUsageDelta.inputTokens,
+                    outputTokens: (existing?.outputTokens || 0) + sessionUsageDelta.outputTokens,
+                    cacheReadInputTokens: (existing?.cacheReadInputTokens || 0) + sessionUsageDelta.cacheReadInputTokens,
+                    cacheCreationInputTokens: (existing?.cacheCreationInputTokens || 0) + sessionUsageDelta.cacheCreationInputTokens,
+                    totalCostUsd: (existing?.totalCostUsd || 0) + sessionUsageDelta.totalCostUsd,
+                    reasoningTokens: (existing?.reasoningTokens || 0) + (sessionUsageDelta.reasoningTokens || 0),
+                    contextWindow: sessionUsageDelta.contextWindow
+                  }
+                };
               }
-            };
-          }
 
           // Tab-level usage
           if (updatedSession.aiTabs) {
@@ -335,8 +336,9 @@ export function useBatchedSessionUpdates(
                     cacheReadInputTokens: tabUsageDelta.cacheReadInputTokens,
                     cacheCreationInputTokens: tabUsageDelta.cacheCreationInputTokens,
                     contextWindow: tabUsageDelta.contextWindow,
-                    outputTokens: (existing?.outputTokens || 0) + tabUsageDelta.outputTokens,
-                    totalCostUsd: (existing?.totalCostUsd || 0) + tabUsageDelta.totalCostUsd
+                    outputTokens: tabUsageDelta.outputTokens, // Current (not accumulated)
+                    totalCostUsd: (existing?.totalCostUsd || 0) + tabUsageDelta.totalCostUsd,
+                    reasoningTokens: tabUsageDelta.reasoningTokens
                   }
                 };
               })
@@ -490,8 +492,9 @@ export function useBatchedSessionUpdates(
           cacheReadInputTokens: usage.cacheReadInputTokens,
           cacheCreationInputTokens: usage.cacheCreationInputTokens,
           contextWindow: usage.contextWindow,
-          outputTokens: existing.outputTokens + usage.outputTokens,
-          totalCostUsd: existing.totalCostUsd + usage.totalCostUsd
+          outputTokens: usage.outputTokens,
+          totalCostUsd: existing.totalCostUsd + usage.totalCostUsd,
+          reasoningTokens: usage.reasoningTokens
         });
       } else {
         // Session-level: all values are accumulated
@@ -501,6 +504,7 @@ export function useBatchedSessionUpdates(
           cacheReadInputTokens: existing.cacheReadInputTokens + usage.cacheReadInputTokens,
           cacheCreationInputTokens: existing.cacheCreationInputTokens + usage.cacheCreationInputTokens,
           totalCostUsd: existing.totalCostUsd + usage.totalCostUsd,
+          reasoningTokens: (existing.reasoningTokens || 0) + (usage.reasoningTokens || 0),
           contextWindow: usage.contextWindow
         });
       }

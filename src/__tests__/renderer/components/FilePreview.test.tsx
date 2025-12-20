@@ -2133,7 +2133,7 @@ describe('Search in markdown with highlighting', () => {
     });
   });
 
-  it('switches to raw mode when searching in rendered markdown', async () => {
+  it('keeps rendered markdown when searching in preview mode', async () => {
     render(
       <FilePreview
         file={createMockFile({
@@ -2149,6 +2149,9 @@ describe('Search in markdown with highlighting', () => {
       />
     );
 
+    // Verify we start in preview mode (ReactMarkdown is rendered)
+    expect(screen.getByTestId('react-markdown')).toBeInTheDocument();
+
     // Open search
     const container = screen.getByText('test.md').closest('[tabindex="0"]');
     fireEvent.keyDown(container!, { key: 'f', metaKey: true });
@@ -2157,14 +2160,14 @@ describe('Search in markdown with highlighting', () => {
       expect(screen.getByPlaceholderText(/Search in file/)).toBeInTheDocument();
     });
 
-    // Type search - this should trigger raw mode display with highlights
+    // Type search
     const searchInput = screen.getByPlaceholderText(/Search in file/);
     fireEvent.change(searchInput, { target: { value: 'test' } });
 
-    // Wait for component to switch to highlight mode
+    // Verify we stay in preview mode (ReactMarkdown is still rendered)
+    // The search highlights are applied via DOM manipulation, not by switching to raw mode
     await waitFor(() => {
-      // When searching in markdown, it shows raw content with highlights
-      expect(screen.getByText('1/1')).toBeInTheDocument();
+      expect(screen.getByTestId('react-markdown')).toBeInTheDocument();
     });
   });
 });

@@ -33,6 +33,7 @@
     "start": "electron .",
     "clean": "rm -rf dist release node_modules/.vite",
     "postinstall": "electron-rebuild -f -w node-pty",
+    "lint": "tsc -p tsconfig.lint.json",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",

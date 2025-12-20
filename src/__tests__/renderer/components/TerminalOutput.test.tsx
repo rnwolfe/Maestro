@@ -233,22 +233,6 @@ describe('TerminalOutput', () => {
       expect(userMessageContainer).toBeInTheDocument();
     });
 
-    it('shows read-only badge for read-only user messages', () => {
-      const logs: LogEntry[] = [
-        createLogEntry({ text: 'Read-only message', source: 'user', readOnly: true }),
-      ];
-
-      const session = createDefaultSession({
-        tabs: [{ id: 'tab-1', agentSessionId: 'claude-123', logs, isUnread: false }],
-        activeTabId: 'tab-1',
-      });
-
-      const props = createDefaultProps({ session });
-      render(<TerminalOutput {...props} />);
-
-      expect(screen.getByText('Read-only')).toBeInTheDocument();
-    });
-
     it('shows delivered checkmark for delivered messages', () => {
       const logs: LogEntry[] = [
         createLogEntry({ text: 'Delivered message', source: 'user', delivered: true }),

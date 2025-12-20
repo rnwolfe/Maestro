@@ -4,7 +4,7 @@
 import { getSessionById } from '../services/storage';
 import { findPlaybookById } from '../services/playbooks';
 import { runPlaybook as executePlaybook } from '../services/batch-processor';
-import { detectClaude } from '../services/agent-spawner';
+import { detectClaude, detectCodex } from '../services/agent-spawner';
 import { emitError } from '../output/jsonl';
 import { formatRunEvent, formatError, formatInfo, formatWarning, RunEvent } from '../output/formatter';
 import { isSessionBusyWithCli, getCliActivityForSession } from '../../shared/cli-activity';
@@ -94,17 +94,6 @@ export async function runPlaybook(playbookId: string, options: RunPlaybookOption
   const useJson = options.json;
 
   try {
-    // Check if Claude is available
-    const claude = await detectClaude();
-    if (!claude.available) {
-      if (useJson) {
-        emitError('Claude Code not found. Please install claude-code CLI.', 'CLAUDE_NOT_FOUND');
-      } else {
-        console.error(formatError('Claude Code not found. Please install claude-code CLI.'));
-      }
-      process.exit(1);
-    }
-
     let agentId: string;
     let playbook;
 
@@ -124,6 +113,37 @@ export async function runPlaybook(playbookId: string, options: RunPlaybookOption
     }
 
     const agent = getSessionById(agentId)!;
+
+    // Check if agent CLI is available
+    if (agent.toolType === 'codex') {
+      const codex = await detectCodex();
+      if (!codex.available) {
+        if (useJson) {
+          emitError('Codex CLI not found. Please install codex CLI.', 'CODEX_NOT_FOUND');
+        } else {
+          console.error(formatError('Codex CLI not found. Please install codex CLI.'));
+        }
+        process.exit(1);
+      }
+    } else if (agent.toolType === 'claude' || agent.toolType === 'claude-code') {
+      const claude = await detectClaude();
+      if (!claude.available) {
+        if (useJson) {
+          emitError('Claude Code not found. Please install claude-code CLI.', 'CLAUDE_NOT_FOUND');
+        } else {
+          console.error(formatError('Claude Code not found. Please install claude-code CLI.'));
+        }
+        process.exit(1);
+      }
+    } else {
+      const message = `Agent type "${agent.toolType}" is not supported in CLI batch mode yet.`;
+      if (useJson) {
+        emitError(message, 'AGENT_UNSUPPORTED');
+      } else {
+        console.error(formatError(message));
+      }
+      process.exit(1);
+    }
 
     // Check if agent is busy (either from desktop or another CLI instance)
     let busyCheck = checkAgentBusy(agent.id, agent.name);

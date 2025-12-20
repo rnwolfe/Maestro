@@ -731,89 +731,29 @@ export function FilePreview({ file, onClose, theme, markdownEditMode, setMarkdow
     };
   }, [searchQuery, file.content, isMarkdown, isImage, theme.colors.accent]);
 
-  // Highlight search matches in markdown preview (DOM-based highlighting after render)
+  // Count search matches in markdown preview mode (no DOM manipulation to avoid React conflicts)
   useEffect(() => {
-    if (!isMarkdown || markdownEditMode || !searchQuery.trim() || !markdownContainerRef.current) {
+    if (!isMarkdown || markdownEditMode || !searchQuery.trim()) {
+      if (isMarkdown && !markdownEditMode) {
+        setTotalMatches(0);
+        setCurrentMatchIndex(0);
+        matchElementsRef.current = [];
+      }
       return;
     }
 
-    const container = markdownContainerRef.current;
-    const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT);
-    const textNodes: Text[] = [];
-
-    // Collect all text nodes
-    let node;
-    while ((node = walker.nextNode())) {
-      textNodes.push(node as Text);
-    }
-
-    // Escape regex special characters
+    // Count matches in the raw content
     const escapedQuery = searchQuery.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     const regex = new RegExp(escapedQuery, 'gi');
-    const matchElements: HTMLElement[] = [];
+    const matches = file.content.match(regex);
+    const count = matches ? matches.length : 0;
 
-    // Highlight matches using safe DOM methods
-    textNodes.forEach(textNode => {
-      const text = textNode.textContent || '';
-      const matches = text.match(regex);
-
-      if (matches) {
-        const fragment = document.createDocumentFragment();
-        let lastIndex = 0;
-
-        text.replace(regex, (match, offset) => {
-          // Add text before match
-          if (offset > lastIndex) {
-            fragment.appendChild(document.createTextNode(text.substring(lastIndex, offset)));
-          }
-
-          // Add highlighted match
-          const mark = document.createElement('mark');
-          mark.style.backgroundColor = '#ffd700';
-          mark.style.color = '#000';
-          mark.style.padding = '0 2px';
-          mark.style.borderRadius = '2px';
-          mark.className = 'search-match-md';
-          mark.textContent = match;
-          fragment.appendChild(mark);
-          matchElements.push(mark);
-
-          lastIndex = offset + match.length;
-          return match;
-        });
-
-        // Add remaining text
-        if (lastIndex < text.length) {
-          fragment.appendChild(document.createTextNode(text.substring(lastIndex)));
-        }
-
-        textNode.parentNode?.replaceChild(fragment, textNode);
-      }
-    });
-
-    // Store match elements and update count
-    matchElementsRef.current = matchElements;
-    setTotalMatches(matchElements.length);
-    setCurrentMatchIndex(matchElements.length > 0 ? 0 : -1);
-
-    // Highlight first match with different color and scroll to it
-    if (matchElements.length > 0) {
-      matchElements[0].style.backgroundColor = theme.colors.accent;
-      matchElements[0].style.color = '#fff';
-      matchElements[0].scrollIntoView({ behavior: 'smooth', block: 'center' });
+    setTotalMatches(count);
+    if (count > 0 && currentMatchIndex >= count) {
+      setCurrentMatchIndex(0);
     }
-
-    // Cleanup function to remove highlights
-    return () => {
-      container.querySelectorAll('mark.search-match-md').forEach(mark => {
-        const parent = mark.parentNode;
-        if (parent) {
-          parent.replaceChild(document.createTextNode(mark.textContent || ''), mark);
-          parent.normalize();
-        }
-      });
-    };
-  }, [searchQuery, file.content, isMarkdown, markdownEditMode, theme.colors.accent]);
+    matchElementsRef.current = [];
+  }, [searchQuery, file.content, isMarkdown, markdownEditMode, currentMatchIndex]);
 
   const [copyNotificationMessage, setCopyNotificationMessage] = useState('');
 
@@ -851,47 +791,53 @@ export function FilePreview({ file, onClose, theme, markdownEditMode, setMarkdow
   // Navigate to next search match
   const goToNextMatch = () => {
     if (totalMatches === 0) return;
-    const matches = matchElementsRef.current;
-
-    // Reset current match highlight
-    if (matches[currentMatchIndex]) {
-      matches[currentMatchIndex].style.backgroundColor = '#ffd700';
-      matches[currentMatchIndex].style.color = '#000';
-    }
 
     // Move to next match (wrap around)
     const nextIndex = (currentMatchIndex + 1) % totalMatches;
     setCurrentMatchIndex(nextIndex);
 
-    // Highlight new current match and scroll to it
-    if (matches[nextIndex]) {
-      matches[nextIndex].style.backgroundColor = theme.colors.accent;
-      matches[nextIndex].style.color = '#fff';
-      matches[nextIndex].scrollIntoView({ behavior: 'smooth', block: 'center' });
+    // For code files, handle DOM-based highlighting
+    const matches = matchElementsRef.current;
+    if (matches.length > 0) {
+      // Reset previous highlight
+      if (matches[currentMatchIndex]) {
+        matches[currentMatchIndex].style.backgroundColor = '#ffd700';
+        matches[currentMatchIndex].style.color = '#000';
+      }
+      // Highlight new current match and scroll to it
+      if (matches[nextIndex]) {
+        matches[nextIndex].style.backgroundColor = theme.colors.accent;
+        matches[nextIndex].style.color = '#fff';
+        matches[nextIndex].scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
     }
+    // For markdown edit mode, the effect will handle selecting text
   };
 
   // Navigate to previous search match
   const goToPrevMatch = () => {
     if (totalMatches === 0) return;
-    const matches = matchElementsRef.current;
-
-    // Reset current match highlight
-    if (matches[currentMatchIndex]) {
-      matches[currentMatchIndex].style.backgroundColor = '#ffd700';
-      matches[currentMatchIndex].style.color = '#000';
-    }
 
     // Move to previous match (wrap around)
     const prevIndex = (currentMatchIndex - 1 + totalMatches) % totalMatches;
     setCurrentMatchIndex(prevIndex);
 
-    // Highlight new current match and scroll to it
-    if (matches[prevIndex]) {
-      matches[prevIndex].style.backgroundColor = theme.colors.accent;
-      matches[prevIndex].style.color = '#fff';
-      matches[prevIndex].scrollIntoView({ behavior: 'smooth', block: 'center' });
+    // For code files, handle DOM-based highlighting
+    const matches = matchElementsRef.current;
+    if (matches.length > 0) {
+      // Reset previous highlight
+      if (matches[currentMatchIndex]) {
+        matches[currentMatchIndex].style.backgroundColor = '#ffd700';
+        matches[currentMatchIndex].style.color = '#000';
+      }
+      // Highlight new current match and scroll to it
+      if (matches[prevIndex]) {
+        matches[prevIndex].style.backgroundColor = theme.colors.accent;
+        matches[prevIndex].style.color = '#fff';
+        matches[prevIndex].scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
     }
+    // For markdown edit mode, the effect will handle selecting text
   };
 
   // Format shortcut keys for display
@@ -900,25 +846,6 @@ export function FilePreview({ file, onClose, theme, markdownEditMode, setMarkdow
     if (!shortcut) return '';
     return formatShortcutKeys(shortcut.keys);
   };
-
-  // Navigate to current match for markdown content (using stored match elements)
-  useEffect(() => {
-    if (isMarkdown && searchQuery.trim() && !markdownEditMode) {
-      const matches = matchElementsRef.current;
-      if (matches.length > 0 && currentMatchIndex >= 0 && currentMatchIndex < matches.length) {
-        matches.forEach((mark, i) => {
-          if (i === currentMatchIndex) {
-            mark.style.backgroundColor = theme.colors.accent;
-            mark.style.color = '#fff';
-            mark.scrollIntoView({ behavior: 'smooth', block: 'center' });
-          } else {
-            mark.style.backgroundColor = '#ffd700';
-            mark.style.color = '#000';
-          }
-        });
-      }
-    }
-  }, [currentMatchIndex, isMarkdown, markdownEditMode, searchQuery, theme.colors.accent]);
 
   // Handle search in markdown edit mode - jump to and select the match in textarea
   useEffect(() => {

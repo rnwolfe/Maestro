@@ -466,7 +466,7 @@ export async function* runPlaybook(
         }
 
         // Spawn agent with combined prompt + document
-        const result = await spawnAgent(session.cwd, finalPrompt);
+        const result = await spawnAgent(session.toolType, session.cwd, finalPrompt);
 
         const elapsedMs = Date.now() - taskStartTime;
 
@@ -497,6 +497,7 @@ export async function* runPlaybook(
         if (result.success && result.agentSessionId) {
           // Request synopsis from the agent
           const synopsisResult = await spawnAgent(
+            session.toolType,
             session.cwd,
             BATCH_SYNOPSIS_PROMPT,
             result.agentSessionId

@@ -178,32 +178,6 @@ export function AgentErrorModal({
           {new Date(error.timestamp).toLocaleTimeString()}
         </div>
 
-        {/* Recovery hint - different message based on whether there are actions */}
-        {error.recoverable && recoveryActions.length > 0 && (
-          <div
-            className="text-xs p-3 rounded"
-            style={{
-              backgroundColor: `${errorColor}15`,
-              color: theme.colors.textMain,
-            }}
-          >
-            <span className="font-medium">Tip:</span> This error can be resolved.
-            Choose a recovery action below.
-          </div>
-        )}
-        {error.recoverable && recoveryActions.length === 0 && (
-          <div
-            className="text-xs p-3 rounded"
-            style={{
-              backgroundColor: `${errorColor}15`,
-              color: theme.colors.textMain,
-            }}
-          >
-            <span className="font-medium">Tip:</span> Simply send another message to
-            continue, or start a new session.
-          </div>
-        )}
-
         {/* Collapsible JSON Details */}
         {hasJsonDetails && (
           <div className="border rounded" style={{ borderColor: theme.colors.border }}>

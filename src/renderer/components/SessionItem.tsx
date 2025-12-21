@@ -83,20 +83,6 @@ export function SessionItem({
   onStartRename,
   onToggleBookmark,
 }: SessionItemProps) {
-  // Generate unique key for editing based on variant and context
-  const getEditingKey = () => {
-    switch (variant) {
-      case 'bookmark':
-        return `bookmark-${session.id}`;
-      case 'group':
-        return `group-${groupId}-${session.id}`;
-      case 'flat':
-        return `flat-${session.id}`;
-      case 'ungrouped':
-        return `ungrouped-${session.id}`;
-    }
-  };
-
   // Determine if we show the GIT/LOCAL badge (not shown in bookmark variant or terminal sessions)
   const showGitLocalBadge = variant !== 'bookmark' && session.toolType !== 'terminal';
 

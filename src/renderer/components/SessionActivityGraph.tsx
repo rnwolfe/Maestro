@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Check } from 'lucide-react';
 import type { Theme } from '../types';
 
@@ -44,7 +44,6 @@ export const SessionActivityGraph: React.FC<SessionActivityGraphProps> = ({
 }) => {
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
-  const graphRef = useRef<HTMLDivElement>(null);
 
   // Get the current lookback config
   const lookbackConfig = useMemo(() =>
@@ -208,7 +207,6 @@ export const SessionActivityGraph: React.FC<SessionActivityGraphProps> = ({
 
   return (
     <div
-      ref={graphRef}
       className={`flex-1 min-w-0 flex flex-col relative ${className}`}
       title={hoveredIndex === null ? `${lookbackConfig.label}: ${totalSessions} session${totalSessions !== 1 ? 's' : ''} (right-click to change)` : undefined}
       onContextMenu={handleContextMenu}

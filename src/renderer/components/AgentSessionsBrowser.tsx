@@ -176,10 +176,10 @@ export function AgentSessionsBrowser({
     prevViewingSessionRef.current = viewingSession;
   }, [viewingSession]);
 
-  // Reset aggregate stats when cwd changes (session loading is handled by useSessionPagination)
+  // Reset aggregate stats when cwd or agentId changes (session loading is handled by useSessionPagination)
   useEffect(() => {
     setAggregateStats({ totalSessions: 0, totalMessages: 0, totalCostUsd: 0, totalSizeBytes: 0, totalTokens: 0, oldestTimestamp: null, isComplete: false });
-  }, [activeSession?.cwd]);
+  }, [activeSession?.cwd, agentId]);
 
   // Listen for progressive stats updates (Claude-specific)
   useEffect(() => {
@@ -758,20 +758,14 @@ export function AgentSessionsBrowser({
                     Total Tokens
                   </span>
                 </div>
-                {(() => {
-                  const totalTokens = viewingSession.inputTokens + viewingSession.outputTokens;
-                  const contextUsage = Math.min(100, (totalTokens / 200000) * 100);
-                  return (
-                    <>
-                      <span className="text-lg font-mono font-semibold" style={{ color: theme.colors.textMain }}>
-                        {formatNumber(totalTokens)}
-                      </span>
-                      <span className="text-[10px] mt-0.5" style={{ color: theme.colors.textDim }}>
-                        of 200k context <span className="font-mono font-medium" style={{ color: theme.colors.accent }}>{contextUsage.toFixed(1)}%</span>
-                      </span>
-                    </>
-                  );
-                })()}
+                <div className="flex items-baseline gap-2">
+                  <span className="text-lg font-mono font-semibold" style={{ color: theme.colors.textMain }}>
+                    {formatNumber(viewingSession.inputTokens + viewingSession.outputTokens)}
+                  </span>
+                  <span className="text-[10px]" style={{ color: theme.colors.textDim }}>
+                    of 200k context <span className="font-mono font-medium" style={{ color: theme.colors.accent }}>{Math.min(100, ((viewingSession.inputTokens + viewingSession.outputTokens) / 200000) * 100).toFixed(1)}%</span>
+                  </span>
+                </div>
               </div>
 
               {/* Messages */}

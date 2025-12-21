@@ -52,7 +52,7 @@ function getCodexSessionsDir(): string {
 
 const CODEX_SESSIONS_DIR = getCodexSessionsDir();
 
-const CODEX_SESSION_CACHE_VERSION = 1;
+const CODEX_SESSION_CACHE_VERSION = 2; // Bumped: skip system context in firstMessage preview
 const CODEX_SESSION_CACHE_FILENAME = 'codex-sessions-cache.json';
 
 /**
@@ -133,6 +133,19 @@ function extractTextFromContent(content: CodexMessageContent[] | undefined): str
     .filter((text) => text.trim());
 
   return textParts.join(' ');
+}
+
+/**
+ * Check if text is a system/environment context message that should be skipped for preview
+ */
+function isSystemContextMessage(text: string): boolean {
+  if (!text) return false;
+  const trimmed = text.trim();
+  // Skip messages that start with environment/system context XML tags
+  return trimmed.startsWith('<environment_context>') ||
+         trimmed.startsWith('<cwd>') ||
+         trimmed.startsWith('<system>') ||
+         trimmed.startsWith('<approval_policy>');
 }
 
 function extractCwdFromText(text: string): string | null {
@@ -273,19 +286,19 @@ async function parseSessionFile(
         if (entry.type === 'message') {
           if (entry.role === 'user') {
             userMessageCount++;
-            // Capture first user message as fallback preview
-            if (!firstUserMessage && entry.content) {
+            // Extract text and check for system context
+            if (entry.content) {
               const text = extractTextFromContent(entry.content);
-              if (text.trim()) {
+              // Capture first user message as fallback preview (skip system context)
+              if (!firstUserMessage && text.trim() && !isSystemContextMessage(text)) {
                 firstUserMessage = text;
               }
-            }
-            // Fallback: extract cwd from message content if not in session_meta
-            if (!sessionProjectPath && entry.content) {
-              const text = extractTextFromContent(entry.content);
-              const cwd = extractCwdFromText(text);
-              if (cwd) {
-                sessionProjectPath = cwd;
+              // Fallback: extract cwd from message content if not in session_meta
+              if (!sessionProjectPath) {
+                const cwd = extractCwdFromText(text);
+                if (cwd) {
+                  sessionProjectPath = cwd;
+                }
               }
             }
           } else if (entry.role === 'assistant') {
@@ -304,19 +317,19 @@ async function parseSessionFile(
         if (entry.type === 'response_item' && entry.payload?.type === 'message') {
           if (entry.payload.role === 'user') {
             userMessageCount++;
-            // Capture first user message as fallback preview
-            if (!firstUserMessage && entry.payload.content) {
+            // Extract text and check for system context
+            if (entry.payload.content) {
               const text = extractTextFromContent(entry.payload.content);
-              if (text.trim()) {
+              // Capture first user message as fallback preview (skip system context)
+              if (!firstUserMessage && text.trim() && !isSystemContextMessage(text)) {
                 firstUserMessage = text;
               }
-            }
-            // Fallback: extract cwd from message content if not in session_meta
-            if (!sessionProjectPath && entry.payload.content) {
-              const text = extractTextFromContent(entry.payload.content);
-              const cwd = extractCwdFromText(text);
-              if (cwd) {
-                sessionProjectPath = cwd;
+              // Fallback: extract cwd from message content if not in session_meta
+              if (!sessionProjectPath) {
+                const cwd = extractCwdFromText(text);
+                if (cwd) {
+                  sessionProjectPath = cwd;
+                }
               }
             }
           } else if (entry.payload.role === 'assistant') {

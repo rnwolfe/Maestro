@@ -108,7 +108,7 @@ export const RightPanel = forwardRef<RightPanelHandle, RightPanelProps>(function
     autoRunDocumentTaskCounts,
     onAutoRunContentChange, onAutoRunModeChange, onAutoRunStateChange,
     onAutoRunSelectDocument, onAutoRunCreateDocument, onAutoRunRefresh, onAutoRunOpenSetup,
-    batchRunState, currentSessionBatchState, onOpenBatchRunner, onStopBatchRun,
+    currentSessionBatchState, onOpenBatchRunner, onStopBatchRun,
     // Error handling callbacks (Phase 5.10)
     onSkipCurrentDocument, onAbortBatchOnError, onResumeAfterError,
     onJumpToAgentSession, onResumeSession,
@@ -293,6 +293,43 @@ export const RightPanel = forwardRef<RightPanelHandle, RightPanelProps>(function
 
   if (!session) return null;
 
+  // Shared props for AutoRun and AutoRunExpandedModal to avoid duplication
+  const autoRunSharedProps = {
+    theme,
+    sessionId: session.id,
+    folderPath: session.autoRunFolderPath || null,
+    selectedFile: session.autoRunSelectedFile || null,
+    documentList: autoRunDocumentList,
+    documentTree: autoRunDocumentTree,
+    content: autoRunContent,
+    contentVersion: autoRunContentVersion,
+    onContentChange: onAutoRunContentChange,
+    externalLocalContent: sharedLocalContent,
+    onExternalLocalContentChange: setSharedLocalContent,
+    externalSavedContent: sharedSavedContent,
+    onExternalSavedContentChange: setSharedSavedContent,
+    mode: session.autoRunMode || 'edit' as const,
+    onModeChange: onAutoRunModeChange,
+    initialCursorPosition: session.autoRunCursorPosition || 0,
+    initialEditScrollPos: session.autoRunEditScrollPos || 0,
+    initialPreviewScrollPos: session.autoRunPreviewScrollPos || 0,
+    onStateChange: onAutoRunStateChange,
+    onOpenSetup: onAutoRunOpenSetup,
+    onRefresh: onAutoRunRefresh,
+    onSelectDocument: onAutoRunSelectDocument,
+    onCreateDocument: onAutoRunCreateDocument,
+    isLoadingDocuments: autoRunIsLoadingDocuments,
+    documentTaskCounts: autoRunDocumentTaskCounts,
+    batchRunState: currentSessionBatchState || undefined,
+    onOpenBatchRunner,
+    onStopBatchRun,
+    onSkipCurrentDocument,
+    onAbortBatchOnError,
+    onResumeAfterError,
+    sessionState: session.state,
+    shortcuts,
+  };
+
   return (
     <div
       tabIndex={0}
@@ -433,40 +470,8 @@ export const RightPanel = forwardRef<RightPanelHandle, RightPanelProps>(function
           <div data-tour="autorun-panel" className="h-full">
           <AutoRun
             ref={autoRunRef}
-            theme={theme}
-            sessionId={session.id}
-            folderPath={session.autoRunFolderPath || null}
-            selectedFile={session.autoRunSelectedFile || null}
-            documentList={autoRunDocumentList}
-            documentTree={autoRunDocumentTree}
-            content={autoRunContent}
-            contentVersion={autoRunContentVersion}
-            onContentChange={onAutoRunContentChange}
-            externalLocalContent={sharedLocalContent}
-            onExternalLocalContentChange={setSharedLocalContent}
-            externalSavedContent={sharedSavedContent}
-            onExternalSavedContentChange={setSharedSavedContent}
-            mode={session.autoRunMode || 'edit'}
-            onModeChange={onAutoRunModeChange}
-            initialCursorPosition={session.autoRunCursorPosition || 0}
-            initialEditScrollPos={session.autoRunEditScrollPos || 0}
-            initialPreviewScrollPos={session.autoRunPreviewScrollPos || 0}
-            onStateChange={onAutoRunStateChange}
-            onOpenSetup={onAutoRunOpenSetup}
-            onRefresh={onAutoRunRefresh}
-            onSelectDocument={onAutoRunSelectDocument}
-            onCreateDocument={onAutoRunCreateDocument}
-            isLoadingDocuments={autoRunIsLoadingDocuments}
-            documentTaskCounts={autoRunDocumentTaskCounts}
-            batchRunState={currentSessionBatchState || undefined}
-            onOpenBatchRunner={onOpenBatchRunner}
-            onStopBatchRun={onStopBatchRun}
-            onSkipCurrentDocument={onSkipCurrentDocument}
-            onAbortBatchOnError={onAbortBatchOnError}
-            onResumeAfterError={onResumeAfterError}
-            sessionState={session.state}
+            {...autoRunSharedProps}
             onExpand={handleExpandAutoRun}
-            shortcuts={shortcuts}
           />
           </div>
         )}
@@ -475,40 +480,8 @@ export const RightPanel = forwardRef<RightPanelHandle, RightPanelProps>(function
       {/* Auto Run Expanded Modal */}
       {autoRunExpanded && session && (
         <AutoRunExpandedModal
-          theme={theme}
+          {...autoRunSharedProps}
           onClose={handleCollapseAutoRun}
-          sessionId={session.id}
-          folderPath={session.autoRunFolderPath || null}
-          selectedFile={session.autoRunSelectedFile || null}
-          documentList={autoRunDocumentList}
-          documentTree={autoRunDocumentTree}
-          content={autoRunContent}
-          contentVersion={autoRunContentVersion}
-          onContentChange={onAutoRunContentChange}
-          externalLocalContent={sharedLocalContent}
-          onExternalLocalContentChange={setSharedLocalContent}
-          externalSavedContent={sharedSavedContent}
-          onExternalSavedContentChange={setSharedSavedContent}
-          mode={session.autoRunMode || 'edit'}
-          onModeChange={onAutoRunModeChange}
-          initialCursorPosition={session.autoRunCursorPosition || 0}
-          initialEditScrollPos={session.autoRunEditScrollPos || 0}
-          initialPreviewScrollPos={session.autoRunPreviewScrollPos || 0}
-          onStateChange={onAutoRunStateChange}
-          onOpenSetup={onAutoRunOpenSetup}
-          onRefresh={onAutoRunRefresh}
-          onSelectDocument={onAutoRunSelectDocument}
-          onCreateDocument={onAutoRunCreateDocument}
-          isLoadingDocuments={autoRunIsLoadingDocuments}
-          documentTaskCounts={autoRunDocumentTaskCounts}
-          batchRunState={currentSessionBatchState || undefined}
-          onOpenBatchRunner={onOpenBatchRunner}
-          onStopBatchRun={onStopBatchRun}
-          onSkipCurrentDocument={onSkipCurrentDocument}
-          onAbortBatchOnError={onAbortBatchOnError}
-          onResumeAfterError={onResumeAfterError}
-          sessionState={session.state}
-          shortcuts={shortcuts}
         />
       )}
 

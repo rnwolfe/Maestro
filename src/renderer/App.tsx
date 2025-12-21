@@ -2630,14 +2630,21 @@ export default function MaestroConsole() {
 
   // Get batch state for the current session - used for locking the AutoRun editor
   // This is session-specific so users can edit docs in other sessions while one runs
-  const currentSessionBatchState = activeSession ? getBatchState(activeSession.id) : null;
+  // Quick Win 4: Memoized to prevent unnecessary re-calculations
+  const currentSessionBatchState = useMemo(() => {
+    return activeSession ? getBatchState(activeSession.id) : null;
+  }, [activeSession, getBatchState]);
 
   // Get batch state for display - prioritize the session with an active batch run,
   // falling back to the active session's state. This ensures AutoRun progress is
   // displayed correctly regardless of which tab/session the user is viewing.
-  const activeBatchRunState = activeBatchSessionIds.length > 0
-    ? getBatchState(activeBatchSessionIds[0])
-    : (activeSession ? getBatchState(activeSession.id) : getBatchState(''));
+  // Quick Win 4: Memoized to prevent unnecessary re-calculations
+  const activeBatchRunState = useMemo(() => {
+    if (activeBatchSessionIds.length > 0) {
+      return getBatchState(activeBatchSessionIds[0]);
+    }
+    return activeSession ? getBatchState(activeSession.id) : getBatchState('');
+  }, [activeBatchSessionIds, activeSession, getBatchState]);
 
   // Handler for the built-in /history command
   // Requests a synopsis from the current agent session and saves to history

@@ -234,7 +234,7 @@ export const RightPanel = forwardRef<RightPanelHandle, RightPanelProps>(function
         lastActiveTimestampRef.current = Date.now();
         // Restart the interval
         if (!intervalRef.current) {
-          intervalRef.current = setInterval(updateElapsed, 1000);
+          intervalRef.current = setInterval(updateElapsed, 3000); // Quick Win 3: reduced from 1s to 3s
         }
       }
       updateElapsed();
@@ -243,9 +243,9 @@ export const RightPanel = forwardRef<RightPanelHandle, RightPanelProps>(function
     // Initial update
     updateElapsed();
 
-    // Start interval only if visible
+    // Start interval only if visible (Quick Win 3: reduced from 1s to 3s for performance)
     if (!document.hidden) {
-      intervalRef.current = setInterval(updateElapsed, 1000);
+      intervalRef.current = setInterval(updateElapsed, 3000);
     }
 
     // Listen for visibility changes

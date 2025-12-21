@@ -6,6 +6,8 @@
  * and conversational.
  */
 
+import { shuffle } from './shuffle';
+
 const FILLER_PHRASES = [
   "Running the numbers...",
   "Interesting, give me a moment...",
@@ -114,18 +116,6 @@ const FILLER_PHRASES = [
  * Once exhausted, it reshuffles automatically.
  */
 let phraseQueue: string[] = [];
-
-/**
- * Fisher-Yates shuffle algorithm
- */
-function shuffle<T>(array: T[]): T[] {
-  const result = [...array];
-  for (let i = result.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [result[i], result[j]] = [result[j], result[i]];
-  }
-  return result;
-}
 
 /**
  * Get the next filler phrase from the shuffled queue.

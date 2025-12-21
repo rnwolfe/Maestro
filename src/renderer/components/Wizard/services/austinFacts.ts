@@ -8,6 +8,8 @@
  * that open in the system browser.
  */
 
+import { shuffle } from './shuffle';
+
 const AUSTIN_FACTS = [
   // Pedram's Picks - Weekly Specials
   "Sunday is half priced bottles of wine at Jeffrey's.",
@@ -139,18 +141,6 @@ const AUSTIN_FACTS = [
 ];
 
 let austinFactQueue: string[] = [];
-
-/**
- * Shuffle array using Fisher-Yates algorithm
- */
-function shuffle<T>(array: T[]): T[] {
-  const shuffled = [...array];
-  for (let i = shuffled.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
-  }
-  return shuffled;
-}
 
 /**
  * Get the next random Austin fact.

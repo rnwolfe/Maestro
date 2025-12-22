@@ -456,6 +456,10 @@ interface MaestroAPI {
     }>>;
     registerSessionOrigin: (projectPath: string, agentSessionId: string, origin: 'user' | 'auto', sessionName?: string) => Promise<boolean>;
     updateSessionName: (projectPath: string, agentSessionId: string, sessionName: string) => Promise<boolean>;
+    // Generic session origins API (for non-Claude agents like Codex, OpenCode)
+    getOrigins: (agentId: string, projectPath: string) => Promise<Record<string, { origin?: 'user' | 'auto'; sessionName?: string; starred?: boolean }>>;
+    setSessionName: (agentId: string, projectPath: string, sessionId: string, sessionName: string | null) => Promise<void>;
+    setSessionStarred: (agentId: string, projectPath: string, sessionId: string, starred: boolean) => Promise<void>;
   };
   dialog: {
     selectFolder: () => Promise<string | null>;

@@ -224,6 +224,19 @@ const claudeSessionOriginsStore = new Store<ClaudeSessionOriginsData>({
   },
 });
 
+// Generic agent session origins store - supports all agents (Codex, OpenCode, etc.)
+// Structure: { [agentId]: { [projectPath]: { [sessionId]: { origin, sessionName, starred } } } }
+interface AgentSessionOriginsData {
+  origins: Record<string, Record<string, Record<string, { origin?: 'user' | 'auto'; sessionName?: string; starred?: boolean }>>>;
+}
+const agentSessionOriginsStore = new Store<AgentSessionOriginsData>({
+  name: 'maestro-agent-session-origins',
+  cwd: syncPath, // Use iCloud/custom sync path if configured
+  defaults: {
+    origins: {},
+  },
+});
+
 let mainWindow: BrowserWindow | null = null;
 let processManager: ProcessManager | null = null;
 let webServer: WebServer | null = null;
@@ -902,7 +915,7 @@ function setupIpcHandlers() {
   // This provides the new window.maestro.agentSessions.* API
   // Pass the shared claudeSessionOriginsStore so session names/stars are consistent
   initializeSessionStorages({ claudeSessionOriginsStore });
-  registerAgentSessionsHandlers({ getMainWindow: () => mainWindow });
+  registerAgentSessionsHandlers({ getMainWindow: () => mainWindow, agentSessionOriginsStore });
 
   // Helper to get agent config values (custom args/env vars, model, etc.)
   const getAgentConfigForAgent = (agentId: string): Record<string, any> => {

@@ -15,6 +15,7 @@
  */
 
 import { ipcMain, BrowserWindow } from 'electron';
+import Store from 'electron-store';
 import path from 'path';
 import os from 'os';
 import fs from 'fs/promises';
@@ -73,10 +74,19 @@ export interface GlobalAgentStats {
 }
 
 /**
+ * Generic agent session origins data structure
+ * Structure: { [agentId]: { [projectPath]: { [sessionId]: { origin, sessionName, starred } } } }
+ */
+export interface AgentSessionOriginsData {
+  origins: Record<string, Record<string, Record<string, { origin?: 'user' | 'auto'; sessionName?: string; starred?: boolean }>>>;
+}
+
+/**
  * Dependencies required for agent sessions handlers
  */
 export interface AgentSessionsHandlerDependencies {
   getMainWindow: () => BrowserWindow | null;
+  agentSessionOriginsStore?: Store<AgentSessionOriginsData>;
 }
 
 /**
@@ -586,6 +596,112 @@ export function registerAgentSessionsHandlers(deps?: AgentSessionsHandlerDepende
 
         logger.info(`Found ${allNamedSessions.length} named sessions across all providers`, LOG_CONTEXT);
         return allNamedSessions;
+      }
+    )
+  );
+
+  // ============ Session Origins (Generic - for non-Claude agents) ============
+  // These handlers manage session metadata like names and starred status for all agents
+
+  const originsStore = deps?.agentSessionOriginsStore;
+
+  ipcMain.handle(
+    'agentSessions:getOrigins',
+    withIpcErrorLogging(
+      handlerOpts('getOrigins'),
+      async (
+        agentId: string,
+        projectPath: string
+      ): Promise<Record<string, { origin?: 'user' | 'auto'; sessionName?: string; starred?: boolean }>> => {
+        if (!originsStore) {
+          logger.warn('Origins store not available for getOrigins', LOG_CONTEXT);
+          return {};
+        }
+        const allOrigins = originsStore.get('origins', {});
+        const agentOrigins = allOrigins[agentId] || {};
+        const result = agentOrigins[projectPath] || {};
+        logger.info(`getOrigins(${agentId}, ${projectPath}): found ${Object.keys(result).length} entries`, LOG_CONTEXT);
+        return result;
+      }
+    )
+  );
+
+  ipcMain.handle(
+    'agentSessions:setSessionName',
+    withIpcErrorLogging(
+      handlerOpts('setSessionName'),
+      async (
+        agentId: string,
+        projectPath: string,
+        sessionId: string,
+        sessionName: string | null
+      ): Promise<void> => {
+        if (!originsStore) {
+          logger.warn('Origins store not available', LOG_CONTEXT);
+          return;
+        }
+        const allOrigins = originsStore.get('origins', {});
+        if (!allOrigins[agentId]) allOrigins[agentId] = {};
+        if (!allOrigins[agentId][projectPath]) allOrigins[agentId][projectPath] = {};
+
+        if (sessionName) {
+          allOrigins[agentId][projectPath][sessionId] = {
+            ...allOrigins[agentId][projectPath][sessionId],
+            sessionName,
+          };
+        } else {
+          // Remove sessionName
+          const existing = allOrigins[agentId][projectPath][sessionId];
+          if (existing) {
+            delete existing.sessionName;
+            // Clean up if empty
+            if (!existing.starred && !existing.origin) {
+              delete allOrigins[agentId][projectPath][sessionId];
+            }
+          }
+        }
+        originsStore.set('origins', allOrigins);
+        logger.info(`Set session name for ${agentId}/${sessionId}: ${sessionName}`, LOG_CONTEXT);
+      }
+    )
+  );
+
+  ipcMain.handle(
+    'agentSessions:setSessionStarred',
+    withIpcErrorLogging(
+      handlerOpts('setSessionStarred'),
+      async (
+        agentId: string,
+        projectPath: string,
+        sessionId: string,
+        starred: boolean
+      ): Promise<void> => {
+        if (!originsStore) {
+          logger.warn('Origins store not available', LOG_CONTEXT);
+          return;
+        }
+        const allOrigins = originsStore.get('origins', {});
+        if (!allOrigins[agentId]) allOrigins[agentId] = {};
+        if (!allOrigins[agentId][projectPath]) allOrigins[agentId][projectPath] = {};
+
+        if (starred) {
+          allOrigins[agentId][projectPath][sessionId] = {
+            ...allOrigins[agentId][projectPath][sessionId],
+            starred: true,
+          };
+        } else {
+          // Remove starred
+          const existing = allOrigins[agentId][projectPath][sessionId];
+          if (existing) {
+            delete existing.starred;
+            // Clean up if empty
+            if (!existing.sessionName && !existing.origin) {
+              delete allOrigins[agentId][projectPath][sessionId];
+            }
+          }
+        }
+        originsStore.set('origins', allOrigins);
+        logger.info(`Set session starred for ${agentId}/${sessionId}: ${starred}`, LOG_CONTEXT);
       }
     )
   );

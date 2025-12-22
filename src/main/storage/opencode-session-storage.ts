@@ -249,8 +249,29 @@ export class OpenCodeSessionStorage implements AgentSessionStorage {
       // Not found by hash
     }
 
-    logger.info(`No OpenCode project found for path: ${normalizedPath}`, LOG_CONTEXT);
-    return null;
+    // Fall back to 'global' project - OpenCode stores sessions for non-project directories here
+    // Sessions in global have a 'directory' field that indicates the actual working directory
+    logger.info(`No dedicated OpenCode project found for path: ${normalizedPath}, will check global project`, LOG_CONTEXT);
+    return 'global';
+  }
+
+  /**
+   * Check if a session's directory matches the requested project path
+   * Used for filtering global project sessions by their working directory
+   */
+  private sessionMatchesPath(sessionDirectory: string | undefined, projectPath: string): boolean {
+    if (!sessionDirectory) return false;
+
+    const normalizedSessionDir = path.resolve(sessionDirectory).replace(/\/+$/, '');
+    const normalizedProjectPath = path.resolve(projectPath).replace(/\/+$/, '');
+
+    // Exact match
+    if (normalizedSessionDir === normalizedProjectPath) return true;
+
+    // Session is in a subdirectory of the project
+    if (normalizedSessionDir.startsWith(normalizedProjectPath + '/')) return true;
+
+    return false;
   }
 
   /**
@@ -352,6 +373,9 @@ export class OpenCodeSessionStorage implements AgentSessionStorage {
       return [];
     }
 
+    // When using the 'global' project, we need to filter sessions by their directory field
+    const isGlobalProject = projectId === 'global';
+
     const sessionDir = this.getSessionDir(projectId);
 
     try {
@@ -370,6 +394,11 @@ export class OpenCodeSessionStorage implements AgentSessionStorage {
       );
 
       if (!sessionData) continue;
+
+      // For global project, filter by the session's directory field
+      if (isGlobalProject && !this.sessionMatchesPath(sessionData.directory, projectPath)) {
+        continue;
+      }
 
       // Load messages to get first message and stats
       const {

@@ -39,11 +39,21 @@ export function RenameSessionModal(props: RenameSessionModalProps) {
       // Also update the agent session name if this session has an associated agent session
       // Use projectRoot (not cwd) for consistent session storage access
       if (targetSession?.agentSessionId && targetSession?.projectRoot) {
-        window.maestro.agentSessions.updateSessionName(
-          targetSession.projectRoot,
-          targetSession.agentSessionId,
-          trimmedName
-        ).catch(err => console.error('Failed to update agent session name:', err));
+        const agentId = targetSession.toolType || 'claude-code';
+        if (agentId === 'claude-code') {
+          window.maestro.claude.updateSessionName(
+            targetSession.projectRoot,
+            targetSession.agentSessionId,
+            trimmedName
+          ).catch(err => console.error('Failed to update agent session name:', err));
+        } else {
+          window.maestro.agentSessions.setSessionName(
+            agentId,
+            targetSession.projectRoot,
+            targetSession.agentSessionId,
+            trimmedName
+          ).catch(err => console.error('Failed to update agent session name:', err));
+        }
       }
 
       // Flush persistence immediately for critical operation (session rename)

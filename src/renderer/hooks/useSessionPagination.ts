@@ -103,11 +103,12 @@ export function useSessionPagination({
 
       try {
         // Load session metadata (starred status, sessionName) from session origins
-        // Note: Origins are currently Claude-specific; other agents will need their own implementation
         const originsMap = new Map<string, { origin?: string; sessionName?: string; starred?: boolean }>();
+        const starredFromOrigins = new Set<string>();
+
         if (agentId === 'claude-code') {
+          // Claude Code uses its own origins store (claude:getSessionOrigins)
           const origins = await window.maestro.claude.getSessionOrigins(projectPath);
-          const starredFromOrigins = new Set<string>();
           for (const [sessionId, originData] of Object.entries(origins)) {
             if (typeof originData === 'object') {
               if (originData?.starred) {
@@ -118,8 +119,18 @@ export function useSessionPagination({
               originsMap.set(sessionId, { origin: originData });
             }
           }
-          onStarredSessionsLoaded?.(starredFromOrigins);
+        } else {
+          // Other agents (Codex, OpenCode, etc.) use the generic origins store
+          const origins = await window.maestro.agentSessions.getOrigins(agentId, projectPath);
+          for (const [sessionId, originData] of Object.entries(origins)) {
+            if (originData?.starred) {
+              starredFromOrigins.add(sessionId);
+            }
+            originsMap.set(sessionId, originData);
+          }
         }
+
+        onStarredSessionsLoaded?.(starredFromOrigins);
 
         // Store for use in loadMoreSessions
         originsMapRef.current = originsMap;

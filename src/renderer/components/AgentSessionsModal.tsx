@@ -40,6 +40,8 @@ export function AgentSessionsModal({
   onClose,
   onResumeSession,
 }: AgentSessionsModalProps) {
+  // Get agentId from the active session's toolType
+  const agentId = activeSession?.toolType || 'claude-code';
   const [sessions, setSessions] = useState<AgentSession[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -130,18 +132,26 @@ export function AgentSessionsModal({
       const projectPath = activeSession.projectRoot;
       console.log('AgentSessionsModal: Loading sessions for projectPath:', projectPath, 'agentId:', agentId);
       try {
-        // Load starred sessions from Claude session origins (shared with AgentSessionsBrowser)
-        // Note: Origin tracking remains Claude-specific until generic implementation is added
+        // Load starred sessions from session origins (shared with AgentSessionsBrowser)
+        const starredFromOrigins = new Set<string>();
         if (agentId === 'claude-code') {
+          // Claude Code uses its own origins store
           const origins = await window.maestro.claude.getSessionOrigins(projectPath);
-          const starredFromOrigins = new Set<string>();
           for (const [sessionId, originData] of Object.entries(origins)) {
             if (typeof originData === 'object' && originData?.starred) {
               starredFromOrigins.add(sessionId);
             }
           }
-          setStarredSessions(starredFromOrigins);
+        } else {
+          // Other agents use the generic origins store
+          const origins = await window.maestro.agentSessions.getOrigins(agentId, projectPath);
+          for (const [sessionId, originData] of Object.entries(origins)) {
+            if (originData?.starred) {
+              starredFromOrigins.add(sessionId);
+            }
+          }
         }
+        setStarredSessions(starredFromOrigins);
 
         // Use generic agentSessions API for session listing
         const result = await window.maestro.agentSessions.listPaginated(agentId, projectPath, { limit: 100 });
@@ -215,16 +225,27 @@ export function AgentSessionsModal({
     }
     setStarredSessions(newStarred);
 
-    // Persist to Claude session origins (shared with AgentSessionsBrowser)
+    // Persist to session origins (shared with AgentSessionsBrowser)
     // Use projectRoot (not cwd) for consistent session storage access
     if (activeSession?.projectRoot) {
-      await window.maestro.claude.updateSessionStarred(
-        activeSession.projectRoot,
-        sessionId,
-        isNowStarred
-      );
+      if (agentId === 'claude-code') {
+        // Claude Code uses its own origins store
+        await window.maestro.claude.updateSessionStarred(
+          activeSession.projectRoot,
+          sessionId,
+          isNowStarred
+        );
+      } else {
+        // Other agents use the generic origins store
+        await window.maestro.agentSessions.setSessionStarred(
+          agentId,
+          activeSession.projectRoot,
+          sessionId,
+          isNowStarred
+        );
+      }
     }
-  }, [starredSessions, activeSession?.projectRoot]);
+  }, [starredSessions, activeSession?.projectRoot, agentId]);
 
   // Focus input on mount
   useEffect(() => {

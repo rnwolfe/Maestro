@@ -715,6 +715,16 @@ contextBridge.exposeInMainWorld('maestro', {
     // Update a session's display name
     updateSessionName: (projectPath: string, agentSessionId: string, sessionName: string) =>
       ipcRenderer.invoke('claude:updateSessionName', projectPath, agentSessionId, sessionName),
+    // Generic session origins API (for non-Claude agents like Codex, OpenCode)
+    // Get session origins (names, starred status) for an agent/project
+    getOrigins: (agentId: string, projectPath: string) =>
+      ipcRenderer.invoke('agentSessions:getOrigins', agentId, projectPath) as Promise<Record<string, { origin?: 'user' | 'auto'; sessionName?: string; starred?: boolean }>>,
+    // Set session name for any agent
+    setSessionName: (agentId: string, projectPath: string, sessionId: string, sessionName: string | null) =>
+      ipcRenderer.invoke('agentSessions:setSessionName', agentId, projectPath, sessionId, sessionName),
+    // Set session starred status for any agent
+    setSessionStarred: (agentId: string, projectPath: string, sessionId: string, starred: boolean) =>
+      ipcRenderer.invoke('agentSessions:setSessionStarred', agentId, projectPath, sessionId, starred),
   },
 
   // Temp file API (for batch processing)
@@ -1542,6 +1552,10 @@ export interface MaestroAPI {
     }>>;
     registerSessionOrigin: (projectPath: string, agentSessionId: string, origin: 'user' | 'auto', sessionName?: string) => Promise<boolean>;
     updateSessionName: (projectPath: string, agentSessionId: string, sessionName: string) => Promise<boolean>;
+    // Generic session origins API (for non-Claude agents like Codex, OpenCode)
+    getOrigins: (agentId: string, projectPath: string) => Promise<Record<string, { origin?: 'user' | 'auto'; sessionName?: string; starred?: boolean }>>;
+    setSessionName: (agentId: string, projectPath: string, sessionId: string, sessionName: string | null) => Promise<void>;
+    setSessionStarred: (agentId: string, projectPath: string, sessionId: string, starred: boolean) => Promise<void>;
   };
   tempfile: {
     write: (content: string, filename?: string) => Promise<{ success: boolean; path?: string; error?: string }>;

@@ -174,43 +174,6 @@ export function SessionItem({
 
       {/* Right side: Indicators and actions */}
       <div className="flex items-center gap-2 ml-2">
-        {/* Bookmark toggle (hidden in bookmark variant since it's always shown on left) */}
-        {variant !== 'bookmark' ? (
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onToggleBookmark();
-            }}
-            className={`p-0.5 rounded hover:bg-white/10 transition-all ${session.bookmarked ? '' : 'opacity-0 group-hover:opacity-100'}`}
-            title={session.bookmarked ? "Remove bookmark" : "Add bookmark"}
-          >
-            <Bookmark
-              className="w-3 h-3"
-              style={{ color: theme.colors.accent }}
-              fill={session.bookmarked ? theme.colors.accent : 'none'}
-            />
-          </button>
-        ) : (
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onToggleBookmark();
-            }}
-            className="p-0.5 rounded hover:bg-white/10 transition-colors"
-            title="Remove bookmark"
-          >
-            <Bookmark className="w-3 h-3" style={{ color: theme.colors.accent }} fill={theme.colors.accent} />
-          </button>
-        )}
-
-        {/* Git Dirty Indicator (only in wide mode) */}
-        {leftSidebarOpen && session.isGitRepo && gitFileCount !== undefined && gitFileCount > 0 && (
-          <div className="flex items-center gap-0.5 text-[10px]" style={{ color: theme.colors.warning }}>
-            <GitBranch className="w-2.5 h-2.5" />
-            <span>{gitFileCount}</span>
-          </div>
-        )}
-
         {/* Git vs Local Indicator */}
         {showGitLocalBadge && (
           <div
@@ -247,6 +210,43 @@ export function SessionItem({
             <AlertCircle className="w-2.5 h-2.5" />
             ERR
           </div>
+        )}
+
+        {/* Git Dirty Indicator (only in wide mode) */}
+        {leftSidebarOpen && session.isGitRepo && gitFileCount !== undefined && gitFileCount > 0 && (
+          <div className="flex items-center gap-0.5 text-[10px]" style={{ color: theme.colors.warning }}>
+            <GitBranch className="w-2.5 h-2.5" />
+            <span>{gitFileCount}</span>
+          </div>
+        )}
+
+        {/* Bookmark toggle */}
+        {variant !== 'bookmark' ? (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onToggleBookmark();
+            }}
+            className={`p-0.5 rounded hover:bg-white/10 transition-all ${session.bookmarked ? '' : 'opacity-0 group-hover:opacity-100'}`}
+            title={session.bookmarked ? "Remove bookmark" : "Add bookmark"}
+          >
+            <Bookmark
+              className="w-3 h-3"
+              style={{ color: theme.colors.accent }}
+              fill={session.bookmarked ? theme.colors.accent : 'none'}
+            />
+          </button>
+        ) : (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onToggleBookmark();
+            }}
+            className="p-0.5 rounded hover:bg-white/10 transition-colors"
+            title="Remove bookmark"
+          >
+            <Bookmark className="w-3 h-3" style={{ color: theme.colors.accent }} fill={theme.colors.accent} />
+          </button>
         )}
 
         {/* AI Status Indicator with Unread Badge */}

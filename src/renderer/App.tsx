@@ -3913,14 +3913,24 @@ export default function MaestroConsole() {
     const newStarred = !tab.starred;
     setSessions(prev => prev.map(s => {
       if (s.id !== activeSession.id) return s;
-      // Persist starred status to Claude session metadata (async, fire and forget)
+      // Persist starred status to session metadata (async, fire and forget)
       // Use projectRoot (not cwd) for consistent session storage access
       if (tab.agentSessionId) {
-        window.maestro.claude.updateSessionStarred(
-          s.projectRoot,
-          tab.agentSessionId,
-          newStarred
-        ).catch(err => console.error('Failed to persist tab starred:', err));
+        const agentId = s.toolType || 'claude-code';
+        if (agentId === 'claude-code') {
+          window.maestro.claude.updateSessionStarred(
+            s.projectRoot,
+            tab.agentSessionId,
+            newStarred
+          ).catch(err => console.error('Failed to persist tab starred:', err));
+        } else {
+          window.maestro.agentSessions.setSessionStarred(
+            agentId,
+            s.projectRoot,
+            tab.agentSessionId,
+            newStarred
+          ).catch(err => console.error('Failed to persist tab starred:', err));
+        }
       }
       return {
         ...s,
@@ -4016,8 +4026,14 @@ export default function MaestroConsole() {
       // Use projectRoot (not cwd) for consistent session storage access
       const session = updated.find(s => s.id === sessId);
       if (session?.agentSessionId && session.projectRoot) {
-        window.maestro.agentSessions.updateSessionName(session.projectRoot, session.agentSessionId, newName)
-          .catch(err => console.warn('[finishRenamingSession] Failed to sync session name:', err));
+        const agentId = session.toolType || 'claude-code';
+        if (agentId === 'claude-code') {
+          window.maestro.claude.updateSessionName(session.projectRoot, session.agentSessionId, newName)
+            .catch(err => console.warn('[finishRenamingSession] Failed to sync session name:', err));
+        } else {
+          window.maestro.agentSessions.setSessionName(agentId, session.projectRoot, session.agentSessionId, newName)
+            .catch(err => console.warn('[finishRenamingSession] Failed to sync session name:', err));
+        }
       }
       return updated;
     });
@@ -6117,11 +6133,21 @@ export default function MaestroConsole() {
               if (tab?.agentSessionId) {
                 // Persist name to agent session metadata (async, fire and forget)
                 // Use projectRoot (not cwd) for consistent session storage access
-                window.maestro.agentSessions.updateSessionName(
-                  s.projectRoot,
-                  tab.agentSessionId,
-                  newName || ''
-                ).catch(err => console.error('Failed to persist tab name:', err));
+                const agentId = s.toolType || 'claude-code';
+                if (agentId === 'claude-code') {
+                  window.maestro.claude.updateSessionName(
+                    s.projectRoot,
+                    tab.agentSessionId,
+                    newName || ''
+                  ).catch(err => console.error('Failed to persist tab name:', err));
+                } else {
+                  window.maestro.agentSessions.setSessionName(
+                    agentId,
+                    s.projectRoot,
+                    tab.agentSessionId,
+                    newName || null
+                  ).catch(err => console.error('Failed to persist tab name:', err));
+                }
                 // Also update past history entries with this agentSessionId
                 window.maestro.history.updateSessionName(
                   tab.agentSessionId,
@@ -6659,13 +6685,23 @@ export default function MaestroConsole() {
             // Find the tab to get its agentSessionId for persistence
             const tab = s.aiTabs.find(t => t.id === tabId);
             if (tab?.agentSessionId) {
-              // Persist starred status to Claude session metadata (async, fire and forget)
+              // Persist starred status to session metadata (async, fire and forget)
               // Use projectRoot (not cwd) since session storage is keyed by initial project path
-              window.maestro.claude.updateSessionStarred(
-                s.projectRoot,
-                tab.agentSessionId,
-                starred
-              ).catch(err => console.error('Failed to persist tab starred:', err));
+              const agentId = s.toolType || 'claude-code';
+              if (agentId === 'claude-code') {
+                window.maestro.claude.updateSessionStarred(
+                  s.projectRoot,
+                  tab.agentSessionId,
+                  starred
+                ).catch(err => console.error('Failed to persist tab starred:', err));
+              } else {
+                window.maestro.agentSessions.setSessionStarred(
+                  agentId,
+                  s.projectRoot,
+                  tab.agentSessionId,
+                  starred
+                ).catch(err => console.error('Failed to persist tab starred:', err));
+              }
             }
             return {
               ...s,

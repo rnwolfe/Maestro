@@ -204,15 +204,21 @@ export function TabSwitcherModal({
     const syncAndLoad = async () => {
       // First, sync any named open tabs to the store
       const namedTabs = tabs.filter(t => t.name && t.agentSessionId);
+      const effectiveAgentId = agentId || 'claude-code';
       await Promise.all(
-        namedTabs.map(tab =>
-          window.maestro.agentSessions.updateSessionName(projectRoot, tab.agentSessionId!, tab.name!)
-            .catch(err => console.warn('[TabSwitcher] Failed to sync tab name:', err))
-        )
+        namedTabs.map(tab => {
+          if (effectiveAgentId === 'claude-code') {
+            return window.maestro.claude.updateSessionName(projectRoot, tab.agentSessionId!, tab.name!)
+              .catch(err => console.warn('[TabSwitcher] Failed to sync tab name:', err));
+          } else {
+            return window.maestro.agentSessions.setSessionName(effectiveAgentId, projectRoot, tab.agentSessionId!, tab.name!)
+              .catch(err => console.warn('[TabSwitcher] Failed to sync tab name:', err));
+          }
+        })
       );
       // Then load all named sessions (including the ones we just synced)
       const sessions = await window.maestro.agentSessions.getAllNamedSessions();
-      setNamedSessions(sessions.filter(session => session.agentId === agentId));
+      setNamedSessions(sessions.filter(session => session.agentId === effectiveAgentId));
       setNamedSessionsLoaded(true);
     };
 

@@ -255,19 +255,30 @@ export function AgentSessionsBrowser({
     }
     setStarredSessions(newStarred);
 
-    // Persist to Claude session origins
+    // Persist to session origins
     // Use projectRoot (not cwd) for consistent session storage access
     if (activeSession?.projectRoot) {
-      await window.maestro.claude.updateSessionStarred(
-        activeSession.projectRoot,
-        sessionId,
-        isNowStarred
-      );
+      if (agentId === 'claude-code') {
+        // Claude Code uses its own origins store
+        await window.maestro.claude.updateSessionStarred(
+          activeSession.projectRoot,
+          sessionId,
+          isNowStarred
+        );
+      } else {
+        // Other agents use the generic origins store
+        await window.maestro.agentSessions.setSessionStarred(
+          agentId,
+          activeSession.projectRoot,
+          sessionId,
+          isNowStarred
+        );
+      }
     }
 
     // Update the tab if this session is open as a tab
     onUpdateTab?.(sessionId, { starred: isNowStarred });
-  }, [starredSessions, activeSession?.projectRoot, onUpdateTab]);
+  }, [starredSessions, activeSession?.projectRoot, agentId, onUpdateTab]);
 
   // Start renaming a session
   const startRename = useCallback((session: ClaudeSession, e: React.MouseEvent) => {
@@ -292,11 +303,22 @@ export function AgentSessionsBrowser({
     const trimmedName = renameValue.trim();
     try {
       // Update session origins store (single source of truth for session names)
-      await window.maestro.agentSessions.updateSessionName(
-        activeSession.projectRoot,
-        sessionId,
-        trimmedName
-      );
+      if (agentId === 'claude-code') {
+        // Claude Code uses its own origins store
+        await window.maestro.claude.updateSessionName(
+          activeSession.projectRoot,
+          sessionId,
+          trimmedName
+        );
+      } else {
+        // Other agents use the generic origins store
+        await window.maestro.agentSessions.setSessionName(
+          agentId,
+          activeSession.projectRoot,
+          sessionId,
+          trimmedName || null
+        );
+      }
 
       // Update local state using the hook's updateSession function
       updateSession(sessionId, { sessionName: trimmedName || undefined });
@@ -313,7 +335,7 @@ export function AgentSessionsBrowser({
     }
 
     cancelRename();
-  }, [activeSession?.projectRoot, renameValue, viewingSession?.sessionId, cancelRename, onUpdateTab, updateSession]);
+  }, [activeSession?.projectRoot, agentId, renameValue, viewingSession?.sessionId, cancelRename, onUpdateTab, updateSession]);
 
   // Auto-view session when activeAgentSessionId is provided (e.g., from history panel click)
   useEffect(() => {

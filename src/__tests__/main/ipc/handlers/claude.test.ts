@@ -481,4 +481,350 @@ describe('Claude IPC handlers', () => {
       expect(result[0].costUsd).toBeCloseTo(22.05, 2);
     });
   });
+
+  describe('claude:listSessionsPaginated', () => {
+    it('should return paginated sessions with limit', async () => {
+      const fs = await import('fs/promises');
+
+      vi.mocked(fs.default.access).mockResolvedValue(undefined);
+      vi.mocked(fs.default.readdir).mockResolvedValue([
+        'session-1.jsonl',
+        'session-2.jsonl',
+        'session-3.jsonl',
+        'session-4.jsonl',
+        'session-5.jsonl',
+      ] as unknown as Awaited<ReturnType<typeof fs.default.readdir>>);
+
+      // Mock stats - return descending mtimes so sessions are in order 5,4,3,2,1
+      let statCallCount = 0;
+      vi.mocked(fs.default.stat).mockImplementation(async () => {
+        statCallCount++;
+        const baseTime = new Date('2024-01-15T10:00:00Z').getTime();
+        // Each session is 1 hour apart, newer sessions first
+        const mtime = new Date(baseTime - (statCallCount - 1) * 3600000);
+        return {
+          size: 1024,
+          mtime,
+        } as unknown as Awaited<ReturnType<typeof fs.default.stat>>;
+      });
+
+      const sessionContent = `{"type":"user","message":{"role":"user","content":"Test message"},"timestamp":"2024-01-15T09:00:00Z","uuid":"uuid-1"}`;
+      vi.mocked(fs.default.readFile).mockResolvedValue(sessionContent);
+
+      const handler = handlers.get('claude:listSessionsPaginated');
+      const result = await handler!({} as any, '/test/project', { limit: 2 });
+
+      expect(result.sessions).toHaveLength(2);
+      expect(result.totalCount).toBe(5);
+      expect(result.hasMore).toBe(true);
+      expect(result.nextCursor).toBeDefined();
+    });
+
+    it('should return sessions starting from cursor position', async () => {
+      const fs = await import('fs/promises');
+
+      vi.mocked(fs.default.access).mockResolvedValue(undefined);
+      vi.mocked(fs.default.readdir).mockResolvedValue([
+        'session-a.jsonl',
+        'session-b.jsonl',
+        'session-c.jsonl',
+        'session-d.jsonl',
+      ] as unknown as Awaited<ReturnType<typeof fs.default.readdir>>);
+
+      // Mock stats to control sort order - d is newest, a is oldest
+      vi.mocked(fs.default.stat).mockImplementation(async (filePath) => {
+        const filename = String(filePath).split('/').pop() || '';
+        const dates: Record<string, Date> = {
+          'session-a.jsonl': new Date('2024-01-10T10:00:00Z'),
+          'session-b.jsonl': new Date('2024-01-11T10:00:00Z'),
+          'session-c.jsonl': new Date('2024-01-12T10:00:00Z'),
+          'session-d.jsonl': new Date('2024-01-13T10:00:00Z'),
+        };
+        return {
+          size: 1024,
+          mtime: dates[filename] || new Date(),
+        } as unknown as Awaited<ReturnType<typeof fs.default.stat>>;
+      });
+
+      const sessionContent = `{"type":"user","message":{"role":"user","content":"Test"},"timestamp":"2024-01-15T09:00:00Z","uuid":"uuid-1"}`;
+      vi.mocked(fs.default.readFile).mockResolvedValue(sessionContent);
+
+      const handler = handlers.get('claude:listSessionsPaginated');
+
+      // First page (sorted: d, c, b, a - newest first)
+      const page1 = await handler!({} as any, '/test/project', { limit: 2 });
+      expect(page1.sessions).toHaveLength(2);
+      expect(page1.sessions[0].sessionId).toBe('session-d');
+      expect(page1.sessions[1].sessionId).toBe('session-c');
+      expect(page1.hasMore).toBe(true);
+      expect(page1.nextCursor).toBe('session-c');
+
+      // Reset stat mock for second call
+      vi.mocked(fs.default.stat).mockImplementation(async (filePath) => {
+        const filename = String(filePath).split('/').pop() || '';
+        const dates: Record<string, Date> = {
+          'session-a.jsonl': new Date('2024-01-10T10:00:00Z'),
+          'session-b.jsonl': new Date('2024-01-11T10:00:00Z'),
+          'session-c.jsonl': new Date('2024-01-12T10:00:00Z'),
+          'session-d.jsonl': new Date('2024-01-13T10:00:00Z'),
+        };
+        return {
+          size: 1024,
+          mtime: dates[filename] || new Date(),
+        } as unknown as Awaited<ReturnType<typeof fs.default.stat>>;
+      });
+
+      // Second page using cursor
+      const page2 = await handler!({} as any, '/test/project', { cursor: 'session-c', limit: 2 });
+      expect(page2.sessions).toHaveLength(2);
+      expect(page2.sessions[0].sessionId).toBe('session-b');
+      expect(page2.sessions[1].sessionId).toBe('session-a');
+      expect(page2.hasMore).toBe(false);
+      expect(page2.nextCursor).toBeNull();
+    });
+
+    it('should return totalCount correctly', async () => {
+      const fs = await import('fs/promises');
+
+      vi.mocked(fs.default.access).mockResolvedValue(undefined);
+      vi.mocked(fs.default.readdir).mockResolvedValue([
+        'session-1.jsonl',
+        'session-2.jsonl',
+        'session-3.jsonl',
+        'session-4.jsonl',
+        'session-5.jsonl',
+        'session-6.jsonl',
+        'session-7.jsonl',
+      ] as unknown as Awaited<ReturnType<typeof fs.default.readdir>>);
+
+      vi.mocked(fs.default.stat).mockResolvedValue({
+        size: 1024,
+        mtime: new Date('2024-01-15T10:00:00Z'),
+      } as unknown as Awaited<ReturnType<typeof fs.default.stat>>);
+
+      const sessionContent = `{"type":"user","message":{"role":"user","content":"Test"},"timestamp":"2024-01-15T09:00:00Z","uuid":"uuid-1"}`;
+      vi.mocked(fs.default.readFile).mockResolvedValue(sessionContent);
+
+      const handler = handlers.get('claude:listSessionsPaginated');
+      const result = await handler!({} as any, '/test/project', { limit: 3 });
+
+      expect(result.totalCount).toBe(7);
+      expect(result.sessions).toHaveLength(3);
+      expect(result.hasMore).toBe(true);
+    });
+
+    it('should return empty results when project directory does not exist', async () => {
+      const fs = await import('fs/promises');
+
+      vi.mocked(fs.default.access).mockRejectedValue(new Error('ENOENT: no such file or directory'));
+
+      const handler = handlers.get('claude:listSessionsPaginated');
+      const result = await handler!({} as any, '/nonexistent/project', {});
+
+      expect(result).toEqual({
+        sessions: [],
+        hasMore: false,
+        totalCount: 0,
+        nextCursor: null,
+      });
+    });
+
+    it('should return empty results when no session files exist', async () => {
+      const fs = await import('fs/promises');
+
+      vi.mocked(fs.default.access).mockResolvedValue(undefined);
+      vi.mocked(fs.default.readdir).mockResolvedValue([
+        'readme.txt',
+        'notes.md',
+      ] as unknown as Awaited<ReturnType<typeof fs.default.readdir>>);
+
+      const handler = handlers.get('claude:listSessionsPaginated');
+      const result = await handler!({} as any, '/empty/project', {});
+
+      expect(result.sessions).toHaveLength(0);
+      expect(result.totalCount).toBe(0);
+      expect(result.hasMore).toBe(false);
+      expect(result.nextCursor).toBeNull();
+    });
+
+    it('should filter out 0-byte session files from totalCount and results', async () => {
+      const fs = await import('fs/promises');
+
+      vi.mocked(fs.default.access).mockResolvedValue(undefined);
+      vi.mocked(fs.default.readdir).mockResolvedValue([
+        'session-valid1.jsonl',
+        'session-empty.jsonl',
+        'session-valid2.jsonl',
+      ] as unknown as Awaited<ReturnType<typeof fs.default.readdir>>);
+
+      // Return different sizes - empty session has 0 bytes
+      vi.mocked(fs.default.stat).mockImplementation(async (filePath) => {
+        const filename = String(filePath).split('/').pop() || '';
+        const size = filename === 'session-empty.jsonl' ? 0 : 1024;
+        return {
+          size,
+          mtime: new Date('2024-01-15T10:00:00Z'),
+        } as unknown as Awaited<ReturnType<typeof fs.default.stat>>;
+      });
+
+      const sessionContent = `{"type":"user","message":{"role":"user","content":"Test"},"timestamp":"2024-01-15T09:00:00Z","uuid":"uuid-1"}`;
+      vi.mocked(fs.default.readFile).mockResolvedValue(sessionContent);
+
+      const handler = handlers.get('claude:listSessionsPaginated');
+      const result = await handler!({} as any, '/test/project', {});
+
+      // Should only have 2 valid sessions, not 3
+      expect(result.totalCount).toBe(2);
+      expect(result.sessions).toHaveLength(2);
+      expect(result.sessions.map(s => s.sessionId)).not.toContain('session-empty');
+    });
+
+    it('should use default limit of 100 when not specified', async () => {
+      const fs = await import('fs/promises');
+
+      vi.mocked(fs.default.access).mockResolvedValue(undefined);
+
+      // Create 150 session files
+      const files = Array.from({ length: 150 }, (_, i) => `session-${String(i).padStart(3, '0')}.jsonl`);
+      vi.mocked(fs.default.readdir).mockResolvedValue(files as unknown as Awaited<ReturnType<typeof fs.default.readdir>>);
+
+      let idx = 0;
+      vi.mocked(fs.default.stat).mockImplementation(async () => {
+        idx++;
+        return {
+          size: 1024,
+          mtime: new Date(Date.now() - idx * 1000),
+        } as unknown as Awaited<ReturnType<typeof fs.default.stat>>;
+      });
+
+      const sessionContent = `{"type":"user","message":{"role":"user","content":"Test"},"timestamp":"2024-01-15T09:00:00Z","uuid":"uuid-1"}`;
+      vi.mocked(fs.default.readFile).mockResolvedValue(sessionContent);
+
+      const handler = handlers.get('claude:listSessionsPaginated');
+      const result = await handler!({} as any, '/test/project', {}); // No limit specified
+
+      expect(result.sessions).toHaveLength(100); // Default limit
+      expect(result.totalCount).toBe(150);
+      expect(result.hasMore).toBe(true);
+    });
+
+    it('should add origin info from origins store', async () => {
+      const fs = await import('fs/promises');
+
+      vi.mocked(fs.default.access).mockResolvedValue(undefined);
+      vi.mocked(fs.default.readdir).mockResolvedValue([
+        'session-with-origin.jsonl',
+      ] as unknown as Awaited<ReturnType<typeof fs.default.readdir>>);
+
+      vi.mocked(fs.default.stat).mockResolvedValue({
+        size: 1024,
+        mtime: new Date('2024-01-15T10:00:00Z'),
+      } as unknown as Awaited<ReturnType<typeof fs.default.stat>>);
+
+      const sessionContent = `{"type":"user","message":{"role":"user","content":"Test"},"timestamp":"2024-01-15T09:00:00Z","uuid":"uuid-1"}`;
+      vi.mocked(fs.default.readFile).mockResolvedValue(sessionContent);
+
+      // Mock origins store
+      mockClaudeSessionOriginsStore.get.mockReturnValue({
+        '/test/project': {
+          'session-with-origin': { origin: 'auto', sessionName: 'Auto Run Session' },
+        },
+      });
+
+      const handler = handlers.get('claude:listSessionsPaginated');
+      const result = await handler!({} as any, '/test/project', {});
+
+      expect(result.sessions).toHaveLength(1);
+      expect(result.sessions[0]).toMatchObject({
+        sessionId: 'session-with-origin',
+        origin: 'auto',
+        sessionName: 'Auto Run Session',
+      });
+    });
+
+    it('should handle invalid cursor gracefully by starting from beginning', async () => {
+      const fs = await import('fs/promises');
+
+      vi.mocked(fs.default.access).mockResolvedValue(undefined);
+      vi.mocked(fs.default.readdir).mockResolvedValue([
+        'session-a.jsonl',
+        'session-b.jsonl',
+      ] as unknown as Awaited<ReturnType<typeof fs.default.readdir>>);
+
+      vi.mocked(fs.default.stat).mockResolvedValue({
+        size: 1024,
+        mtime: new Date('2024-01-15T10:00:00Z'),
+      } as unknown as Awaited<ReturnType<typeof fs.default.stat>>);
+
+      const sessionContent = `{"type":"user","message":{"role":"user","content":"Test"},"timestamp":"2024-01-15T09:00:00Z","uuid":"uuid-1"}`;
+      vi.mocked(fs.default.readFile).mockResolvedValue(sessionContent);
+
+      const handler = handlers.get('claude:listSessionsPaginated');
+      // Use a cursor that doesn't exist
+      const result = await handler!({} as any, '/test/project', { cursor: 'nonexistent-session', limit: 10 });
+
+      // Should start from beginning since cursor wasn't found
+      expect(result.sessions).toHaveLength(2);
+      expect(result.totalCount).toBe(2);
+    });
+
+    it('should parse session content and extract token counts', async () => {
+      const fs = await import('fs/promises');
+
+      vi.mocked(fs.default.access).mockResolvedValue(undefined);
+      vi.mocked(fs.default.readdir).mockResolvedValue([
+        'session-tokens.jsonl',
+      ] as unknown as Awaited<ReturnType<typeof fs.default.readdir>>);
+
+      vi.mocked(fs.default.stat).mockResolvedValue({
+        size: 2048,
+        mtime: new Date('2024-01-15T10:00:00Z'),
+      } as unknown as Awaited<ReturnType<typeof fs.default.stat>>);
+
+      const sessionContent = `{"type":"user","message":{"role":"user","content":"Hello"},"timestamp":"2024-01-15T09:00:00Z","uuid":"uuid-1"}
+{"type":"assistant","message":{"role":"assistant","content":"Hi"},"timestamp":"2024-01-15T09:01:00Z","uuid":"uuid-2","usage":{"input_tokens":500,"output_tokens":200,"cache_read_input_tokens":100,"cache_creation_input_tokens":50}}`;
+
+      vi.mocked(fs.default.readFile).mockResolvedValue(sessionContent);
+
+      const handler = handlers.get('claude:listSessionsPaginated');
+      const result = await handler!({} as any, '/test/project', {});
+
+      expect(result.sessions).toHaveLength(1);
+      expect(result.sessions[0]).toMatchObject({
+        inputTokens: 500,
+        outputTokens: 200,
+        cacheReadTokens: 100,
+        cacheCreationTokens: 50,
+        messageCount: 2,
+      });
+    });
+
+    it('should calculate duration from first to last timestamp', async () => {
+      const fs = await import('fs/promises');
+
+      vi.mocked(fs.default.access).mockResolvedValue(undefined);
+      vi.mocked(fs.default.readdir).mockResolvedValue([
+        'session-duration.jsonl',
+      ] as unknown as Awaited<ReturnType<typeof fs.default.readdir>>);
+
+      vi.mocked(fs.default.stat).mockResolvedValue({
+        size: 2048,
+        mtime: new Date('2024-01-15T10:00:00Z'),
+      } as unknown as Awaited<ReturnType<typeof fs.default.stat>>);
+
+      // Session spanning 5 minutes
+      const sessionContent = `{"type":"user","message":{"role":"user","content":"Start"},"timestamp":"2024-01-15T09:00:00Z","uuid":"uuid-1"}
+{"type":"assistant","message":{"role":"assistant","content":"Mid"},"timestamp":"2024-01-15T09:02:30Z","uuid":"uuid-2"}
+{"type":"user","message":{"role":"user","content":"End"},"timestamp":"2024-01-15T09:05:00Z","uuid":"uuid-3"}`;
+
+      vi.mocked(fs.default.readFile).mockResolvedValue(sessionContent);
+
+      const handler = handlers.get('claude:listSessionsPaginated');
+      const result = await handler!({} as any, '/test/project', {});
+
+      expect(result.sessions).toHaveLength(1);
+      // Duration = 9:05:00 - 9:00:00 = 5 minutes = 300 seconds
+      expect(result.sessions[0].durationSeconds).toBe(300);
+    });
+  });
 });

@@ -712,4 +712,204 @@ index 1234567..abcdefg 100644
       });
     });
   });
+
+  describe('git:info', () => {
+    it('should return combined git info object with all fields', async () => {
+      // The handler runs 4 parallel git commands
+      vi.mocked(execFile.execFileNoThrow)
+        .mockResolvedValueOnce({
+          // git rev-parse --abbrev-ref HEAD (branch)
+          stdout: 'main\n',
+          stderr: '',
+          exitCode: 0,
+        })
+        .mockResolvedValueOnce({
+          // git remote get-url origin (remote)
+          stdout: 'git@github.com:user/repo.git\n',
+          stderr: '',
+          exitCode: 0,
+        })
+        .mockResolvedValueOnce({
+          // git status --porcelain (uncommitted changes)
+          stdout: 'M  file1.ts\nA  file2.ts\n?? untracked.txt\n',
+          stderr: '',
+          exitCode: 0,
+        })
+        .mockResolvedValueOnce({
+          // git rev-list --left-right --count @{upstream}...HEAD (behind/ahead)
+          stdout: '3\t5\n',
+          stderr: '',
+          exitCode: 0,
+        });
+
+      const handler = handlers.get('git:info');
+      const result = await handler!({} as any, '/test/repo');
+
+      expect(result).toEqual({
+        branch: 'main',
+        remote: 'git@github.com:user/repo.git',
+        behind: 3,
+        ahead: 5,
+        uncommittedChanges: 3,
+      });
+    });
+
+    it('should return partial info when remote command fails', async () => {
+      vi.mocked(execFile.execFileNoThrow)
+        .mockResolvedValueOnce({
+          // git rev-parse --abbrev-ref HEAD (branch)
+          stdout: 'feature/my-branch\n',
+          stderr: '',
+          exitCode: 0,
+        })
+        .mockResolvedValueOnce({
+          // git remote get-url origin (remote) - fails, no remote
+          stdout: '',
+          stderr: "fatal: No such remote 'origin'",
+          exitCode: 2,
+        })
+        .mockResolvedValueOnce({
+          // git status --porcelain (uncommitted changes)
+          stdout: '',
+          stderr: '',
+          exitCode: 0,
+        })
+        .mockResolvedValueOnce({
+          // git rev-list --left-right --count @{upstream}...HEAD
+          stdout: '0\t2\n',
+          stderr: '',
+          exitCode: 0,
+        });
+
+      const handler = handlers.get('git:info');
+      const result = await handler!({} as any, '/test/repo');
+
+      // Remote should be empty string when command fails
+      expect(result).toEqual({
+        branch: 'feature/my-branch',
+        remote: '',
+        behind: 0,
+        ahead: 2,
+        uncommittedChanges: 0,
+      });
+    });
+
+    it('should return zero behind/ahead when upstream is not set', async () => {
+      vi.mocked(execFile.execFileNoThrow)
+        .mockResolvedValueOnce({
+          // git rev-parse --abbrev-ref HEAD (branch)
+          stdout: 'new-branch\n',
+          stderr: '',
+          exitCode: 0,
+        })
+        .mockResolvedValueOnce({
+          // git remote get-url origin (remote)
+          stdout: 'https://github.com/user/repo.git\n',
+          stderr: '',
+          exitCode: 0,
+        })
+        .mockResolvedValueOnce({
+          // git status --porcelain (uncommitted changes)
+          stdout: 'M  changed.ts\n',
+          stderr: '',
+          exitCode: 0,
+        })
+        .mockResolvedValueOnce({
+          // git rev-list --left-right --count @{upstream}...HEAD - fails, no upstream
+          stdout: '',
+          stderr: "fatal: no upstream configured for branch 'new-branch'",
+          exitCode: 128,
+        });
+
+      const handler = handlers.get('git:info');
+      const result = await handler!({} as any, '/test/repo');
+
+      // behind/ahead should default to 0 when upstream check fails
+      expect(result).toEqual({
+        branch: 'new-branch',
+        remote: 'https://github.com/user/repo.git',
+        behind: 0,
+        ahead: 0,
+        uncommittedChanges: 1,
+      });
+    });
+
+    it('should handle clean repo with no changes and in sync with upstream', async () => {
+      vi.mocked(execFile.execFileNoThrow)
+        .mockResolvedValueOnce({
+          // git rev-parse --abbrev-ref HEAD (branch)
+          stdout: 'main\n',
+          stderr: '',
+          exitCode: 0,
+        })
+        .mockResolvedValueOnce({
+          // git remote get-url origin (remote)
+          stdout: 'git@github.com:user/repo.git\n',
+          stderr: '',
+          exitCode: 0,
+        })
+        .mockResolvedValueOnce({
+          // git status --porcelain (uncommitted changes) - empty
+          stdout: '',
+          stderr: '',
+          exitCode: 0,
+        })
+        .mockResolvedValueOnce({
+          // git rev-list --left-right --count @{upstream}...HEAD - in sync
+          stdout: '0\t0\n',
+          stderr: '',
+          exitCode: 0,
+        });
+
+      const handler = handlers.get('git:info');
+      const result = await handler!({} as any, '/test/repo');
+
+      expect(result).toEqual({
+        branch: 'main',
+        remote: 'git@github.com:user/repo.git',
+        behind: 0,
+        ahead: 0,
+        uncommittedChanges: 0,
+      });
+    });
+
+    it('should handle detached HEAD state', async () => {
+      vi.mocked(execFile.execFileNoThrow)
+        .mockResolvedValueOnce({
+          // git rev-parse --abbrev-ref HEAD (branch) - detached HEAD returns 'HEAD'
+          stdout: 'HEAD\n',
+          stderr: '',
+          exitCode: 0,
+        })
+        .mockResolvedValueOnce({
+          // git remote get-url origin (remote)
+          stdout: 'git@github.com:user/repo.git\n',
+          stderr: '',
+          exitCode: 0,
+        })
+        .mockResolvedValueOnce({
+          // git status --porcelain (uncommitted changes)
+          stdout: '',
+          stderr: '',
+          exitCode: 0,
+        })
+        .mockResolvedValueOnce({
+          // git rev-list - fails in detached HEAD (no upstream)
+          stdout: '',
+          stderr: 'fatal: HEAD does not point to a branch',
+          exitCode: 128,
+        });
+
+      const handler = handlers.get('git:info');
+      const result = await handler!({} as any, '/test/repo');
+
+      expect(result).toEqual({
+        branch: 'HEAD',
+        remote: 'git@github.com:user/repo.git',
+        behind: 0,
+        ahead: 0,
+        uncommittedChanges: 0,
+      });
+    });
+  });
 });

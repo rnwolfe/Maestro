@@ -3028,8 +3028,12 @@ export default function MaestroConsole() {
     // Set up interval to update progress every minute
     const intervalId = setInterval(() => {
       const now = Date.now();
-      const deltaMs = now - autoRunProgressRef.current.lastUpdateTime;
+      const elapsedMs = now - autoRunProgressRef.current.lastUpdateTime;
       autoRunProgressRef.current.lastUpdateTime = now;
+
+      // Multiply by number of concurrent sessions so each active Auto Run contributes its time
+      // e.g., 2 sessions running for 1 minute = 2 minutes toward cumulative achievement time
+      const deltaMs = elapsedMs * activeBatchSessionIds.length;
 
       // Update achievement stats with the delta
       const { newBadgeLevel } = updateAutoRunProgress(deltaMs);

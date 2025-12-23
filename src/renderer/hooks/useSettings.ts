@@ -898,6 +898,7 @@ export function useSettings(): UseSettingsReturn {
       const savedCustomAICommands = await window.maestro.settings.get('customAICommands');
       const savedGlobalStats = await window.maestro.settings.get('globalStats');
       const savedAutoRunStats = await window.maestro.settings.get('autoRunStats');
+      const concurrentAutoRunTimeMigrationApplied = await window.maestro.settings.get('concurrentAutoRunTimeMigrationApplied');
       const savedUngroupedCollapsed = await window.maestro.settings.get('ungroupedCollapsed');
       const savedTourCompleted = await window.maestro.settings.get('tourCompleted');
       const savedFirstAutoRunCompleted = await window.maestro.settings.get('firstAutoRunCompleted');
@@ -1028,7 +1029,22 @@ export function useSettings(): UseSettingsReturn {
 
       // Load auto-run stats
       if (savedAutoRunStats !== undefined) {
-        setAutoRunStatsState({ ...DEFAULT_AUTO_RUN_STATS, ...(savedAutoRunStats as Partial<AutoRunStats>) });
+        let stats = { ...DEFAULT_AUTO_RUN_STATS, ...(savedAutoRunStats as Partial<AutoRunStats>) };
+
+        // One-time migration: Add 3 hours to compensate for bug where concurrent Auto Runs
+        // weren't being tallied correctly (fixed in v0.11.3)
+        if (!concurrentAutoRunTimeMigrationApplied && stats.cumulativeTimeMs > 0) {
+          const THREE_HOURS_MS = 3 * 60 * 60 * 1000;
+          stats = {
+            ...stats,
+            cumulativeTimeMs: stats.cumulativeTimeMs + THREE_HOURS_MS,
+          };
+          window.maestro.settings.set('autoRunStats', stats);
+          window.maestro.settings.set('concurrentAutoRunTimeMigrationApplied', true);
+          console.log('[Settings] Applied concurrent Auto Run time migration: added 3 hours to cumulative time');
+        }
+
+        setAutoRunStatsState(stats);
       }
 
       // Load onboarding settings

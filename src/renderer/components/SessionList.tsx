@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   Wand2, Plus, Settings, ChevronRight, ChevronDown, ChevronUp, X, Keyboard,
   Radio, Copy, ExternalLink, PanelLeftClose, PanelLeftOpen, Folder, Info, GitBranch, Bot, Clock,
@@ -62,19 +62,23 @@ function SessionContextMenu({
   const [showMoveSubmenu, setShowMoveSubmenu] = useState(false);
   const [submenuPosition, setSubmenuPosition] = useState<{ vertical: 'below' | 'above'; horizontal: 'right' | 'left' }>({ vertical: 'below', horizontal: 'right' });
 
+  // Use ref to avoid re-registering listener when onDismiss changes
+  const onDismissRef = useRef(onDismiss);
+  onDismissRef.current = onDismiss;
+
   // Close on click outside
   useClickOutside(menuRef, onDismiss);
 
-  // Close on Escape
+  // Close on Escape - stable listener that never re-registers
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
-        onDismiss();
+        onDismissRef.current();
       }
     };
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [onDismiss]);
+  }, []);
 
   // Adjust menu position to stay within viewport
   const adjustedPosition = {

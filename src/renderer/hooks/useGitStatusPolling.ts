@@ -314,17 +314,33 @@ export function useGitStatusPolling(
     };
   }, [pauseWhenHidden, startPolling, stopPolling]);
 
+  // Debounce timer ref for activity handler
+  const activityDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Ref to access startPolling without adding to effect deps
+  const startPollingRef = useRef(startPolling);
+  startPollingRef.current = startPolling;
+
   // Listen for user activity to restart polling if inactive
+  // Uses debouncing to avoid excessive callback execution on rapid events
   useEffect(() => {
     const handleActivity = () => {
-      lastActivityRef.current = Date.now();
-      const wasInactive = !isActiveRef.current;
-      isActiveRef.current = true;
-
-      // Restart polling if it was stopped due to inactivity
-      if (wasInactive && (!pauseWhenHidden || !document.hidden)) {
-        startPolling();
+      // Clear any pending debounce timer
+      if (activityDebounceRef.current) {
+        clearTimeout(activityDebounceRef.current);
       }
+
+      // Debounce activity updates to reduce CPU overhead (100ms)
+      activityDebounceRef.current = setTimeout(() => {
+        lastActivityRef.current = Date.now();
+        const wasInactive = !isActiveRef.current;
+        isActiveRef.current = true;
+
+        // Restart polling if it was stopped due to inactivity
+        if (wasInactive && (!pauseWhenHidden || !document.hidden)) {
+          startPollingRef.current();
+        }
+        activityDebounceRef.current = null;
+      }, 100);
     };
 
     window.addEventListener('keydown', handleActivity);
@@ -337,8 +353,12 @@ export function useGitStatusPolling(
       window.removeEventListener('mousedown', handleActivity);
       window.removeEventListener('wheel', handleActivity);
       window.removeEventListener('touchstart', handleActivity);
+      // Clean up any pending debounce timer
+      if (activityDebounceRef.current) {
+        clearTimeout(activityDebounceRef.current);
+      }
     };
-  }, [startPolling]);
+  }, [pauseWhenHidden]);
 
   // Initial start and cleanup
   useEffect(() => {

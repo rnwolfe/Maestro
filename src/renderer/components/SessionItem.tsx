@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { memo } from 'react';
 import { Activity, GitBranch, Bot, Bookmark, AlertCircle } from 'lucide-react';
 import type { Session, Group, Theme } from '../types';
 import { getStatusColor } from '../utils/theme';
@@ -61,7 +61,7 @@ export interface SessionItemProps {
  * - Group/Flat/Ungrouped variants show bookmark icon on hover (unless bookmarked)
  * - Flat variant has slightly different styling (mx-3 vs ml-4)
  */
-export function SessionItem({
+export const SessionItem = memo(function SessionItem({
   session,
   variant,
   theme,
@@ -292,6 +292,6 @@ export function SessionItem({
       </div>
     </div>
   );
-}
+});
 
 export default SessionItem;

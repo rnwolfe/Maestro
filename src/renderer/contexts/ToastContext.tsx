@@ -46,6 +46,9 @@ export function ToastProvider({ children, defaultDuration: initialDuration = 20 
   const audioFeedbackRef = useRef({ enabled: false, command: '' });
   // OS notifications state (configured from App.tsx via setOsNotifications)
   const osNotificationsRef = useRef({ enabled: true }); // Default: on (matches useSettings default)
+  // Ref for defaultDuration to avoid re-creating addToast callback when duration changes
+  const defaultDurationRef = useRef(defaultDuration);
+  defaultDurationRef.current = defaultDuration;
 
   const setAudioFeedback = useCallback((enabled: boolean, command: string) => {
     audioFeedbackRef.current = { enabled, command };
@@ -56,15 +59,18 @@ export function ToastProvider({ children, defaultDuration: initialDuration = 20 
   }, []);
 
   const addToast = useCallback((toast: Omit<Toast, 'id' | 'timestamp'>) => {
+    // Use ref to get current value without dependency
+    const currentDefaultDuration = defaultDurationRef.current;
+
     // If defaultDuration is -1, toasts are disabled entirely - skip showing toast UI
     // but still log, speak, and show OS notification
-    const toastsDisabled = defaultDuration === -1;
+    const toastsDisabled = currentDefaultDuration === -1;
 
     const id = `toast-${Date.now()}-${toastIdCounter.current++}`;
     // Convert seconds to ms, use 0 for "never dismiss"
     const durationMs = toast.duration !== undefined
       ? toast.duration
-      : (defaultDuration > 0 ? defaultDuration * 1000 : 0);
+      : (currentDefaultDuration > 0 ? currentDefaultDuration * 1000 : 0);
 
     const newToast: Toast = {
       ...toast,
@@ -135,7 +141,7 @@ export function ToastProvider({ children, defaultDuration: initialDuration = 20 
         setToasts(prev => prev.filter(t => t.id !== id));
       }, durationMs);
     }
-  }, [defaultDuration]);
+  }, []); // Stable callback - uses refs for mutable values
 
   const removeToast = useCallback((id: string) => {
     setToasts(prev => prev.filter(t => t.id !== id));

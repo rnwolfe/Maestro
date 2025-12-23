@@ -2440,4 +2440,187 @@ export function Component() {
       });
     });
   });
+
+  describe('git:createPR', () => {
+    it('should create PR successfully via gh CLI', async () => {
+      vi.mocked(execFile.execFileNoThrow)
+        .mockResolvedValueOnce({
+          // git push -u origin HEAD
+          stdout: 'Everything up-to-date',
+          stderr: '',
+          exitCode: 0,
+        })
+        .mockResolvedValueOnce({
+          // gh pr create
+          stdout: 'https://github.com/user/repo/pull/123',
+          stderr: '',
+          exitCode: 0,
+        });
+
+      const handler = handlers.get('git:createPR');
+      const result = await handler!({} as any, '/worktree/path', 'main', 'Add new feature', 'This PR adds a new feature');
+
+      expect(execFile.execFileNoThrow).toHaveBeenCalledWith(
+        'git',
+        ['push', '-u', 'origin', 'HEAD'],
+        '/worktree/path'
+      );
+      expect(execFile.execFileNoThrow).toHaveBeenCalledWith(
+        'gh',
+        ['pr', 'create', '--base', 'main', '--title', 'Add new feature', '--body', 'This PR adds a new feature'],
+        '/worktree/path'
+      );
+      expect(result).toEqual({
+        success: true,
+        prUrl: 'https://github.com/user/repo/pull/123',
+      });
+    });
+
+    it('should return error when gh CLI is not installed', async () => {
+      vi.mocked(execFile.execFileNoThrow)
+        .mockResolvedValueOnce({
+          // git push -u origin HEAD
+          stdout: 'Everything up-to-date',
+          stderr: '',
+          exitCode: 0,
+        })
+        .mockResolvedValueOnce({
+          // gh pr create fails - not installed
+          stdout: '',
+          stderr: 'command not found: gh',
+          exitCode: 127,
+        });
+
+      const handler = handlers.get('git:createPR');
+      const result = await handler!({} as any, '/worktree/path', 'main', 'Title', 'Body');
+
+      expect(result).toEqual({
+        success: false,
+        error: 'GitHub CLI (gh) is not installed. Please install it to create PRs.',
+      });
+    });
+
+    it('should return error when gh is not recognized', async () => {
+      vi.mocked(execFile.execFileNoThrow)
+        .mockResolvedValueOnce({
+          // git push -u origin HEAD
+          stdout: 'Everything up-to-date',
+          stderr: '',
+          exitCode: 0,
+        })
+        .mockResolvedValueOnce({
+          // gh pr create fails - not recognized (Windows)
+          stdout: '',
+          stderr: "'gh' is not recognized as an internal or external command",
+          exitCode: 1,
+        });
+
+      const handler = handlers.get('git:createPR');
+      const result = await handler!({} as any, '/worktree/path', 'main', 'Title', 'Body');
+
+      expect(result).toEqual({
+        success: false,
+        error: 'GitHub CLI (gh) is not installed. Please install it to create PRs.',
+      });
+    });
+
+    it('should return error when push fails', async () => {
+      vi.mocked(execFile.execFileNoThrow).mockResolvedValueOnce({
+        // git push -u origin HEAD fails
+        stdout: '',
+        stderr: 'fatal: unable to access remote repository',
+        exitCode: 128,
+      });
+
+      const handler = handlers.get('git:createPR');
+      const result = await handler!({} as any, '/worktree/path', 'main', 'Title', 'Body');
+
+      expect(result).toEqual({
+        success: false,
+        error: 'Failed to push branch: fatal: unable to access remote repository',
+      });
+    });
+
+    it('should return error when gh pr create fails', async () => {
+      vi.mocked(execFile.execFileNoThrow)
+        .mockResolvedValueOnce({
+          // git push -u origin HEAD
+          stdout: 'Everything up-to-date',
+          stderr: '',
+          exitCode: 0,
+        })
+        .mockResolvedValueOnce({
+          // gh pr create fails with generic error
+          stdout: '',
+          stderr: 'pull request already exists for branch feature-branch',
+          exitCode: 1,
+        });
+
+      const handler = handlers.get('git:createPR');
+      const result = await handler!({} as any, '/worktree/path', 'main', 'Title', 'Body');
+
+      expect(result).toEqual({
+        success: false,
+        error: 'pull request already exists for branch feature-branch',
+      });
+    });
+
+    it('should use custom gh path when provided', async () => {
+      // Mock resolveGhPath to return the custom path
+      const cliDetection = await import('../../../../main/utils/cliDetection');
+      vi.mocked(cliDetection.resolveGhPath).mockResolvedValue('/opt/homebrew/bin/gh');
+
+      vi.mocked(execFile.execFileNoThrow)
+        .mockResolvedValueOnce({
+          // git push -u origin HEAD
+          stdout: 'Everything up-to-date',
+          stderr: '',
+          exitCode: 0,
+        })
+        .mockResolvedValueOnce({
+          // gh pr create with custom path
+          stdout: 'https://github.com/user/repo/pull/456',
+          stderr: '',
+          exitCode: 0,
+        });
+
+      const handler = handlers.get('git:createPR');
+      const result = await handler!({} as any, '/worktree/path', 'main', 'Title', 'Body', '/opt/homebrew/bin/gh');
+
+      expect(cliDetection.resolveGhPath).toHaveBeenCalledWith('/opt/homebrew/bin/gh');
+      expect(execFile.execFileNoThrow).toHaveBeenCalledWith(
+        '/opt/homebrew/bin/gh',
+        ['pr', 'create', '--base', 'main', '--title', 'Title', '--body', 'Body'],
+        '/worktree/path'
+      );
+      expect(result).toEqual({
+        success: true,
+        prUrl: 'https://github.com/user/repo/pull/456',
+      });
+    });
+
+    it('should return fallback error when gh fails without stderr', async () => {
+      vi.mocked(execFile.execFileNoThrow)
+        .mockResolvedValueOnce({
+          // git push -u origin HEAD
+          stdout: 'Everything up-to-date',
+          stderr: '',
+          exitCode: 0,
+        })
+        .mockResolvedValueOnce({
+          // gh pr create fails without stderr
+          stdout: '',
+          stderr: '',
+          exitCode: 1,
+        });
+
+      const handler = handlers.get('git:createPR');
+      const result = await handler!({} as any, '/worktree/path', 'main', 'Title', 'Body');
+
+      expect(result).toEqual({
+        success: false,
+        error: 'Failed to create PR',
+      });
+    });
+  });
 });

@@ -16,6 +16,6 @@
     "declaration": false,
     "sourceMap": true
   },
-  "include": ["src/cli/**/*", "src/shared/**/*"],
+  "include": ["src/cli/**/*", "src/shared/**/*", "src/prompts/**/*", "src/types/**/*"],
   "exclude": ["node_modules", "dist", "release"]
 }

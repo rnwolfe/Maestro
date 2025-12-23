@@ -1518,4 +1518,242 @@ export function Component() {
       );
     });
   });
+
+  describe('git:worktreeInfo', () => {
+    it('should return exists: false when path does not exist', async () => {
+      // Mock fs.access to throw (path doesn't exist)
+      const fsPromises = await import('fs/promises');
+      vi.mocked(fsPromises.default.access).mockRejectedValue(new Error('ENOENT'));
+
+      const handler = handlers.get('git:worktreeInfo');
+      const result = await handler!({} as any, '/nonexistent/path');
+
+      // createIpcHandler wraps the result with success: true
+      expect(result).toEqual({
+        success: true,
+        exists: false,
+        isWorktree: false,
+      });
+    });
+
+    it('should return isWorktree: false when path exists but is not a git repo', async () => {
+      // Mock fs.access to succeed (path exists)
+      const fsPromises = await import('fs/promises');
+      vi.mocked(fsPromises.default.access).mockResolvedValue(undefined);
+
+      // Mock git rev-parse --is-inside-work-tree to fail (not a git repo)
+      vi.mocked(execFile.execFileNoThrow).mockResolvedValue({
+        stdout: '',
+        stderr: 'fatal: not a git repository',
+        exitCode: 128,
+      });
+
+      const handler = handlers.get('git:worktreeInfo');
+      const result = await handler!({} as any, '/not/a/repo');
+
+      expect(result).toEqual({
+        success: true,
+        exists: true,
+        isWorktree: false,
+      });
+    });
+
+    it('should return worktree info when path is a worktree', async () => {
+      // Mock fs.access to succeed (path exists)
+      const fsPromises = await import('fs/promises');
+      vi.mocked(fsPromises.default.access).mockResolvedValue(undefined);
+
+      // Setup mock responses for the sequence of git commands
+      vi.mocked(execFile.execFileNoThrow)
+        .mockResolvedValueOnce({
+          // git rev-parse --is-inside-work-tree
+          stdout: 'true\n',
+          stderr: '',
+          exitCode: 0,
+        })
+        .mockResolvedValueOnce({
+          // git rev-parse --git-dir
+          stdout: '.git\n',
+          stderr: '',
+          exitCode: 0,
+        })
+        .mockResolvedValueOnce({
+          // git rev-parse --git-common-dir (different = worktree)
+          stdout: '/main/repo/.git\n',
+          stderr: '',
+          exitCode: 0,
+        })
+        .mockResolvedValueOnce({
+          // git rev-parse --abbrev-ref HEAD (branch)
+          stdout: 'feature/my-branch\n',
+          stderr: '',
+          exitCode: 0,
+        })
+        .mockResolvedValueOnce({
+          // git rev-parse --show-toplevel (repo root)
+          stdout: '/worktree/path\n',
+          stderr: '',
+          exitCode: 0,
+        });
+
+      const handler = handlers.get('git:worktreeInfo');
+      const result = await handler!({} as any, '/worktree/path');
+
+      expect(result).toEqual({
+        success: true,
+        exists: true,
+        isWorktree: true,
+        currentBranch: 'feature/my-branch',
+        repoRoot: '/main/repo',
+      });
+    });
+
+    it('should return isWorktree: false when path is a main git repo', async () => {
+      // Mock fs.access to succeed (path exists)
+      const fsPromises = await import('fs/promises');
+      vi.mocked(fsPromises.default.access).mockResolvedValue(undefined);
+
+      // Setup mock responses for main repo (git-dir equals git-common-dir)
+      vi.mocked(execFile.execFileNoThrow)
+        .mockResolvedValueOnce({
+          // git rev-parse --is-inside-work-tree
+          stdout: 'true\n',
+          stderr: '',
+          exitCode: 0,
+        })
+        .mockResolvedValueOnce({
+          // git rev-parse --git-dir
+          stdout: '.git\n',
+          stderr: '',
+          exitCode: 0,
+        })
+        .mockResolvedValueOnce({
+          // git rev-parse --git-common-dir (same as git-dir = not a worktree)
+          stdout: '.git\n',
+          stderr: '',
+          exitCode: 0,
+        })
+        .mockResolvedValueOnce({
+          // git rev-parse --abbrev-ref HEAD (branch)
+          stdout: 'main\n',
+          stderr: '',
+          exitCode: 0,
+        })
+        .mockResolvedValueOnce({
+          // git rev-parse --show-toplevel (repo root)
+          stdout: '/main/repo\n',
+          stderr: '',
+          exitCode: 0,
+        });
+
+      const handler = handlers.get('git:worktreeInfo');
+      const result = await handler!({} as any, '/main/repo');
+
+      expect(result).toEqual({
+        success: true,
+        exists: true,
+        isWorktree: false,
+        currentBranch: 'main',
+        repoRoot: '/main/repo',
+      });
+    });
+
+    it('should handle detached HEAD state in worktree', async () => {
+      // Mock fs.access to succeed (path exists)
+      const fsPromises = await import('fs/promises');
+      vi.mocked(fsPromises.default.access).mockResolvedValue(undefined);
+
+      vi.mocked(execFile.execFileNoThrow)
+        .mockResolvedValueOnce({
+          // git rev-parse --is-inside-work-tree
+          stdout: 'true\n',
+          stderr: '',
+          exitCode: 0,
+        })
+        .mockResolvedValueOnce({
+          // git rev-parse --git-dir
+          stdout: '.git\n',
+          stderr: '',
+          exitCode: 0,
+        })
+        .mockResolvedValueOnce({
+          // git rev-parse --git-common-dir (different = worktree)
+          stdout: '/main/repo/.git\n',
+          stderr: '',
+          exitCode: 0,
+        })
+        .mockResolvedValueOnce({
+          // git rev-parse --abbrev-ref HEAD (detached HEAD)
+          stdout: 'HEAD\n',
+          stderr: '',
+          exitCode: 0,
+        })
+        .mockResolvedValueOnce({
+          // git rev-parse --show-toplevel
+          stdout: '/worktree/path\n',
+          stderr: '',
+          exitCode: 0,
+        });
+
+      const handler = handlers.get('git:worktreeInfo');
+      const result = await handler!({} as any, '/worktree/path');
+
+      expect(result).toEqual({
+        success: true,
+        exists: true,
+        isWorktree: true,
+        currentBranch: 'HEAD',
+        repoRoot: '/main/repo',
+      });
+    });
+
+    it('should handle branch command failure gracefully', async () => {
+      // Mock fs.access to succeed (path exists)
+      const fsPromises = await import('fs/promises');
+      vi.mocked(fsPromises.default.access).mockResolvedValue(undefined);
+
+      vi.mocked(execFile.execFileNoThrow)
+        .mockResolvedValueOnce({
+          // git rev-parse --is-inside-work-tree
+          stdout: 'true\n',
+          stderr: '',
+          exitCode: 0,
+        })
+        .mockResolvedValueOnce({
+          // git rev-parse --git-dir
+          stdout: '.git\n',
+          stderr: '',
+          exitCode: 0,
+        })
+        .mockResolvedValueOnce({
+          // git rev-parse --git-common-dir
+          stdout: '.git\n',
+          stderr: '',
+          exitCode: 0,
+        })
+        .mockResolvedValueOnce({
+          // git rev-parse --abbrev-ref HEAD (fails - empty repo)
+          stdout: '',
+          stderr: "fatal: bad revision 'HEAD'",
+          exitCode: 128,
+        })
+        .mockResolvedValueOnce({
+          // git rev-parse --show-toplevel
+          stdout: '/main/repo\n',
+          stderr: '',
+          exitCode: 0,
+        });
+
+      const handler = handlers.get('git:worktreeInfo');
+      const result = await handler!({} as any, '/main/repo');
+
+      expect(result).toEqual({
+        success: true,
+        exists: true,
+        isWorktree: false,
+        currentBranch: undefined,
+        repoRoot: '/main/repo',
+      });
+    });
+  });
 });

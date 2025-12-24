@@ -27,6 +27,7 @@ import { PromptComposerModal } from './components/PromptComposerModal';
 import { ExecutionQueueBrowser } from './components/ExecutionQueueBrowser';
 import { StandingOvationOverlay } from './components/StandingOvationOverlay';
 import { FirstRunCelebration } from './components/FirstRunCelebration';
+import { KeyboardMasteryCelebration } from './components/KeyboardMasteryCelebration';
 import { LeaderboardRegistrationModal } from './components/LeaderboardRegistrationModal';
 import { PlaygroundPanel } from './components/PlaygroundPanel';
 import { AutoRunSetupModal } from './components/AutoRunSetupModal';
@@ -434,6 +435,14 @@ export default function MaestroConsole() {
   const onKeyboardMasteryLevelUp = useCallback((level: number) => {
     setPendingKeyboardMasteryLevel(level);
   }, []);
+
+  // Handle keyboard mastery celebration close
+  const handleKeyboardMasteryCelebrationClose = useCallback(() => {
+    if (pendingKeyboardMasteryLevel !== null) {
+      acknowledgeKeyboardMasteryLevel(pendingKeyboardMasteryLevel);
+    }
+    setPendingKeyboardMasteryLevel(null);
+  }, [pendingKeyboardMasteryLevel, acknowledgeKeyboardMasteryLevel]);
 
   // Confirmation Modal State
   const [confirmModalOpen, setConfirmModalOpen] = useState(false);
@@ -7844,6 +7853,15 @@ export default function MaestroConsole() {
           onClose={() => setFirstRunCelebrationData(null)}
           onOpenLeaderboardRegistration={() => setLeaderboardRegistrationOpen(true)}
           isLeaderboardRegistered={isLeaderboardRegistered}
+        />
+      )}
+
+      {/* --- KEYBOARD MASTERY CELEBRATION OVERLAY --- */}
+      {pendingKeyboardMasteryLevel !== null && (
+        <KeyboardMasteryCelebration
+          theme={theme}
+          level={pendingKeyboardMasteryLevel}
+          onClose={handleKeyboardMasteryCelebrationClose}
         />
       )}
 

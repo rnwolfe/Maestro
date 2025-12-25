@@ -1,35 +1,33 @@
 /**
- * InputContext - Centralized input and completion state management
+ * InputContext - Centralized completion and command history state management
  *
- * This context extracts input, completion, and command history states from App.tsx
- * to reduce its complexity and provide a single source of truth for input state.
+ * This context extracts completion and command history states from App.tsx
+ * to reduce its complexity and provide a single source of truth for completion state.
  *
  * Phase 3 of App.tsx decomposition - see refactor-details-2.md for full plan.
  *
  * States managed:
- * - Terminal and AI input values
  * - Slash command completion (open/index)
  * - Tab completion for terminal (open/index/filter)
  * - @ mention completion for AI mode (open/filter/index/startIndex)
  * - Command history browser (open/filter/index)
+ *
+ * PERFORMANCE NOTE: Input values (terminalInputValue, aiInputValue) are intentionally
+ * NOT managed in context. They remain in App.tsx as local state to avoid triggering
+ * context re-renders on every keystroke. The completion states here change infrequently
+ * (only when dropdowns open/close) so they're safe to put in context.
  */
 
 import React, { createContext, useContext, useState, useCallback, useMemo, ReactNode } from 'react';
 import type { TabCompletionFilter } from '../hooks';
 
 /**
- * Input context value - all input and completion states and their setters
+ * Input context value - completion and command history states and their setters
  *
  * Note: Setters use React.Dispatch<React.SetStateAction<T>> to support both
  * direct value assignment and callback patterns (e.g., setIndex(prev => prev + 1))
  */
 export interface InputContextValue {
-  // Input Values
-  terminalInputValue: string;
-  setTerminalInputValue: React.Dispatch<React.SetStateAction<string>>;
-  aiInputValue: string;
-  setAiInputValue: React.Dispatch<React.SetStateAction<string>>;
-
   // Slash Command Completion (both AI and terminal mode)
   slashCommandOpen: boolean;
   setSlashCommandOpen: React.Dispatch<React.SetStateAction<boolean>>;
@@ -78,11 +76,15 @@ interface InputProviderProps {
 }
 
 /**
- * InputProvider - Provides centralized input and completion state management
+ * InputProvider - Provides centralized completion state management
  *
- * This provider manages all input and completion states that were previously
+ * This provider manages completion and command history states that were previously
  * scattered throughout App.tsx. It reduces App.tsx complexity and provides
- * a single location for input state management.
+ * a single location for completion state management.
+ *
+ * PERFORMANCE NOTE: Input values (terminal/AI input text) are NOT in this context.
+ * They remain in App.tsx as local state to avoid context re-renders on every keystroke.
+ * Only completion states (which change infrequently) are managed here.
  *
  * Usage:
  * Wrap App with this provider (after ModalProvider and UILayoutProvider):
@@ -91,11 +93,6 @@ interface InputProviderProps {
  * </InputProvider>
  */
 export function InputProvider({ children }: InputProviderProps) {
-  // Input Values - both modes use local state for responsive typing
-  // AI mode syncs to tab state on blur/submit for persistence
-  const [terminalInputValue, setTerminalInputValue] = useState('');
-  const [aiInputValue, setAiInputValue] = useState('');
-
   // Slash Command Completion
   const [slashCommandOpen, setSlashCommandOpen] = useState(false);
   const [selectedSlashCommandIndex, setSelectedSlashCommandIndex] = useState(0);
@@ -116,7 +113,7 @@ export function InputProvider({ children }: InputProviderProps) {
   const [commandHistoryFilter, setCommandHistoryFilter] = useState('');
   const [commandHistorySelectedIndex, setCommandHistorySelectedIndex] = useState(0);
 
-  // Reset methods for each completion type
+  // Reset methods for each completion type - memoized for stable references
   const resetSlashCommand = useCallback(() => {
     setSlashCommandOpen(false);
     setSelectedSlashCommandIndex(0);
@@ -149,14 +146,9 @@ export function InputProvider({ children }: InputProviderProps) {
     resetCommandHistory();
   }, [resetSlashCommand, resetTabCompletion, resetAtMention, resetCommandHistory]);
 
-  // Memoize the context value to prevent unnecessary re-renders
+  // PERFORMANCE: Memoize context value to prevent unnecessary re-renders
+  // Only re-creates when completion states actually change
   const value = useMemo<InputContextValue>(() => ({
-    // Input Values
-    terminalInputValue,
-    setTerminalInputValue,
-    aiInputValue,
-    setAiInputValue,
-
     // Slash Command Completion
     slashCommandOpen,
     setSlashCommandOpen,
@@ -196,15 +188,13 @@ export function InputProvider({ children }: InputProviderProps) {
     // Convenience method
     closeAllCompletions,
   }), [
-    // Input Values
-    terminalInputValue, aiInputValue,
-    // Slash Command Completion
+    // Slash Command Completion - only boolean/number, changes infrequently
     slashCommandOpen, selectedSlashCommandIndex, resetSlashCommand,
-    // Tab Completion
+    // Tab Completion - only changes when dropdown opens/navigates
     tabCompletionOpen, selectedTabCompletionIndex, tabCompletionFilter, resetTabCompletion,
-    // @ Mention Completion
+    // @ Mention Completion - only changes when dropdown opens/navigates
     atMentionOpen, atMentionFilter, atMentionStartIndex, selectedAtMentionIndex, resetAtMention,
-    // Command History Browser
+    // Command History Browser - only changes when modal opens/navigates
     commandHistoryOpen, commandHistoryFilter, commandHistorySelectedIndex, resetCommandHistory,
     // Convenience method
     closeAllCompletions,
@@ -218,11 +208,11 @@ export function InputProvider({ children }: InputProviderProps) {
 }
 
 /**
- * useInputContext - Hook to access input and completion state management
+ * useInputContext - Hook to access completion state management
  *
  * Must be used within an InputProvider. Throws an error if used outside.
  *
- * @returns InputContextValue - All input and completion states and their setters
+ * @returns InputContextValue - All completion states and their setters
  *
  * @example
  * const { slashCommandOpen, setSlashCommandOpen, resetSlashCommand } = useInputContext();

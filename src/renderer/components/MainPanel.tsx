@@ -219,7 +219,9 @@ interface MainPanelProps {
   onShortcutUsed?: (shortcutId: string) => void;
 }
 
-export const MainPanel = forwardRef<MainPanelHandle, MainPanelProps>(function MainPanel(props, ref) {
+// PERFORMANCE: Wrap with React.memo to prevent re-renders when parent (App.tsx) re-renders
+// due to input value changes. The component will only re-render when its props actually change.
+export const MainPanel = React.memo(forwardRef<MainPanelHandle, MainPanelProps>(function MainPanel(props, ref) {
   const {
     logViewerOpen, agentSessionsOpen, activeAgentSessionId, activeSession, sessions, theme, activeFocus, outputSearchOpen, outputSearchQuery,
     inputValue, enterToSendAI, enterToSendTerminal, stagedImages, commandHistoryOpen, commandHistoryFilter,
@@ -1134,4 +1136,4 @@ export const MainPanel = forwardRef<MainPanelHandle, MainPanelProps>(function Ma
       )}
     </>
   );
-});
+}));

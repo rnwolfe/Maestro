@@ -158,7 +158,13 @@ export function SessionProvider({ children }: SessionProviderProps) {
     sessions.find(s => s.id === activeSessionId) || sessions[0] || null,
   [sessions, activeSessionId]);
 
-  // Memoize the context value to prevent unnecessary re-renders
+  // PERFORMANCE: Create stable context value
+  // React's useState setters are stable (don't need to be in deps)
+  // Refs are also stable. Only include values that consumers need reactively.
+  //
+  // IMPORTANT: sessions/groups/activeSession ARE included because consumers
+  // need to re-render when they change. The performance issue is in OTHER contexts,
+  // not here - SessionContext needs to propagate session changes.
   const value = useMemo<SessionContextValue>(() => ({
     // Core Session State
     sessions,
@@ -197,21 +203,17 @@ export function SessionProvider({ children }: SessionProviderProps) {
     setRemovedWorktreePaths,
     removedWorktreePathsRef,
   }), [
-    // Core Session State
+    // These values must trigger re-renders for consumers
     sessions,
-    // Groups State
     groups,
-    // Active Session
     activeSessionId,
     setActiveSessionId,
-    // Initialization State
     sessionsLoaded,
-    // Batched Updater
     batchedUpdater,
-    // Computed Values
     activeSession,
-    // Worktree tracking
     removedWorktreePaths,
+    // Note: setState functions from useState are stable and don't need to be deps
+    // Refs are also stable objects (the ref itself doesn't change, only .current)
   ]);
 
   return (

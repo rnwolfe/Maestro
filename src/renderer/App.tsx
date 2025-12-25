@@ -363,11 +363,13 @@ function MaestroConsoleInner() {
     setActiveSessionIdFromContext(id);
   }, [setActiveSessionIdFromContext, setActiveGroupChatId]);
 
-  // Input State - extracted to InputContext for centralized management
-  // Use InputContext for all input and completion states
+  // Input State - PERFORMANCE CRITICAL: Input values stay in App.tsx local state
+  // to avoid context re-renders on every keystroke. Only completion states are in context.
+  const [terminalInputValue, setTerminalInputValue] = useState('');
+  const [aiInputValueLocal, setAiInputValueLocal] = useState('');
+
+  // Completion states from InputContext (these change infrequently)
   const {
-    terminalInputValue, setTerminalInputValue,
-    aiInputValue: aiInputValueLocal, setAiInputValue: setAiInputValueLocal,
     slashCommandOpen, setSlashCommandOpen,
     selectedSlashCommandIndex, setSelectedSlashCommandIndex,
     tabCompletionOpen, setTabCompletionOpen,
@@ -3241,6 +3243,66 @@ function MaestroConsoleInner() {
     defaultSaveToHistory,
     defaultShowThinking,
   });
+
+  // PERFORMANCE: Memoized callback for creating new agent sessions
+  // Extracted from inline function to prevent MainPanel re-renders
+  const handleNewAgentSession = useCallback(() => {
+    // Create a fresh AI tab using functional setState to avoid stale closure
+    setSessions(prev => {
+      const currentSession = prev.find(s => s.id === activeSessionIdRef.current);
+      if (!currentSession) return prev;
+      return prev.map(s => {
+        if (s.id !== currentSession.id) return s;
+        const result = createTab(s, { saveToHistory: defaultSaveToHistory, showThinking: defaultShowThinking });
+        if (!result) return s;
+        return result.session;
+      });
+    });
+    setActiveAgentSessionId(null);
+    setAgentSessionsOpen(false);
+  }, [defaultSaveToHistory, defaultShowThinking]);
+
+  // PERFORMANCE: Memoized tab management callbacks
+  // Extracted from inline functions to prevent MainPanel re-renders
+  const handleTabSelect = useCallback((tabId: string) => {
+    setSessions(prev => prev.map(s => {
+      if (s.id !== activeSessionIdRef.current) return s;
+      const result = setActiveTab(s, tabId);
+      return result ? result.session : s;
+    }));
+  }, []);
+
+  const handleTabClose = useCallback((tabId: string) => {
+    setSessions(prev => prev.map(s => {
+      if (s.id !== activeSessionIdRef.current) return s;
+      // Note: showUnreadOnly is accessed via ref pattern if needed, or we accept this dep
+      const result = closeTab(s, tabId, false); // Don't filter for unread during close
+      return result ? result.session : s;
+    }));
+  }, []);
+
+  const handleNewTab = useCallback(() => {
+    setSessions(prev => prev.map(s => {
+      if (s.id !== activeSessionIdRef.current) return s;
+      const result = createTab(s, { saveToHistory: defaultSaveToHistory, showThinking: defaultShowThinking });
+      if (!result) return s;
+      return result.session;
+    }));
+  }, [defaultSaveToHistory, defaultShowThinking]);
+
+  const handleRemoveQueuedItem = useCallback((itemId: string) => {
+    setSessions(prev => prev.map(s => {
+      if (s.id !== activeSessionIdRef.current) return s;
+      return {
+        ...s,
+        executionQueue: s.executionQueue.filter(item => item.id !== itemId)
+      };
+    }));
+  }, []);
+
+  const handleOpenQueueBrowser = useCallback(() => {
+    setQueueBrowserOpen(true);
+  }, []);
 
   // Note: spawnBackgroundSynopsisRef and spawnAgentWithPromptRef are now updated in useAgentExecution hook
 
@@ -8543,23 +8605,8 @@ function MaestroConsoleInner() {
         setLogViewerOpen={setLogViewerOpen}
         setAgentSessionsOpen={setAgentSessionsOpen}
         setActiveAgentSessionId={setActiveAgentSessionId}
-        onResumeAgentSession={(agentSessionId: string, messages: LogEntry[], sessionName?: string, starred?: boolean, usageStats?: UsageStats) => {
-          // Opens the Claude session as a new tab (or switches to existing tab if duplicate)
-          handleResumeSession(agentSessionId, messages, sessionName, starred, usageStats);
-        }}
-        onNewAgentSession={() => {
-          // Create a fresh AI tab
-          if (activeSession) {
-            setSessions(prev => prev.map(s => {
-              if (s.id !== activeSession.id) return s;
-              const result = createTab(s, { saveToHistory: defaultSaveToHistory, showThinking: defaultShowThinking });
-              if (!result) return s;
-              return result.session;
-            }));
-            setActiveAgentSessionId(null);
-          }
-          setAgentSessionsOpen(false);
-        }}
+        onResumeAgentSession={handleResumeSession}
+        onNewAgentSession={handleNewAgentSession}
         setActiveFocus={setActiveFocus}
         setOutputSearchOpen={setOutputSearchOpen}
         setOutputSearchQuery={setOutputSearchQuery}
@@ -8716,47 +8763,13 @@ function MaestroConsoleInner() {
 
           return nextUserCommandIndex;
         }}
-        onRemoveQueuedItem={(itemId: string) => {
-          if (!activeSession) return;
-          setSessions(prev => prev.map(s => {
-            if (s.id !== activeSession.id) return s;
-            return {
-              ...s,
-              executionQueue: s.executionQueue.filter(item => item.id !== itemId)
-            };
-          }));
-        }}
-        onOpenQueueBrowser={() => setQueueBrowserOpen(true)}
+        onRemoveQueuedItem={handleRemoveQueuedItem}
+        onOpenQueueBrowser={handleOpenQueueBrowser}
         audioFeedbackCommand={audioFeedbackCommand}
-        // Tab management handlers
-        onTabSelect={(tabId: string) => {
-          if (!activeSession) return;
-          // Use functional setState to compute new session from fresh state (avoids stale closure issues)
-          setSessions(prev => prev.map(s => {
-            if (s.id !== activeSession.id) return s;
-            const result = setActiveTab(s, tabId); // Use 's' from prev, not stale 'activeSession'
-            return result ? result.session : s;
-          }));
-        }}
-        onTabClose={(tabId: string) => {
-          if (!activeSession) return;
-          // Use functional setState to compute from fresh state (avoids stale closure issues)
-          setSessions(prev => prev.map(s => {
-            if (s.id !== activeSession.id) return s;
-            const result = closeTab(s, tabId, showUnreadOnly);
-            return result ? result.session : s;
-          }));
-        }}
-        onNewTab={() => {
-          if (!activeSession) return;
-          // Use functional setState to compute from fresh state (avoids stale closure issues)
-          setSessions(prev => prev.map(s => {
-            if (s.id !== activeSession.id) return s;
-            const result = createTab(s, { saveToHistory: defaultSaveToHistory, showThinking: defaultShowThinking });
-            if (!result) return s;
-            return result.session;
-          }));
-        }}
+        // Tab management handlers (memoized for performance)
+        onTabSelect={handleTabSelect}
+        onTabClose={handleTabClose}
+        onNewTab={handleNewTab}
         onRequestTabRename={(tabId: string) => {
           if (!activeSession) return;
           const tab = activeSession.aiTabs?.find(t => t.id === tabId);

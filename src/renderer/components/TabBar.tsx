@@ -682,6 +682,7 @@ export function TabBar({
     };
   }, [tabs.length, displayedTabs.length]);
 
+<<<<<<< HEAD
   const handleCloseOthers = useCallback((tabId: string) => {
     // Close all VISIBLE tabs except the specified one
     displayedTabs.forEach(tab => {

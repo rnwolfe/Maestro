@@ -1256,6 +1256,12 @@ contextBridge.exposeInMainWorld('maestro', {
       theme?: string;
       clientToken?: string;
       authToken?: string;
+      // Keyboard mastery data (aligned with RunMaestro.ai server schema)
+      keyboardMasteryLevel?: number;
+      keyboardMasteryTitle?: string;
+      keyboardCoveragePercent?: number;
+      keyboardKeysUnlocked?: number;
+      keyboardTotalKeys?: number;
     }) => ipcRenderer.invoke('leaderboard:submit', data),
     pollAuthStatus: (clientToken: string) =>
       ipcRenderer.invoke('leaderboard:pollAuthStatus', clientToken),
@@ -2202,8 +2208,15 @@ export interface MaestroAPI {
       longestRunMs?: number;
       longestRunDate?: string;
       currentRunMs?: number;
+      theme?: string;
       clientToken?: string;
       authToken?: string;
+      // Keyboard mastery data (aligned with RunMaestro.ai server schema)
+      keyboardMasteryLevel?: number;
+      keyboardMasteryTitle?: string;
+      keyboardCoveragePercent?: number;
+      keyboardKeysUnlocked?: number;
+      keyboardTotalKeys?: number;
     }) => Promise<{
       success: boolean;
       message: string;

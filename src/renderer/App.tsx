@@ -27,6 +27,7 @@ import { PromptComposerModal } from './components/PromptComposerModal';
 import { ExecutionQueueBrowser } from './components/ExecutionQueueBrowser';
 import { StandingOvationOverlay } from './components/StandingOvationOverlay';
 import { FirstRunCelebration } from './components/FirstRunCelebration';
+import { KeyboardMasteryCelebration } from './components/KeyboardMasteryCelebration';
 import { LeaderboardRegistrationModal } from './components/LeaderboardRegistrationModal';
 import { PlaygroundPanel } from './components/PlaygroundPanel';
 import { AutoRunSetupModal } from './components/AutoRunSetupModal';
@@ -279,7 +280,11 @@ export default function MaestroConsole() {
     recordWizardStart, recordWizardComplete, recordWizardAbandon, recordWizardResume,
     recordTourStart, recordTourComplete, recordTourSkip,
     leaderboardRegistration, setLeaderboardRegistration, isLeaderboardRegistered,
+
     contextManagementSettings, updateContextManagementSettings,
+
+    keyboardMasteryStats, recordShortcutUsage, acknowledgeKeyboardMasteryLevel, getUnacknowledgedKeyboardMasteryLevel,
+
   } = settings;
 
   // --- KEYBOARD SHORTCUT HELPERS ---
@@ -414,6 +419,7 @@ export default function MaestroConsole() {
   } | null>(null);
   const [logViewerOpen, setLogViewerOpen] = useState(false);
   const [processMonitorOpen, setProcessMonitorOpen] = useState(false);
+  const [pendingKeyboardMasteryLevel, setPendingKeyboardMasteryLevel] = useState<number | null>(null);
   const [playgroundOpen, setPlaygroundOpen] = useState(false);
   const [debugWizardModalOpen, setDebugWizardModalOpen] = useState(false);
   const [debugPackageModalOpen, setDebugPackageModalOpen] = useState(false);
@@ -424,6 +430,19 @@ export default function MaestroConsole() {
   const handleCloseGitLog = useCallback(() => setGitLogOpen(false), []);
   const handleCloseSettings = useCallback(() => setSettingsModalOpen(false), []);
   const handleCloseDebugPackage = useCallback(() => setDebugPackageModalOpen(false), []);
+
+  // Keyboard mastery level-up callback
+  const onKeyboardMasteryLevelUp = useCallback((level: number) => {
+    setPendingKeyboardMasteryLevel(level);
+  }, []);
+
+  // Handle keyboard mastery celebration close
+  const handleKeyboardMasteryCelebrationClose = useCallback(() => {
+    if (pendingKeyboardMasteryLevel !== null) {
+      acknowledgeKeyboardMasteryLevel(pendingKeyboardMasteryLevel);
+    }
+    setPendingKeyboardMasteryLevel(null);
+  }, [pendingKeyboardMasteryLevel, acknowledgeKeyboardMasteryLevel]);
 
   // Confirmation Modal State
   const [confirmModalOpen, setConfirmModalOpen] = useState(false);
@@ -837,6 +856,19 @@ export default function MaestroConsole() {
             });
           }, 1000);
         }
+      }
+    }
+  }, [settingsLoaded, sessionsLoaded]); // Only run once on startup
+
+  // Check for unacknowledged keyboard mastery levels on startup
+  useEffect(() => {
+    if (settingsLoaded && sessionsLoaded) {
+      const unacknowledgedLevel = getUnacknowledgedKeyboardMasteryLevel();
+      if (unacknowledgedLevel !== null) {
+        // Show the keyboard mastery level-up celebration after a short delay
+        setTimeout(() => {
+          setPendingKeyboardMasteryLevel(unacknowledgedLevel);
+        }, 1200); // Slightly longer delay than badge to avoid overlap
       }
     }
   }, [settingsLoaded, sessionsLoaded]); // Only run once on startup
@@ -6592,6 +6624,7 @@ export default function MaestroConsole() {
     handleSidebarNavigation, handleTabNavigation, handleEnterToActivate, handleEscapeInMain,
     // Agent capabilities
     hasActiveSessionCapability,
+
     // Merge session modal and send to agent modal
     setMergeSessionModalOpen,
     setSendToAgentModalOpen,
@@ -6602,6 +6635,10 @@ export default function MaestroConsole() {
       return tab ? canSummarize(tab) : false;
     })(),
     summarizeAndContinue: handleSummarizeAndContinue,
+
+    // Keyboard mastery gamification
+    recordShortcutUsage, onKeyboardMasteryLevelUp
+
   };
 
   // Update flat file list when active session's tree, expanded folders, filter, or hidden files setting changes
@@ -7075,6 +7112,7 @@ export default function MaestroConsole() {
           tabShortcuts={tabShortcuts}
           onClose={() => setShortcutsHelpOpen(false)}
           hasNoAgents={hasNoAgents}
+          keyboardMasteryStats={keyboardMasteryStats}
         />
       )}
 
@@ -7098,6 +7136,7 @@ export default function MaestroConsole() {
         <LeaderboardRegistrationModal
           theme={theme}
           autoRunStats={autoRunStats}
+          keyboardMasteryStats={keyboardMasteryStats}
           existingRegistration={leaderboardRegistration}
           onClose={() => setLeaderboardRegistrationOpen(false)}
           onSave={(registration) => {
@@ -7815,6 +7854,15 @@ export default function MaestroConsole() {
           onClose={() => setFirstRunCelebrationData(null)}
           onOpenLeaderboardRegistration={() => setLeaderboardRegistrationOpen(true)}
           isLeaderboardRegistered={isLeaderboardRegistered}
+        />
+      )}
+
+      {/* --- KEYBOARD MASTERY CELEBRATION OVERLAY --- */}
+      {pendingKeyboardMasteryLevel !== null && (
+        <KeyboardMasteryCelebration
+          theme={theme}
+          level={pendingKeyboardMasteryLevel}
+          onClose={handleKeyboardMasteryCelebrationClose}
         />
       )}
 
@@ -8822,6 +8870,12 @@ export default function MaestroConsole() {
         contextWarningsEnabled={contextManagementSettings.contextWarningsEnabled}
         contextWarningYellowThreshold={contextManagementSettings.contextWarningYellowThreshold}
         contextWarningRedThreshold={contextManagementSettings.contextWarningRedThreshold}
+        onShortcutUsed={(shortcutId: string) => {
+          const result = recordShortcutUsage(shortcutId);
+          if (result.newLevel !== null) {
+            onKeyboardMasteryLevelUp(result.newLevel);
+          }
+        }}
       />
       )}
 

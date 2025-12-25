@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import type { LLMProvider, ThemeId, ThemeColors, Shortcut, CustomAICommand, GlobalStats, AutoRunStats, OnboardingStats, LeaderboardRegistration, ContextManagementSettings } from '../types';
+import type { LLMProvider, ThemeId, ThemeColors, Shortcut, CustomAICommand, GlobalStats, AutoRunStats, OnboardingStats, LeaderboardRegistration, ContextManagementSettings, KeyboardMasteryStats } from '../types';
 import { DEFAULT_CUSTOM_THEME_COLORS } from '../constants/themes';
-import { DEFAULT_SHORTCUTS, TAB_SHORTCUTS } from '../constants/shortcuts';
+import { DEFAULT_SHORTCUTS, TAB_SHORTCUTS, FIXED_SHORTCUTS } from '../constants/shortcuts';
+import { getLevelIndex } from '../constants/keyboardMastery';
 import { commitCommandPrompt } from '../../prompts';
 
 // Default context management settings
@@ -40,6 +41,17 @@ const DEFAULT_AUTO_RUN_STATS: AutoRunStats = {
   lastAcknowledgedBadgeLevel: 0,
   badgeHistory: [],
 };
+
+// Default keyboard mastery stats
+const DEFAULT_KEYBOARD_MASTERY_STATS: KeyboardMasteryStats = {
+  usedShortcuts: [],
+  currentLevel: 0,
+  lastLevelUpTimestamp: 0,
+  lastAcknowledgedLevel: 0,
+};
+
+// Total shortcuts for calculating mastery percentage (includes all shortcut types)
+const TOTAL_SHORTCUTS_COUNT = Object.keys(DEFAULT_SHORTCUTS).length + Object.keys(TAB_SHORTCUTS).length + Object.keys(FIXED_SHORTCUTS).length;
 
 // Default onboarding stats (all local, no external telemetry)
 const DEFAULT_ONBOARDING_STATS: OnboardingStats = {
@@ -242,6 +254,13 @@ export interface UseSettingsReturn {
   contextManagementSettings: ContextManagementSettings;
   setContextManagementSettings: (value: ContextManagementSettings) => void;
   updateContextManagementSettings: (partial: Partial<ContextManagementSettings>) => void;
+
+  // Keyboard Mastery (gamification for shortcut usage)
+  keyboardMasteryStats: KeyboardMasteryStats;
+  setKeyboardMasteryStats: (value: KeyboardMasteryStats) => void;
+  recordShortcutUsage: (shortcutId: string) => { newLevel: number | null };
+  acknowledgeKeyboardMasteryLevel: (level: number) => void;
+  getUnacknowledgedKeyboardMasteryLevel: () => number | null;
 }
 
 export function useSettings(): UseSettingsReturn {
@@ -336,6 +355,9 @@ export function useSettings(): UseSettingsReturn {
 
   // Context Management settings (persistent)
   const [contextManagementSettings, setContextManagementSettingsState] = useState<ContextManagementSettings>(DEFAULT_CONTEXT_MANAGEMENT_SETTINGS);
+
+  // Keyboard Mastery stats (persistent gamification)
+  const [keyboardMasteryStats, setKeyboardMasteryStatsState] = useState<KeyboardMasteryStats>(DEFAULT_KEYBOARD_MASTERY_STATS);
 
   // Wrapper functions that persist to electron-store
   // PERF: All wrapped in useCallback to prevent re-renders
@@ -913,6 +935,70 @@ export function useSettings(): UseSettingsReturn {
     });
   }, []);
 
+  // Keyboard Mastery setters and functions
+  const setKeyboardMasteryStats = useCallback((value: KeyboardMasteryStats) => {
+    setKeyboardMasteryStatsState(value);
+    window.maestro.settings.set('keyboardMasteryStats', value);
+  }, []);
+
+  // Record usage of a shortcut - returns newLevel if user leveled up
+  const recordShortcutUsage = useCallback((shortcutId: string): { newLevel: number | null } => {
+    let newLevel: number | null = null;
+
+    setKeyboardMasteryStatsState(prev => {
+      // Skip if already tracked
+      if (prev.usedShortcuts.includes(shortcutId)) {
+        return prev;
+      }
+
+      // Add new shortcut to the list
+      const updatedShortcuts = [...prev.usedShortcuts, shortcutId];
+
+      // Calculate new percentage and level
+      const percentage = (updatedShortcuts.length / TOTAL_SHORTCUTS_COUNT) * 100;
+      const newLevelIndex = getLevelIndex(percentage);
+
+      // Check if user leveled up
+      if (newLevelIndex > prev.currentLevel) {
+        newLevel = newLevelIndex;
+      }
+
+      const updated: KeyboardMasteryStats = {
+        usedShortcuts: updatedShortcuts,
+        currentLevel: newLevelIndex,
+        lastLevelUpTimestamp: newLevel !== null ? Date.now() : prev.lastLevelUpTimestamp,
+        lastAcknowledgedLevel: prev.lastAcknowledgedLevel,
+      };
+
+      window.maestro.settings.set('keyboardMasteryStats', updated);
+      return updated;
+    });
+
+    return { newLevel };
+  }, []);
+
+  // Acknowledge that user has seen the keyboard mastery level celebration
+  const acknowledgeKeyboardMasteryLevel = useCallback((level: number) => {
+    setKeyboardMasteryStatsState(prev => {
+      const updated: KeyboardMasteryStats = {
+        ...prev,
+        lastAcknowledgedLevel: Math.max(level, prev.lastAcknowledgedLevel),
+      };
+      window.maestro.settings.set('keyboardMasteryStats', updated);
+      return updated;
+    });
+  }, []);
+
+  // Get the highest unacknowledged keyboard mastery level (if any)
+  const getUnacknowledgedKeyboardMasteryLevel = useCallback((): number | null => {
+    const acknowledged = keyboardMasteryStats.lastAcknowledgedLevel;
+    const current = keyboardMasteryStats.currentLevel;
+    if (current > acknowledged) {
+      return current;
+    }
+    return null;
+  }, [keyboardMasteryStats.lastAcknowledgedLevel, keyboardMasteryStats.currentLevel]);
+
   // Load settings from electron-store on mount
   useEffect(() => {
     const loadSettings = async () => {
@@ -963,6 +1049,7 @@ export function useSettings(): UseSettingsReturn {
       const savedWebInterfaceUseCustomPort = await window.maestro.settings.get('webInterfaceUseCustomPort');
       const savedWebInterfaceCustomPort = await window.maestro.settings.get('webInterfaceCustomPort');
       const savedContextManagementSettings = await window.maestro.settings.get('contextManagementSettings');
+      const savedKeyboardMasteryStats = await window.maestro.settings.get('keyboardMasteryStats');
 
       if (savedEnterToSendAI !== undefined) setEnterToSendAIState(savedEnterToSendAI as boolean);
       if (savedEnterToSendTerminal !== undefined) setEnterToSendTerminalState(savedEnterToSendTerminal as boolean);
@@ -1171,6 +1258,11 @@ export function useSettings(): UseSettingsReturn {
         setContextManagementSettingsState({ ...DEFAULT_CONTEXT_MANAGEMENT_SETTINGS, ...(savedContextManagementSettings as Partial<ContextManagementSettings>) });
       }
 
+      // Load keyboard mastery stats
+      if (savedKeyboardMasteryStats !== undefined) {
+        setKeyboardMasteryStatsState({ ...DEFAULT_KEYBOARD_MASTERY_STATS, ...(savedKeyboardMasteryStats as Partial<KeyboardMasteryStats>) });
+      }
+
       // Mark settings as loaded
       setSettingsLoaded(true);
     };
@@ -1293,6 +1385,11 @@ export function useSettings(): UseSettingsReturn {
     contextManagementSettings,
     setContextManagementSettings,
     updateContextManagementSettings,
+    keyboardMasteryStats,
+    setKeyboardMasteryStats,
+    recordShortcutUsage,
+    acknowledgeKeyboardMasteryLevel,
+    getUnacknowledgedKeyboardMasteryLevel,
   }), [
     // State values
     settingsLoaded,
@@ -1402,5 +1499,10 @@ export function useSettings(): UseSettingsReturn {
     contextManagementSettings,
     setContextManagementSettings,
     updateContextManagementSettings,
+    keyboardMasteryStats,
+    setKeyboardMasteryStats,
+    recordShortcutUsage,
+    acknowledgeKeyboardMasteryLevel,
+    getUnacknowledgedKeyboardMasteryLevel,
   ]);
 }

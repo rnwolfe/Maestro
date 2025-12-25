@@ -56,6 +56,8 @@ interface FilePreviewProps {
   currentHistoryIndex?: number;
   /** Callback to open fuzzy file search (available in preview mode, not edit mode) */
   onOpenFuzzySearch?: () => void;
+  /** Callback to track shortcut usage for keyboard mastery */
+  onShortcutUsed?: (shortcutId: string) => void;
 }
 
 // Get language from filename extension
@@ -389,7 +391,7 @@ function remarkHighlight() {
   };
 }
 
-export function FilePreview({ file, onClose, theme, markdownEditMode, setMarkdownEditMode, onSave, shortcuts, fileTree, cwd, onFileClick, canGoBack, canGoForward, onNavigateBack, onNavigateForward, backHistory, forwardHistory, onNavigateToIndex, currentHistoryIndex, onOpenFuzzySearch }: FilePreviewProps) {
+export function FilePreview({ file, onClose, theme, markdownEditMode, setMarkdownEditMode, onSave, shortcuts, fileTree, cwd, onFileClick, canGoBack, canGoForward, onNavigateBack, onNavigateForward, backHistory, forwardHistory, onNavigateToIndex, currentHistoryIndex, onOpenFuzzySearch, onShortcutUsed }: FilePreviewProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchOpen, setSearchOpen] = useState(false);
   const [showCopyNotification, setShowCopyNotification] = useState(false);
@@ -1048,6 +1050,7 @@ export function FilePreview({ file, onClose, theme, markdownEditMode, setMarkdow
       e.stopPropagation();
       if (canGoBack && onNavigateBack) {
         onNavigateBack();
+        onShortcutUsed?.('filePreviewBack');
       }
     } else if (e.key === 'ArrowRight' && (e.metaKey || e.ctrlKey)) {
       // Cmd+Right: Navigate forward in history (disabled in edit mode)
@@ -1056,6 +1059,7 @@ export function FilePreview({ file, onClose, theme, markdownEditMode, setMarkdow
       e.stopPropagation();
       if (canGoForward && onNavigateForward) {
         onNavigateForward();
+        onShortcutUsed?.('filePreviewForward');
       }
     } else if (isShortcut(e, 'fuzzyFileSearch') && onOpenFuzzySearch) {
       // Cmd+G: Open fuzzy file search (only in preview mode, not edit mode)

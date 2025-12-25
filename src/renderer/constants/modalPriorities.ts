@@ -17,6 +17,9 @@ export const MODAL_PRIORITIES = {
   /** Standing ovation achievement overlay - celebration! */
   STANDING_OVATION: 1100,
 
+  /** Keyboard mastery level-up celebration - high priority celebration */
+  KEYBOARD_MASTERY: 1095,
+
   /** Onboarding tour overlay - above wizard, guides new users */
   TOUR: 1050,
 

@@ -59,7 +59,7 @@ Download the latest release for your platform from the [Releases](https://github
 ### Core Features
 
 - 🔄 **Dual-Mode Sessions** - Each agent has both an AI Terminal and Command Terminal. Switch seamlessly between AI conversation and shell commands with `Cmd+J`.
-- ⌨️ **[Keyboard-First Design](#keyboard-shortcuts)** - Full keyboard control with customizable shortcuts. `Cmd+K` quick actions, rapid agent switching, and focus management designed for flow state.
+- ⌨️ **[Keyboard-First Design](#keyboard-shortcuts)** - Full keyboard control with customizable shortcuts and [mastery tracking](#keyboard-mastery) that rewards you for leveling up. `Cmd+K` quick actions, rapid agent switching, and focus management designed for flow state.
 - 📋 **Session Discovery** - Automatically discovers and imports all Claude Code sessions, including conversations from before Maestro was installed. Browse, search, star, rename, and resume any session.
 - 🔀 **Git Integration** - Automatic repo detection, branch display, diff viewer, commit logs, and git-aware file completion. Work with git without leaving the app.
 - 📁 **[File Explorer](#ui-overview)** - Browse project files with syntax highlighting, markdown preview, and image viewing. Reference files in prompts with `@` mentions.
@@ -293,6 +293,22 @@ In AI mode, use `@` to reference files in your prompts:
 | Close | `Esc` | `Esc` |
 
 *Most shortcuts are customizable in Settings > Shortcuts*
+
+### Keyboard Mastery
+
+Maestro tracks your keyboard shortcut usage and rewards you for becoming a power user! As you use more shortcuts, you'll level up through the mastery ranks:
+
+| Level | Threshold | Name | Description |
+|-------|-----------|------|-------------|
+| 0 | 0% | **Beginner** | Just starting out |
+| 1 | 25% | **Student** | Learning the basics |
+| 2 | 50% | **Performer** | Getting comfortable |
+| 3 | 75% | **Virtuoso** | Almost there |
+| 4 | 100% | **Keyboard Maestro** | Complete mastery |
+
+When you reach a new level, you'll see a celebration with confetti! Your progress is tracked in the Shortcuts Help modal (`Cmd+/` or `Ctrl+/`), which shows your current mastery percentage and hints at shortcuts you haven't tried yet.
+
+**Why keyboard shortcuts matter:** Using shortcuts keeps you in flow state, reduces context switching, and dramatically speeds up your workflow. Maestro is designed for keyboard-first operation—the less you reach for the mouse, the faster you'll work.
 
 ## Slash Commands
 

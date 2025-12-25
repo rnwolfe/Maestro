@@ -18,6 +18,8 @@ import { getInitialRenameValue } from '../utils/tabHelpers';
  * - Tab management (createTab, closeTab, navigateToNextTab, etc.)
  * - Navigation handlers (handleSidebarNavigation, handleTabNavigation, etc.)
  * - Refs (logsEndRef, inputRef, terminalOutputRef)
+ * - recordShortcutUsage: Track shortcut usage for keyboard mastery gamification
+ * - onKeyboardMasteryLevelUp: Callback when user levels up in keyboard mastery
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type KeyboardHandlerContext = any;
@@ -139,61 +141,81 @@ export function useMainKeyboardHandler(): UseMainKeyboardHandlerReturn {
       if (ctx.handleEscapeInMain(e)) return;
 
 
+      // Helper to track shortcut usage for keyboard mastery gamification
+      const trackShortcut = (shortcutId: string) => {
+        if (ctx.recordShortcutUsage) {
+          const result = ctx.recordShortcutUsage(shortcutId);
+          if (result.newLevel !== null && ctx.onKeyboardMasteryLevelUp) {
+            ctx.onKeyboardMasteryLevelUp(result.newLevel);
+          }
+        }
+      };
+
       // General shortcuts
       // Only allow collapsing left sidebar when there are sessions (prevent collapse on empty state)
       if (ctx.isShortcut(e, 'toggleSidebar')) {
         if (ctx.sessions.length > 0 || !ctx.leftSidebarOpen) {
           ctx.setLeftSidebarOpen((p: boolean) => !p);
+          trackShortcut('toggleSidebar');
         }
       }
-      else if (ctx.isShortcut(e, 'toggleRightPanel')) ctx.setRightPanelOpen((p: boolean) => !p);
-      else if (ctx.isShortcut(e, 'newInstance')) ctx.addNewSession();
+      else if (ctx.isShortcut(e, 'toggleRightPanel')) { ctx.setRightPanelOpen((p: boolean) => !p); trackShortcut('toggleRightPanel'); }
+      else if (ctx.isShortcut(e, 'newInstance')) { ctx.addNewSession(); trackShortcut('newInstance'); }
       else if (ctx.isShortcut(e, 'newGroupChat')) {
         e.preventDefault();
         ctx.setShowNewGroupChatModal(true);
+        trackShortcut('newGroupChat');
       }
       else if (ctx.isShortcut(e, 'killInstance')) {
         // Delete whichever is currently active: group chat or agent session
         if (ctx.activeGroupChatId) {
           ctx.deleteGroupChatWithConfirmation(ctx.activeGroupChatId);
+          trackShortcut('killInstance');
         } else if (ctx.activeSessionId) {
           ctx.deleteSession(ctx.activeSessionId);
+          trackShortcut('killInstance');
         }
       }
       else if (ctx.isShortcut(e, 'moveToGroup')) {
         if (ctx.activeSession) {
           ctx.setQuickActionInitialMode('move-to-group');
           ctx.setQuickActionOpen(true);
+          trackShortcut('moveToGroup');
         }
       }
       else if (ctx.isShortcut(e, 'cyclePrev')) {
         // Cycle to previous Maestro session (global shortcut)
         ctx.cycleSession('prev');
+        trackShortcut('cyclePrev');
       }
       else if (ctx.isShortcut(e, 'cycleNext')) {
         // Cycle to next Maestro session (global shortcut)
         ctx.cycleSession('next');
+        trackShortcut('cycleNext');
       }
       else if (ctx.isShortcut(e, 'navBack')) {
         // Navigate back in history (through sessions and tabs)
         e.preventDefault();
         ctx.handleNavBack();
+        trackShortcut('navBack');
       }
       else if (ctx.isShortcut(e, 'navForward')) {
         // Navigate forward in history (through sessions and tabs)
         e.preventDefault();
         ctx.handleNavForward();
+        trackShortcut('navForward');
       }
-      else if (ctx.isShortcut(e, 'toggleMode')) ctx.toggleInputMode();
+      else if (ctx.isShortcut(e, 'toggleMode')) { ctx.toggleInputMode(); trackShortcut('toggleMode'); }
       else if (ctx.isShortcut(e, 'quickAction')) {
         // Only open quick actions if there are agents
         if (ctx.sessions.length > 0) {
           ctx.setQuickActionInitialMode('main');
           ctx.setQuickActionOpen(true);
+          trackShortcut('quickAction');
         }
       }
-      else if (ctx.isShortcut(e, 'help')) ctx.setShortcutsHelpOpen(true);
-      else if (ctx.isShortcut(e, 'settings')) { ctx.setSettingsModalOpen(true); ctx.setSettingsTab('general'); }
+      else if (ctx.isShortcut(e, 'help')) { ctx.setShortcutsHelpOpen(true); trackShortcut('help'); }
+      else if (ctx.isShortcut(e, 'settings')) { ctx.setSettingsModalOpen(true); ctx.setSettingsTab('general'); trackShortcut('settings'); }
       else if (ctx.isShortcut(e, 'goToFiles')) {
         e.preventDefault();
         ctx.setRightPanelOpen(true);
@@ -204,6 +226,7 @@ export function useMainKeyboardHandler(): UseMainKeyboardHandlerReturn {
           ctx.handleSetActiveRightTab('files');
         }
         ctx.setActiveFocus('right');
+        trackShortcut('goToFiles');
       }
       else if (ctx.isShortcut(e, 'goToHistory')) {
         e.preventDefault();
@@ -215,31 +238,36 @@ export function useMainKeyboardHandler(): UseMainKeyboardHandlerReturn {
           ctx.handleSetActiveRightTab('history');
         }
         ctx.setActiveFocus('right');
+        trackShortcut('goToHistory');
       }
-      else if (ctx.isShortcut(e, 'goToAutoRun')) { e.preventDefault(); ctx.setRightPanelOpen(true); ctx.handleSetActiveRightTab('autorun'); ctx.setActiveFocus('right'); }
-      else if (ctx.isShortcut(e, 'fuzzyFileSearch')) { e.preventDefault(); if (ctx.activeSession) ctx.setFuzzyFileSearchOpen(true); }
+      else if (ctx.isShortcut(e, 'goToAutoRun')) { e.preventDefault(); ctx.setRightPanelOpen(true); ctx.handleSetActiveRightTab('autorun'); ctx.setActiveFocus('right'); trackShortcut('goToAutoRun'); }
+      else if (ctx.isShortcut(e, 'fuzzyFileSearch')) { e.preventDefault(); if (ctx.activeSession) { ctx.setFuzzyFileSearchOpen(true); trackShortcut('fuzzyFileSearch'); } }
       else if (ctx.isShortcut(e, 'openImageCarousel')) {
         e.preventDefault();
         // Use group chat staged images when group chat is active
         const images = ctx.activeGroupChatId ? ctx.groupChatStagedImages : ctx.stagedImages;
         if (images && images.length > 0) {
           ctx.handleSetLightboxImage(images[0], images, 'staged');
+          trackShortcut('openImageCarousel');
         }
       }
       else if (ctx.isShortcut(e, 'toggleTabStar')) {
         e.preventDefault();
         ctx.toggleTabStar();
+        trackShortcut('toggleTabStar');
       }
       else if (ctx.isShortcut(e, 'openPromptComposer')) {
         e.preventDefault();
         // Only open in AI mode
         if (ctx.activeSession?.inputMode === 'ai') {
           ctx.setPromptComposerOpen(true);
+          trackShortcut('openPromptComposer');
         }
       }
       else if (ctx.isShortcut(e, 'openWizard')) {
         e.preventDefault();
         ctx.openWizardModal();
+        trackShortcut('openWizard');
       }
       else if (ctx.isShortcut(e, 'focusInput')) {
         e.preventDefault();
@@ -255,6 +283,7 @@ export function useMainKeyboardHandler(): UseMainKeyboardHandlerReturn {
           ctx.setActiveFocus('main');
           setTimeout(() => targetInputRef?.current?.focus(), 0);
         }
+        trackShortcut('focusInput');
       }
       else if (ctx.isShortcut(e, 'focusSidebar')) {
         e.preventDefault();
@@ -265,15 +294,18 @@ export function useMainKeyboardHandler(): UseMainKeyboardHandlerReturn {
         // Focus the sidebar (both logical state and DOM focus for keyboard events like Cmd+F)
         ctx.setActiveFocus('sidebar');
         setTimeout(() => ctx.sidebarContainerRef?.current?.focus(), 0);
+        trackShortcut('focusSidebar');
       }
       else if (ctx.isShortcut(e, 'viewGitDiff') && !ctx.activeGroupChatId) {
         e.preventDefault();
         ctx.handleViewGitDiff();
+        trackShortcut('viewGitDiff');
       }
       else if (ctx.isShortcut(e, 'viewGitLog') && !ctx.activeGroupChatId) {
         e.preventDefault();
         if (ctx.activeSession?.isGitRepo) {
           ctx.setGitLogOpen(true);
+          trackShortcut('viewGitLog');
         }
       }
       else if (ctx.isShortcut(e, 'agentSessions')) {
@@ -282,20 +314,24 @@ export function useMainKeyboardHandler(): UseMainKeyboardHandlerReturn {
         if (ctx.hasActiveSessionCapability('supportsSessionStorage')) {
           ctx.setActiveAgentSessionId(null);
           ctx.setAgentSessionsOpen(true);
+          trackShortcut('agentSessions');
         }
       }
       else if (ctx.isShortcut(e, 'systemLogs')) {
         e.preventDefault();
         ctx.setLogViewerOpen(true);
+        trackShortcut('systemLogs');
       }
       else if (ctx.isShortcut(e, 'processMonitor')) {
         e.preventDefault();
         ctx.setProcessMonitorOpen(true);
+        trackShortcut('processMonitor');
       }
       else if (ctx.isShortcut(e, 'jumpToBottom')) {
         e.preventDefault();
         // Jump to the bottom of the current main panel output (AI logs or terminal output)
         ctx.logsEndRef.current?.scrollIntoView({ behavior: 'instant' });
+        trackShortcut('jumpToBottom');
       }
       else if (ctx.isShortcut(e, 'toggleMarkdownMode')) {
         // Toggle markdown raw mode for AI message history
@@ -309,12 +345,14 @@ export function useMainKeyboardHandler(): UseMainKeyboardHandlerReturn {
         if (!isInAutoRunPanel && !isInAutoRunDOM && !ctx.previewFile) {
           e.preventDefault();
           ctx.setMarkdownEditMode(!ctx.markdownEditMode);
+          trackShortcut('toggleMarkdownMode');
         }
       }
       else if (ctx.isShortcut(e, 'toggleAutoRunExpanded')) {
         // Toggle Auto Run expanded/contracted view
         e.preventDefault();
         ctx.rightPanelRef?.current?.toggleAutoRunExpanded();
+        trackShortcut('toggleAutoRunExpanded');
       }
 
       // Opt+Cmd+NUMBER: Jump to visible session by number (1-9, 0=10th)
@@ -328,6 +366,7 @@ export function useMainKeyboardHandler(): UseMainKeyboardHandlerReturn {
         if (targetIndex >= 0 && targetIndex < ctx.visibleSessions.length) {
           const targetSession = ctx.visibleSessions[targetIndex];
           ctx.setActiveSessionId(targetSession.id);
+          trackShortcut('jumpToSession');
           // Also expand sidebar if collapsed
           if (!ctx.leftSidebarOpen) {
             ctx.setLeftSidebarOpen(true);
@@ -340,6 +379,7 @@ export function useMainKeyboardHandler(): UseMainKeyboardHandlerReturn {
         if (ctx.isTabShortcut(e, 'tabSwitcher')) {
           e.preventDefault();
           ctx.setTabSwitcherOpen(true);
+          trackShortcut('tabSwitcher');
         }
         if (ctx.isTabShortcut(e, 'newTab')) {
           e.preventDefault();
@@ -351,6 +391,7 @@ export function useMainKeyboardHandler(): UseMainKeyboardHandlerReturn {
             // Auto-focus the input so user can start typing immediately
             ctx.setActiveFocus('main');
             setTimeout(() => ctx.inputRef.current?.focus(), 50);
+            trackShortcut('newTab');
           }
         }
         if (ctx.isTabShortcut(e, 'closeTab')) {
@@ -361,6 +402,7 @@ export function useMainKeyboardHandler(): UseMainKeyboardHandlerReturn {
             ctx.setSessions((prev: Session[]) => prev.map((s: Session) =>
               s.id === ctx.activeSession!.id ? result.session : s
             ));
+            trackShortcut('closeTab');
           }
         }
         if (ctx.isTabShortcut(e, 'reopenClosedTab')) {
@@ -371,6 +413,7 @@ export function useMainKeyboardHandler(): UseMainKeyboardHandlerReturn {
             ctx.setSessions((prev: Session[]) => prev.map((s: Session) =>
               s.id === ctx.activeSession!.id ? result.session : s
             ));
+            trackShortcut('reopenClosedTab');
           }
         }
         if (ctx.isTabShortcut(e, 'renameTab')) {
@@ -381,6 +424,7 @@ export function useMainKeyboardHandler(): UseMainKeyboardHandlerReturn {
             ctx.setRenameTabId(activeTab.id);
             ctx.setRenameTabInitialName(getInitialRenameValue(activeTab));
             ctx.setRenameTabModalOpen(true);
+            trackShortcut('renameTab');
           }
         }
         if (ctx.isTabShortcut(e, 'toggleReadOnlyMode')) {
@@ -394,6 +438,7 @@ export function useMainKeyboardHandler(): UseMainKeyboardHandlerReturn {
               )
             };
           }));
+          trackShortcut('toggleReadOnlyMode');
         }
         if (ctx.isTabShortcut(e, 'toggleSaveToHistory')) {
           e.preventDefault();
@@ -406,6 +451,7 @@ export function useMainKeyboardHandler(): UseMainKeyboardHandlerReturn {
               )
             };
           }));
+          trackShortcut('toggleSaveToHistory');
         }
         if (ctx.isTabShortcut(e, 'toggleShowThinking')) {
           e.preventDefault();
@@ -423,14 +469,17 @@ export function useMainKeyboardHandler(): UseMainKeyboardHandlerReturn {
               })
             };
           }));
+          trackShortcut('toggleShowThinking');
         }
         if (ctx.isTabShortcut(e, 'filterUnreadTabs')) {
           e.preventDefault();
           ctx.toggleUnreadFilter();
+          trackShortcut('filterUnreadTabs');
         }
         if (ctx.isTabShortcut(e, 'toggleTabUnread')) {
           e.preventDefault();
           ctx.toggleTabUnread();
+          trackShortcut('toggleTabUnread');
         }
         if (ctx.isTabShortcut(e, 'nextTab')) {
           e.preventDefault();
@@ -439,6 +488,7 @@ export function useMainKeyboardHandler(): UseMainKeyboardHandlerReturn {
             ctx.setSessions((prev: Session[]) => prev.map((s: Session) =>
               s.id === ctx.activeSession!.id ? result.session : s
             ));
+            trackShortcut('nextTab');
           }
         }
         if (ctx.isTabShortcut(e, 'prevTab')) {
@@ -448,6 +498,7 @@ export function useMainKeyboardHandler(): UseMainKeyboardHandlerReturn {
             ctx.setSessions((prev: Session[]) => prev.map((s: Session) =>
               s.id === ctx.activeSession!.id ? result.session : s
             ));
+            trackShortcut('prevTab');
           }
         }
         // Cmd+1 through Cmd+9: Jump to specific tab by index (disabled in unread-only mode)
@@ -460,6 +511,7 @@ export function useMainKeyboardHandler(): UseMainKeyboardHandlerReturn {
                 ctx.setSessions((prev: Session[]) => prev.map((s: Session) =>
                   s.id === ctx.activeSession!.id ? result.session : s
                 ));
+                trackShortcut(`goToTab${i}`);
               }
               break;
             }
@@ -472,15 +524,28 @@ export function useMainKeyboardHandler(): UseMainKeyboardHandlerReturn {
               ctx.setSessions((prev: Session[]) => prev.map((s: Session) =>
                 s.id === ctx.activeSession!.id ? result.session : s
               ));
+              trackShortcut('goToLastTab');
             }
           }
         }
       }
 
-      // Cmd+F to open file tree filter when file tree has focus
-      if (e.key === 'f' && (e.metaKey || e.ctrlKey) && ctx.activeFocus === 'right' && ctx.activeRightTab === 'files') {
-        e.preventDefault();
-        ctx.setFileTreeFilterOpen(true);
+      // Cmd+F contextual shortcuts - track based on current focus/context
+      if (e.key === 'f' && (e.metaKey || e.ctrlKey) && !e.shiftKey) {
+        if (ctx.activeFocus === 'right' && ctx.activeRightTab === 'files') {
+          e.preventDefault();
+          ctx.setFileTreeFilterOpen(true);
+          trackShortcut('filterFiles');
+        } else if (ctx.activeFocus === 'sidebar') {
+          // Sidebar filter - handled by SessionList component, just track here
+          trackShortcut('filterSessions');
+        } else if (ctx.activeFocus === 'right' && ctx.activeRightTab === 'history') {
+          // History filter - handled by HistoryPanel component, just track here
+          trackShortcut('filterHistory');
+        } else if (ctx.activeFocus === 'main') {
+          // Main panel search - handled by TerminalOutput component, just track here
+          trackShortcut('searchOutput');
+        }
       }
     };
     window.addEventListener('keydown', handleKeyDown);

@@ -8,11 +8,16 @@
 
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { X, Trophy, Mail, User, Loader2, Check, AlertCircle, ExternalLink, UserX, Key, RefreshCw } from 'lucide-react';
-import type { Theme, AutoRunStats, LeaderboardRegistration } from '../types';
+import type { Theme, AutoRunStats, LeaderboardRegistration, KeyboardMasteryStats } from '../types';
 import { useLayerStack } from '../contexts/LayerStackContext';
 import { MODAL_PRIORITIES } from '../constants/modalPriorities';
 import { getBadgeForTime } from '../constants/conductorBadges';
+import { KEYBOARD_MASTERY_LEVELS } from '../constants/keyboardMastery';
+import { DEFAULT_SHORTCUTS, TAB_SHORTCUTS, FIXED_SHORTCUTS } from '../constants/shortcuts';
 import { generateId } from '../utils/ids';
+
+// Total shortcuts for calculating mastery percentage
+const TOTAL_SHORTCUTS_COUNT = Object.keys(DEFAULT_SHORTCUTS).length + Object.keys(TAB_SHORTCUTS).length + Object.keys(FIXED_SHORTCUTS).length;
 
 // Social media icons as SVG components
 const GithubIcon = ({ className, style }: { className?: string; style?: React.CSSProperties }) => (
@@ -42,6 +47,7 @@ const DiscordIcon = ({ className, style }: { className?: string; style?: React.C
 interface LeaderboardRegistrationModalProps {
   theme: Theme;
   autoRunStats: AutoRunStats;
+  keyboardMasteryStats: KeyboardMasteryStats;
   existingRegistration: LeaderboardRegistration | null;
   onClose: () => void;
   onSave: (registration: LeaderboardRegistration) => void;
@@ -61,6 +67,7 @@ const AUTH_TOKEN_LOST_MESSAGE = 'Your email is confirmed but we seem to have los
 export function LeaderboardRegistrationModal({
   theme,
   autoRunStats,
+  keyboardMasteryStats,
   existingRegistration,
   onClose,
   onSave,
@@ -101,6 +108,14 @@ export function LeaderboardRegistrationModal({
   const currentBadge = getBadgeForTime(autoRunStats.cumulativeTimeMs);
   const badgeLevel = currentBadge?.level || 0;
   const badgeName = currentBadge?.name || 'No Badge Yet';
+
+  // Calculate keyboard mastery info (aligned with RunMaestro.ai server schema)
+  // Server expects 1-5, we store 0-4, so add 1 for display friendliness
+  const keyboardMasteryLevel = keyboardMasteryStats.currentLevel + 1;
+  const keyboardMasteryTitle = KEYBOARD_MASTERY_LEVELS[keyboardMasteryStats.currentLevel]?.name || 'Beginner';
+  const keyboardKeysUnlocked = keyboardMasteryStats.usedShortcuts.length;
+  const keyboardTotalKeys = TOTAL_SHORTCUTS_COUNT;
+  const keyboardCoveragePercent = Math.round((keyboardKeysUnlocked / keyboardTotalKeys) * 100);
 
   // Check if we need to recover auth token (email confirmed but no token)
   const needsAuthTokenRecovery = existingRegistration?.emailConfirmed && !existingRegistration?.authToken && existingRegistration?.clientToken;
@@ -204,6 +219,12 @@ export function LeaderboardRegistrationModal({
         theme: theme.id,
         clientToken,
         authToken: existingRegistration?.authToken,
+        // Keyboard mastery data (aligned with RunMaestro.ai server schema)
+        keyboardMasteryLevel,
+        keyboardMasteryTitle,
+        keyboardCoveragePercent,
+        keyboardKeysUnlocked,
+        keyboardTotalKeys,
       });
 
       if (result.success) {
@@ -279,6 +300,12 @@ export function LeaderboardRegistrationModal({
                 theme: theme.id,
                 clientToken,
                 authToken: pollResult.authToken,
+                // Keyboard mastery data (aligned with RunMaestro.ai server schema)
+                keyboardMasteryLevel,
+                keyboardMasteryTitle,
+                keyboardCoveragePercent,
+                keyboardKeysUnlocked,
+                keyboardTotalKeys,
               });
 
               if (retryResult.success) {
@@ -307,7 +334,7 @@ export function LeaderboardRegistrationModal({
       setSubmitState('error');
       setErrorMessage(error instanceof Error ? error.message : 'An unexpected error occurred');
     }
-  }, [isFormValid, email, displayName, githubUsername, twitterHandle, linkedinHandle, discordUsername, badgeLevel, badgeName, autoRunStats, existingRegistration, onSave, theme.id, clientToken, startPolling]);
+  }, [isFormValid, email, displayName, githubUsername, twitterHandle, linkedinHandle, discordUsername, badgeLevel, badgeName, autoRunStats, existingRegistration, onSave, theme.id, clientToken, startPolling, keyboardMasteryLevel, keyboardMasteryTitle, keyboardCoveragePercent, keyboardKeysUnlocked, keyboardTotalKeys]);
 
   // Handle manual token submission
   const handleManualTokenSubmit = useCallback(async () => {
@@ -355,6 +382,12 @@ export function LeaderboardRegistrationModal({
         theme: theme.id,
         clientToken,
         authToken: manualToken.trim(),
+        // Keyboard mastery data (aligned with RunMaestro.ai server schema)
+        keyboardMasteryLevel,
+        keyboardMasteryTitle,
+        keyboardCoveragePercent,
+        keyboardKeysUnlocked,
+        keyboardTotalKeys,
       });
 
       if (result.success) {
@@ -368,7 +401,7 @@ export function LeaderboardRegistrationModal({
       setSubmitState('error');
       setErrorMessage(error instanceof Error ? error.message : 'An unexpected error occurred');
     }
-  }, [manualToken, email, displayName, twitterHandle, githubUsername, linkedinHandle, discordUsername, existingRegistration, clientToken, onSave, autoRunStats, badgeLevel, badgeName, theme.id]);
+  }, [manualToken, email, displayName, twitterHandle, githubUsername, linkedinHandle, discordUsername, existingRegistration, clientToken, onSave, autoRunStats, badgeLevel, badgeName, theme.id, keyboardMasteryLevel, keyboardMasteryTitle, keyboardCoveragePercent, keyboardKeysUnlocked, keyboardTotalKeys]);
 
   // Cleanup polling on unmount
   useEffect(() => {

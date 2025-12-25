@@ -19,6 +19,7 @@ interface LogViewerProps {
   logLevel?: string; // Current log level setting (debug, info, warn, error)
   savedSelectedLevels?: string[]; // Persisted filter selections
   onSelectedLevelsChange?: (levels: string[]) => void; // Callback to persist filter changes
+  onShortcutUsed?: (shortcutId: string) => void; // Keyboard mastery tracking
 }
 
 // Log level priority for determining which levels are enabled
@@ -39,7 +40,7 @@ const LOG_LEVEL_COLORS: Record<string, { fg: string; bg: string }> = {
   autorun: { fg: '#f97316', bg: 'rgba(249, 115, 22, 0.15)' }, // Orange
 };
 
-export function LogViewer({ theme, onClose, logLevel = 'info', savedSelectedLevels, onSelectedLevelsChange }: LogViewerProps) {
+export function LogViewer({ theme, onClose, logLevel = 'info', savedSelectedLevels, onSelectedLevelsChange, onShortcutUsed }: LogViewerProps) {
   const [logs, setLogs] = useState<SystemLogEntry[]>([]);
   const [filteredLogs, setFilteredLogs] = useState<SystemLogEntry[]>([]);
   const [searchOpen, setSearchOpen] = useState(false);
@@ -279,6 +280,7 @@ export function LogViewer({ theme, onClose, logLevel = 'info', savedSelectedLeve
     if (e.key === 'f' && (e.metaKey || e.ctrlKey) && !searchOpen && document.activeElement !== searchInputRef.current) {
       e.preventDefault();
       setSearchOpen(true);
+      onShortcutUsed?.('searchLogs');
     }
     // Jump to top/bottom with Cmd+Up/Down
     else if ((e.metaKey || e.ctrlKey) && e.key === 'ArrowUp' && !searchOpen) {

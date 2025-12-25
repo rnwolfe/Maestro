@@ -199,6 +199,9 @@ interface MainPanelProps {
   contextWarningsEnabled?: boolean;
   contextWarningYellowThreshold?: number;
   contextWarningRedThreshold?: number;
+
+  // Keyboard mastery tracking
+  onShortcutUsed?: (shortcutId: string) => void;
 }
 
 export const MainPanel = forwardRef<MainPanelHandle, MainPanelProps>(function MainPanel(props, ref) {
@@ -419,6 +422,7 @@ export const MainPanel = forwardRef<MainPanelHandle, MainPanelProps>(function Ma
           logLevel={logLevel}
           savedSelectedLevels={props.logViewerSelectedLevels}
           onSelectedLevelsChange={props.setLogViewerSelectedLevels}
+          onShortcutUsed={props.onShortcutUsed}
         />
       </div>
     );
@@ -946,6 +950,7 @@ export const MainPanel = forwardRef<MainPanelHandle, MainPanelProps>(function Ma
                 currentHistoryIndex={props.currentHistoryIndex}
                 onNavigateToIndex={props.onNavigateToIndex}
                 onOpenFuzzySearch={props.onOpenFuzzySearch}
+                onShortcutUsed={props.onShortcutUsed}
               />
             </div>
           ) : (

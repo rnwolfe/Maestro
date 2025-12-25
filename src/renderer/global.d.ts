@@ -1115,6 +1115,12 @@ interface MaestroAPI {
       theme?: string;
       clientToken?: string;
       authToken?: string;
+      // Keyboard mastery data (aligned with RunMaestro.ai server schema)
+      keyboardMasteryLevel?: number;
+      keyboardMasteryTitle?: string;
+      keyboardCoveragePercent?: number;
+      keyboardKeysUnlocked?: number;
+      keyboardTotalKeys?: number;
     }) => Promise<{
       success: boolean;
       message: string;

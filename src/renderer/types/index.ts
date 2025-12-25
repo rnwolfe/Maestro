@@ -585,6 +585,10 @@ export interface LeaderboardRegistration {
   // Authentication
   clientToken?: string;          // Client-generated token for polling auth status
   authToken?: string;            // 64-character token received after email confirmation
+  // Keyboard mastery data
+  keyboardMasteryLevel?: number;       // 0-4 (Beginner to Maestro)
+  keyboardMasteryLevelName?: string;   // Level name
+  keyboardMasteryPercentage?: number;  // 0-100
 }
 
 // Ranking info for a single leaderboard category
@@ -593,6 +597,16 @@ export interface LeaderboardRankingInfo {
   total: number;          // Total entries on leaderboard
   previousRank: number | null;  // Previous position (null if new entry)
   improved: boolean;      // Did they move up?
+}
+
+// Keyboard Mastery gamification types
+export type KeyboardMasteryLevel = 'beginner' | 'student' | 'performer' | 'virtuoso' | 'maestro';
+
+export interface KeyboardMasteryStats {
+  usedShortcuts: string[];        // Array of shortcut IDs that have been used
+  currentLevel: number;           // 0-4 (Beginner to Keyboard Maestro)
+  lastLevelUpTimestamp: number;   // When user last leveled up
+  lastAcknowledgedLevel: number;  // Last level user dismissed celebration for
 }
 
 // Response from leaderboard submission API

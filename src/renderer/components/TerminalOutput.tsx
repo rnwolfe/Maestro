@@ -438,7 +438,7 @@ const LogItemComponent = memo(({
                 borderColor: theme.colors.accent,
               }}
             >
-              <div className="flex items-center gap-2">
+              <div className="flex items-start gap-2">
                 <span
                   className="px-1.5 py-0.5 rounded shrink-0"
                   style={{
@@ -449,16 +449,15 @@ const LogItemComponent = memo(({
                   {log.text}
                 </span>
                 {log.metadata?.toolState?.status === 'running' && (
-                  <span className="animate-pulse shrink-0" style={{ color: theme.colors.warning }}>●</span>
+                  <span className="animate-pulse shrink-0 pt-0.5" style={{ color: theme.colors.warning }}>●</span>
                 )}
                 {log.metadata?.toolState?.status === 'completed' && (
-                  <span className="shrink-0" style={{ color: theme.colors.success }}>✓</span>
+                  <span className="shrink-0 pt-0.5" style={{ color: theme.colors.success }}>✓</span>
                 )}
                 {toolDetail && (
                   <span
-                    className="truncate opacity-70"
+                    className="opacity-70 break-all whitespace-pre-wrap"
                     style={{ color: theme.colors.textMain }}
-                    title={toolDetail}
                   >
                     {toolDetail}
                   </span>

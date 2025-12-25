@@ -140,6 +140,15 @@ export function registerSystemHandlers(deps: SystemHandlerDependencies): void {
 
   // Shell operations - open external URLs
   ipcMain.handle('shell:openExternal', async (_event, url: string) => {
+    // Validate URL before opening - Fixes MAESTRO-1S
+    if (!url || typeof url !== 'string') {
+      throw new Error('Invalid URL: URL must be a non-empty string');
+    }
+    try {
+      new URL(url);
+    } catch {
+      throw new Error(`Invalid URL: ${url}`);
+    }
     await shell.openExternal(url);
   });
 

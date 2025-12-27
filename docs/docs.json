@@ -93,6 +93,10 @@
       {
         "label": "GitHub",
         "href": "https://github.com/pedramamini/Maestro"
+      },
+      {
+        "label": "Homepage",
+        "href": "https://runmaestro.ai"
       }
     ],
     "primary": {

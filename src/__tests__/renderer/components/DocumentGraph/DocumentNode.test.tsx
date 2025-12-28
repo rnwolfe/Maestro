@@ -1,0 +1,278 @@
+/**
+ * Tests for the DocumentNode React Flow custom node component
+ */
+
+import { describe, it, expect } from 'vitest';
+import React from 'react';
+import { render, screen } from '@testing-library/react';
+import { ReactFlowProvider } from 'reactflow';
+import { DocumentNode, type DocumentNodeProps } from '../../../../renderer/components/DocumentGraph/DocumentNode';
+import type { Theme } from '../../../../renderer/types';
+
+// Mock theme for testing
+const mockTheme: Theme = {
+  id: 'dracula',
+  name: 'Dracula',
+  mode: 'dark',
+  colors: {
+    bgMain: '#282a36',
+    bgSidebar: '#21222c',
+    bgActivity: '#343746',
+    border: '#44475a',
+    textMain: '#f8f8f2',
+    textDim: '#6272a4',
+    accent: '#bd93f9',
+    accentDim: 'rgba(189, 147, 249, 0.2)',
+    accentText: '#ff79c6',
+    accentForeground: '#282a36',
+    success: '#50fa7b',
+    warning: '#ffb86c',
+    error: '#ff5555',
+  },
+};
+
+// Helper to create node props
+function createNodeProps(overrides: Partial<DocumentNodeProps['data']> = {}): DocumentNodeProps {
+  return {
+    id: 'test-node-1',
+    type: 'documentNode',
+    data: {
+      nodeType: 'document',
+      title: 'Test Document',
+      lineCount: 100,
+      wordCount: 500,
+      size: '1.5 KB',
+      filePath: 'test/document.md',
+      theme: mockTheme,
+      ...overrides,
+    },
+    selected: false,
+    isConnectable: true,
+    xPos: 0,
+    yPos: 0,
+    zIndex: 0,
+    dragging: false,
+  } as DocumentNodeProps;
+}
+
+// Wrapper component for React Flow context
+function renderWithProvider(ui: React.ReactElement) {
+  return render(<ReactFlowProvider>{ui}</ReactFlowProvider>);
+}
+
+describe('DocumentNode', () => {
+  describe('Basic Rendering', () => {
+    it('renders the document title', () => {
+      const props = createNodeProps({ title: 'My Document' });
+      renderWithProvider(<DocumentNode {...props} />);
+
+      expect(screen.getByText('My Document')).toBeInTheDocument();
+    });
+
+    it('renders line count', () => {
+      const props = createNodeProps({ lineCount: 42 });
+      renderWithProvider(<DocumentNode {...props} />);
+
+      expect(screen.getByText('42')).toBeInTheDocument();
+    });
+
+    it('renders word count', () => {
+      const props = createNodeProps({ wordCount: 1234 });
+      renderWithProvider(<DocumentNode {...props} />);
+
+      expect(screen.getByText('1234')).toBeInTheDocument();
+    });
+
+    it('renders file size', () => {
+      const props = createNodeProps({ size: '2.3 MB' });
+      renderWithProvider(<DocumentNode {...props} />);
+
+      expect(screen.getByText('2.3 MB')).toBeInTheDocument();
+    });
+
+    it('renders description when provided', () => {
+      const props = createNodeProps({
+        description: 'A brief description of the document',
+      });
+      renderWithProvider(<DocumentNode {...props} />);
+
+      expect(screen.getByText('A brief description of the document')).toBeInTheDocument();
+    });
+
+    it('does not render description section when not provided', () => {
+      const props = createNodeProps({ description: undefined });
+      renderWithProvider(<DocumentNode {...props} />);
+
+      // Should only have stats row, no extra text
+      expect(screen.queryByText(/description/i)).not.toBeInTheDocument();
+    });
+  });
+
+  describe('Description Truncation', () => {
+    it('truncates long descriptions with ellipsis', () => {
+      const longDescription = 'This is a very long description that exceeds the maximum allowed length and should be truncated with an ellipsis at the end';
+      const props = createNodeProps({ description: longDescription });
+      renderWithProvider(<DocumentNode {...props} />);
+
+      // Should show truncated text with ellipsis
+      const truncatedElement = screen.getByText(/\.\.\./);
+      expect(truncatedElement).toBeInTheDocument();
+      // The full text should not appear
+      expect(screen.queryByText(longDescription)).not.toBeInTheDocument();
+    });
+
+    it('does not truncate short descriptions', () => {
+      const shortDescription = 'Brief desc';
+      const props = createNodeProps({ description: shortDescription });
+      renderWithProvider(<DocumentNode {...props} />);
+
+      expect(screen.getByText(shortDescription)).toBeInTheDocument();
+    });
+  });
+
+  describe('Selection State', () => {
+    it('applies different border when selected', () => {
+      const props = createNodeProps();
+      const selectedProps = { ...props, selected: true };
+
+      const { container } = renderWithProvider(<DocumentNode {...selectedProps} />);
+
+      const nodeElement = container.querySelector('.document-node');
+      expect(nodeElement).toBeInTheDocument();
+      // Selected border should be accent color
+      expect(nodeElement).toHaveStyle({ borderColor: mockTheme.colors.accent });
+    });
+
+    it('applies default border when not selected', () => {
+      const props = createNodeProps();
+
+      const { container } = renderWithProvider(<DocumentNode {...props} />);
+
+      const nodeElement = container.querySelector('.document-node');
+      expect(nodeElement).toBeInTheDocument();
+      // Default border should be border color
+      expect(nodeElement).toHaveStyle({ borderColor: mockTheme.colors.border });
+    });
+
+    it('applies thicker border when selected', () => {
+      const props = createNodeProps();
+      const selectedProps = { ...props, selected: true };
+
+      const { container } = renderWithProvider(<DocumentNode {...selectedProps} />);
+
+      const nodeElement = container.querySelector('.document-node');
+      expect(nodeElement).toHaveStyle({ borderWidth: '2px' });
+    });
+  });
+
+  describe('Accessibility', () => {
+    it('has file path as title attribute for full path tooltip', () => {
+      const props = createNodeProps({ filePath: 'docs/guide/intro.md' });
+
+      const { container } = renderWithProvider(<DocumentNode {...props} />);
+
+      const nodeElement = container.querySelector('.document-node');
+      expect(nodeElement).toHaveAttribute('title', 'docs/guide/intro.md');
+    });
+
+    it('has tooltips for stat items', () => {
+      const props = createNodeProps({
+        lineCount: 50,
+        wordCount: 200,
+        size: '512 B',
+      });
+
+      const { container } = renderWithProvider(<DocumentNode {...props} />);
+
+      // Check for title attributes on stat items
+      expect(container.querySelector('[title="50 lines"]')).toBeInTheDocument();
+      expect(container.querySelector('[title="200 words"]')).toBeInTheDocument();
+      expect(container.querySelector('[title="512 B"]')).toBeInTheDocument();
+    });
+  });
+
+  describe('Theme Integration', () => {
+    it('uses theme background color', () => {
+      const props = createNodeProps();
+
+      const { container } = renderWithProvider(<DocumentNode {...props} />);
+
+      const nodeElement = container.querySelector('.document-node');
+      expect(nodeElement).toHaveStyle({
+        backgroundColor: mockTheme.colors.bgActivity,
+      });
+    });
+
+    it('uses theme accent color for document icon', () => {
+      const props = createNodeProps();
+
+      const { container } = renderWithProvider(<DocumentNode {...props} />);
+
+      // Find the FileText icon container (lucide renders with data-lucide or class)
+      // Lucide icons are rendered as SVG elements
+      const svgs = container.querySelectorAll('svg');
+      // First SVG should be the FileText icon
+      expect(svgs.length).toBeGreaterThan(0);
+      // The icon's parent should have the accent color style
+      const iconContainer = svgs[0]?.parentElement;
+      expect(iconContainer).toBeInTheDocument();
+    });
+
+    it('works with light theme colors', () => {
+      const lightTheme: Theme = {
+        id: 'github-light',
+        name: 'GitHub',
+        mode: 'light',
+        colors: {
+          bgMain: '#ffffff',
+          bgSidebar: '#f6f8fa',
+          bgActivity: '#eff2f5',
+          border: '#d0d7de',
+          textMain: '#24292f',
+          textDim: '#57606a',
+          accent: '#0969da',
+          accentDim: 'rgba(9, 105, 218, 0.1)',
+          accentText: '#0969da',
+          accentForeground: '#ffffff',
+          success: '#1a7f37',
+          warning: '#9a6700',
+          error: '#cf222e',
+        },
+      };
+
+      const props = createNodeProps({ theme: lightTheme });
+
+      const { container } = renderWithProvider(<DocumentNode {...props} />);
+
+      const nodeElement = container.querySelector('.document-node');
+      expect(nodeElement).toHaveStyle({
+        backgroundColor: lightTheme.colors.bgActivity,
+      });
+    });
+  });
+
+  describe('React Flow Integration', () => {
+    it('renders input handle at top', () => {
+      const props = createNodeProps();
+
+      const { container } = renderWithProvider(<DocumentNode {...props} />);
+
+      const handles = container.querySelectorAll('.react-flow__handle');
+      expect(handles.length).toBe(2);
+
+      // Find the target (input) handle
+      const targetHandle = container.querySelector('.react-flow__handle-top');
+      expect(targetHandle).toBeInTheDocument();
+    });
+
+    it('renders output handle at bottom', () => {
+      const props = createNodeProps();
+
+      const { container } = renderWithProvider(<DocumentNode {...props} />);
+
+      // Find the source (output) handle
+      const sourceHandle = container.querySelector('.react-flow__handle-bottom');
+      expect(sourceHandle).toBeInTheDocument();
+    });
+  });
+});

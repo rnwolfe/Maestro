@@ -118,9 +118,10 @@ export interface AppInfoModalsProps {
   // About Modal
   aboutModalOpen: boolean;
   onCloseAboutModal: () => void;
-  sessions: Session[];
   autoRunStats: AutoRunStats;
   usageStats?: MaestroUsageStats | null;
+  /** Global hands-on time in milliseconds (from settings) */
+  handsOnTimeMs: number;
   onOpenLeaderboardRegistration: () => void;
   isLeaderboardRegistered: boolean;
   leaderboardRegistration?: LeaderboardRegistration | null;
@@ -132,6 +133,7 @@ export interface AppInfoModalsProps {
   // Process Monitor
   processMonitorOpen: boolean;
   onCloseProcessMonitor: () => void;
+  sessions: Session[];  // Used by ProcessMonitor
   groups: Group[];
   groupChats: GroupChat[];
   onNavigateToSession: (sessionId: string, tabId?: string) => void;
@@ -162,9 +164,9 @@ export function AppInfoModals({
   // About Modal
   aboutModalOpen,
   onCloseAboutModal,
-  sessions,
   autoRunStats,
   usageStats,
+  handsOnTimeMs,
   onOpenLeaderboardRegistration,
   isLeaderboardRegistered,
   leaderboardRegistration,
@@ -174,6 +176,7 @@ export function AppInfoModals({
   // Process Monitor
   processMonitorOpen,
   onCloseProcessMonitor,
+  sessions,
   groups,
   groupChats,
   onNavigateToSession,
@@ -197,9 +200,9 @@ export function AppInfoModals({
       {aboutModalOpen && (
         <AboutModal
           theme={theme}
-          sessions={sessions}
           autoRunStats={autoRunStats}
           usageStats={usageStats}
+          handsOnTimeMs={handsOnTimeMs}
           onClose={onCloseAboutModal}
           onOpenLeaderboardRegistration={onOpenLeaderboardRegistration}
           isLeaderboardRegistered={isLeaderboardRegistered}
@@ -1581,6 +1584,8 @@ export interface AppModalsProps {
   onCloseAboutModal: () => void;
   autoRunStats: AutoRunStats;
   usageStats?: MaestroUsageStats | null;
+  /** Global hands-on time in milliseconds (from settings) */
+  handsOnTimeMs: number;
   onOpenLeaderboardRegistration: () => void;
   isLeaderboardRegistered: boolean;
   // leaderboardRegistration is provided via AppAgentModals props below
@@ -1870,6 +1875,7 @@ export function AppModals(props: AppModalsProps) {
     onCloseAboutModal,
     autoRunStats,
     usageStats,
+    handsOnTimeMs,
     onOpenLeaderboardRegistration,
     isLeaderboardRegistered,
     // leaderboardRegistration is destructured below in Agent modals section
@@ -2112,9 +2118,9 @@ export function AppModals(props: AppModalsProps) {
         keyboardMasteryStats={keyboardMasteryStats}
         aboutModalOpen={aboutModalOpen}
         onCloseAboutModal={onCloseAboutModal}
-        sessions={sessions}
         autoRunStats={autoRunStats}
         usageStats={usageStats}
+        handsOnTimeMs={handsOnTimeMs}
         onOpenLeaderboardRegistration={onOpenLeaderboardRegistration}
         isLeaderboardRegistered={isLeaderboardRegistered}
         leaderboardRegistration={leaderboardRegistration}
@@ -2122,6 +2128,7 @@ export function AppModals(props: AppModalsProps) {
         onCloseUpdateCheckModal={onCloseUpdateCheckModal}
         processMonitorOpen={processMonitorOpen}
         onCloseProcessMonitor={onCloseProcessMonitor}
+        sessions={sessions}
         groups={groups}
         groupChats={groupChats}
         onNavigateToSession={onNavigateToSession}

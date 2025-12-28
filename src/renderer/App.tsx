@@ -37,6 +37,7 @@ import {
   useDebouncedPersistence,
   // Session management
   useActivityTracker,
+  useHandsOnTimeTracker,
   useNavigationHistory,
   useSessionNavigation,
   useSortedSessions,
@@ -276,7 +277,7 @@ function MaestroConsoleInner() {
     shortcuts, setShortcuts,
     tabShortcuts, setTabShortcuts,
     customAICommands, setCustomAICommands,
-    globalStats: _globalStats, updateGlobalStats,
+    globalStats, updateGlobalStats,
     autoRunStats, recordAutoRunComplete, updateAutoRunProgress, acknowledgeBadge, getUnacknowledgedBadgeLevel,
     usageStats, updateUsageStats,
     tourCompleted: _tourCompleted, setTourCompleted,
@@ -3952,8 +3953,12 @@ function MaestroConsoleInner() {
     onHistoryCommand: handleHistoryCommand,
   });
 
-  // Initialize activity tracker for time tracking
+  // Initialize activity tracker for per-session time tracking
   useActivityTracker(activeSessionId, setSessions);
+
+  // Initialize global hands-on time tracker (persists to settings)
+  // Tracks total time user spends actively using Maestro (5-minute idle timeout)
+  useHandsOnTimeTracker(updateGlobalStats);
 
   // Track elapsed time for active auto-runs and update achievement stats every minute
   // This allows badges to be unlocked during an auto-run, not just when it completes
@@ -8148,6 +8153,7 @@ function MaestroConsoleInner() {
         onCloseAboutModal={handleCloseAboutModal}
         autoRunStats={autoRunStats}
         usageStats={usageStats}
+        handsOnTimeMs={globalStats.totalActiveTimeMs}
         onOpenLeaderboardRegistration={handleOpenLeaderboardRegistrationFromAbout}
         isLeaderboardRegistered={isLeaderboardRegistered}
         updateCheckModalOpen={updateCheckModalOpen}

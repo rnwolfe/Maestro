@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { X, Wand2, ExternalLink, FileCode, BarChart3, Loader2, Trophy, Globe, Check, BookOpen } from 'lucide-react';
-import type { Theme, Session, AutoRunStats, MaestroUsageStats, LeaderboardRegistration } from '../types';
+import type { Theme, AutoRunStats, MaestroUsageStats, LeaderboardRegistration } from '../types';
 import { MODAL_PRIORITIES } from '../constants/modalPriorities';
 import pedramAvatar from '../assets/pedram-avatar.png';
 import { AchievementCard } from './AchievementCard';
@@ -32,16 +32,17 @@ interface GlobalAgentStats {
 
 interface AboutModalProps {
   theme: Theme;
-  sessions: Session[];
   autoRunStats: AutoRunStats;
   usageStats?: MaestroUsageStats | null;
+  /** Global hands-on time in milliseconds (from settings, persists across sessions) */
+  handsOnTimeMs: number;
   onClose: () => void;
   onOpenLeaderboardRegistration?: () => void;
   isLeaderboardRegistered?: boolean;
   leaderboardRegistration?: LeaderboardRegistration | null;
 }
 
-export function AboutModal({ theme, sessions, autoRunStats, usageStats, onClose, onOpenLeaderboardRegistration, isLeaderboardRegistered, leaderboardRegistration }: AboutModalProps) {
+export function AboutModal({ theme, autoRunStats, usageStats, handsOnTimeMs, onClose, onOpenLeaderboardRegistration, isLeaderboardRegistered, leaderboardRegistration }: AboutModalProps) {
   const [globalStats, setGlobalStats] = useState<GlobalAgentStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [isStatsComplete, setIsStatsComplete] = useState(false);
@@ -85,9 +86,6 @@ export function AboutModal({ theme, sessions, autoRunStats, usageStats, onClose,
       unsubscribe();
     };
   }, []);
-
-  // Calculate active time from current sessions
-  const totalActiveTimeMs = sessions.reduce((sum, s) => sum + (s.activeTimeMs || 0), 0);
 
   // formatTokensCompact and formatSize imported from ../utils/formatters
 
@@ -191,7 +189,7 @@ export function AboutModal({ theme, sessions, autoRunStats, usageStats, onClose,
             autoRunStats={autoRunStats}
             globalStats={globalStats}
             usageStats={usageStats}
-            handsOnTimeMs={totalActiveTimeMs}
+            handsOnTimeMs={handsOnTimeMs}
             leaderboardRegistration={leaderboardRegistration}
             onEscapeWithBadgeOpen={(handler) => { badgeEscapeHandlerRef.current = handler; }}
           />
@@ -249,12 +247,12 @@ export function AboutModal({ theme, sessions, autoRunStats, usageStats, onClose,
                   )}
 
                   {/* Active Time & Total Cost - show cost only if we have cost data */}
-                  {(totalActiveTimeMs > 0 || globalStats.hasCostData) && (
+                  {(handsOnTimeMs > 0 || globalStats.hasCostData) && (
                     <div className="flex justify-between col-span-2 pt-2 border-t" style={{ borderColor: theme.colors.border }}>
-                      {totalActiveTimeMs > 0 && (
-                        <span style={{ color: theme.colors.textDim }}>Hands-on Time: {formatDuration(totalActiveTimeMs)}</span>
+                      {handsOnTimeMs > 0 && (
+                        <span style={{ color: theme.colors.textDim }}>Hands-on Time: {formatDuration(handsOnTimeMs)}</span>
                       )}
-                      {!totalActiveTimeMs && globalStats.hasCostData && (
+                      {!handsOnTimeMs && globalStats.hasCostData && (
                         <span style={{ color: theme.colors.textDim }}>Total Cost</span>
                       )}
                       {globalStats.hasCostData && (

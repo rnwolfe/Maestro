@@ -1,7 +1,7 @@
 /**
  * useMarketplace Hook
  *
- * React hook for managing Playbook Marketplace state and operations.
+ * React hook for managing Playbook Exchange state and operations.
  *
  * This hook encapsulates:
  * - Fetching and caching the marketplace manifest
@@ -82,7 +82,7 @@ export interface UseMarketplaceReturn {
 }
 
 /**
- * Hook for managing Playbook Marketplace state and operations.
+ * Hook for managing Playbook Exchange state and operations.
  *
  * @example
  * ```typescript

@@ -106,6 +106,8 @@ interface QuickActionsModalProps {
   onPublishGist?: () => void;
   // OpenSpec commands
   onInjectOpenSpecPrompt?: (prompt: string) => void;
+  // Playbook Exchange
+  onOpenPlaybookExchange?: () => void;
 }
 
 export function QuickActionsModal(props: QuickActionsModalProps) {
@@ -127,7 +129,8 @@ export function QuickActionsModal(props: QuickActionsModalProps) {
     autoRunSelectedDocument, autoRunCompletedTaskCount, onAutoRunResetTasks,
     onCloseAllTabs, onCloseOtherTabs, onCloseTabsLeft, onCloseTabsRight,
     isFilePreviewOpen, ghCliAvailable, onPublishGist,
-    onInjectOpenSpecPrompt
+    onInjectOpenSpecPrompt,
+    onOpenPlaybookExchange
   } = props;
 
   const [search, setSearch] = useState('');
@@ -394,6 +397,16 @@ export function QuickActionsModal(props: QuickActionsModalProps) {
     { id: 'goToFiles', label: 'Go to Files Tab', shortcut: shortcuts.goToFiles, action: () => { setRightPanelOpen(true); setActiveRightTab('files'); setQuickActionOpen(false); } },
     { id: 'goToHistory', label: 'Go to History Tab', shortcut: shortcuts.goToHistory, action: () => { setRightPanelOpen(true); setActiveRightTab('history'); setQuickActionOpen(false); } },
     { id: 'goToAutoRun', label: 'Go to Auto Run Tab', shortcut: shortcuts.goToAutoRun, action: () => { setRightPanelOpen(true); setActiveRightTab('autorun'); setQuickActionOpen(false); } },
+    // Playbook Exchange - browse and import community playbooks
+    ...(onOpenPlaybookExchange ? [{
+      id: 'openPlaybookExchange',
+      label: 'Playbook Exchange',
+      subtext: 'Browse and import community playbooks',
+      action: () => {
+        onOpenPlaybookExchange();
+        setQuickActionOpen(false);
+      }
+    }] : []),
     // Auto Run reset tasks - only show when there are completed tasks in the selected document
     ...(autoRunSelectedDocument && autoRunCompletedTaskCount && autoRunCompletedTaskCount > 0 && onAutoRunResetTasks ? [{
       id: 'resetAutoRunTasks',

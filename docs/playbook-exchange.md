@@ -1,20 +1,20 @@
 ---
-title: Playbook Marketplace
-description: Browse, preview, and import community playbooks from the Maestro Playbook Marketplace.
+title: Playbook Exchange
+description: Browse, preview, and import community playbooks from the Maestro Playbook Exchange.
 icon: store
 ---
 
-The Playbook Marketplace is a curated collection of community-contributed playbooks that you can browse and import directly into your Auto Run folder. Each playbook is a pre-configured set of markdown documents designed for specific workflows.
+The Playbook Exchange is a curated collection of community-contributed playbooks that you can browse and import directly into your Auto Run folder. Each playbook is a pre-configured set of markdown documents designed for specific workflows.
 
-## Opening the Marketplace
+## Opening the Exchange
 
-Open the Playbook Marketplace using:
-- **Quick Actions**: `Cmd+K` → search "Playbook Marketplace"
-- **Auto Run panel**: Click the **Marketplace** button
+Open the Playbook Exchange using:
+- **Quick Actions**: `Cmd+K` → search "Playbook Exchange"
+- **Auto Run panel**: Click the **Playbook Exchange** button
 
 ## Browsing Playbooks
 
-The marketplace displays playbooks in a searchable grid organized by category:
+The exchange displays playbooks in a searchable grid organized by category:
 
 - **Category tabs** filter playbooks by type (Development, Security, DevOps, etc.)
 - **Search** filters by title, description, and tags
@@ -45,7 +45,7 @@ The import creates:
 
 After import, the playbook is immediately available in your **Load Playbook** dropdown in the Auto Run panel.
 
-## Marketplace Data
+## Exchange Data
 
 Playbooks are fetched from the [Maestro-Playbooks](https://github.com/pedramamini/Maestro-Playbooks) GitHub repository. The manifest is cached locally for 5 minutes to minimize API calls.
 

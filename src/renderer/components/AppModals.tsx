@@ -789,6 +789,7 @@ export interface AppUtilityModalsProps {
   autoRunDocumentTree?: Array<{ name: string; type: 'file' | 'folder'; path: string; children?: unknown[] }>;
   getDocumentTaskCount: (filename: string) => Promise<number>;
   onAutoRunRefresh: () => Promise<void>;
+  onOpenMarketplace?: () => void;
 
   // TabSwitcherModal
   tabSwitcherOpen: boolean;
@@ -952,6 +953,7 @@ export function AppUtilityModals({
   autoRunDocumentTree,
   getDocumentTaskCount,
   onAutoRunRefresh,
+  onOpenMarketplace,
   // TabSwitcherModal
   tabSwitcherOpen,
   onCloseTabSwitcher,
@@ -1066,6 +1068,7 @@ export function AppUtilityModals({
           ghCliAvailable={ghCliAvailable}
           onPublishGist={onPublishGist}
           onInjectOpenSpecPrompt={onInjectOpenSpecPrompt}
+          onOpenPlaybookExchange={onOpenMarketplace}
         />
       )}
 
@@ -1128,6 +1131,7 @@ export function AppUtilityModals({
           getDocumentTaskCount={getDocumentTaskCount}
           onRefreshDocuments={onAutoRunRefresh}
           sessionId={activeSession.id}
+          onOpenMarketplace={onOpenMarketplace}
         />
       )}
 
@@ -1770,6 +1774,7 @@ export interface AppModalsProps {
   autoRunDocumentTree?: Array<{ name: string; type: 'file' | 'folder'; path: string; children?: unknown[] }>;
   getDocumentTaskCount: (filename: string) => Promise<number>;
   onAutoRunRefresh: () => Promise<void>;
+  onOpenMarketplace?: () => void;
   tabSwitcherOpen: boolean;
   onCloseTabSwitcher: () => void;
   onTabSelect: (tabId: string) => void;
@@ -2039,6 +2044,7 @@ export function AppModals(props: AppModalsProps) {
     autoRunDocumentTree,
     getDocumentTaskCount,
     onAutoRunRefresh,
+    onOpenMarketplace,
     tabSwitcherOpen,
     onCloseTabSwitcher,
     onTabSelect,
@@ -2324,6 +2330,7 @@ export function AppModals(props: AppModalsProps) {
         autoRunDocumentTree={autoRunDocumentTree}
         getDocumentTaskCount={getDocumentTaskCount}
         onAutoRunRefresh={onAutoRunRefresh}
+        onOpenMarketplace={onOpenMarketplace}
         tabSwitcherOpen={tabSwitcherOpen}
         onCloseTabSwitcher={onCloseTabSwitcher}
         onTabSelect={onTabSelect}

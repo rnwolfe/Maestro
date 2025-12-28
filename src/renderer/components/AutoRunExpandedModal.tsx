@@ -360,7 +360,7 @@ export function AutoRunExpandedModal({
                   color: theme.colors.textDim,
                   border: `1px solid ${theme.colors.border}`
                 }}
-                title="Browse Playbook Marketplace"
+                title="Browse Playbook Exchange"
               >
                 <LayoutGrid className="w-3.5 h-3.5" />
               </button>

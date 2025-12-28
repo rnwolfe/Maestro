@@ -1,7 +1,7 @@
 /**
  * Marketplace Types
  *
- * Type definitions for the Playbook Marketplace feature.
+ * Type definitions for the Playbook Exchange feature.
  * These types define the structure of marketplace data fetched from GitHub
  * and the local cache.
  */

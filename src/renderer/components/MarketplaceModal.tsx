@@ -1,11 +1,11 @@
 /**
  * MarketplaceModal
  *
- * Modal component for browsing and importing playbooks from the Playbook Marketplace.
+ * Modal component for browsing and importing playbooks from the Playbook Exchange.
  * Features category tabs, search filtering, keyboard navigation, and playbook tiles grid.
  */
 
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -20,12 +20,15 @@ import {
   ChevronDown,
   Download,
   ExternalLink,
+  FolderOpen,
+  HelpCircle,
 } from 'lucide-react';
 import type { Theme } from '../types';
 import type { MarketplacePlaybook } from '../../shared/marketplace-types';
 import { useLayerStack } from '../contexts/LayerStackContext';
 import { MODAL_PRIORITIES } from '../constants/modalPriorities';
 import { useMarketplace } from '../hooks/batch/useMarketplace';
+import { generateProseStyles, createMarkdownComponents } from '../utils/markdownConfig';
 
 // ============================================================================
 // Types
@@ -59,6 +62,7 @@ interface PlaybookDetailViewProps {
   onBack: () => void;
   onSelectDocument: (filename: string) => void;
   onTargetFolderChange: (name: string) => void;
+  onBrowseFolder: () => void;
   onImport: () => void;
 }
 
@@ -228,10 +232,34 @@ function PlaybookDetailView({
   onBack,
   onSelectDocument,
   onTargetFolderChange,
+  onBrowseFolder,
   onImport,
 }: PlaybookDetailViewProps) {
   const [showDocDropdown, setShowDocDropdown] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Generate prose styles scoped to marketplace panel
+  const proseStyles = useMemo(
+    () =>
+      generateProseStyles({
+        theme,
+        coloredHeadings: true,
+        compactSpacing: false,
+        includeCheckboxStyles: true,
+        scopeSelector: '.marketplace-preview',
+      }),
+    [theme]
+  );
+
+  // Create markdown components with link handling
+  const markdownComponents = useMemo(
+    () =>
+      createMarkdownComponents({
+        theme,
+        onExternalLinkClick: (href) => window.maestro.shell.openExternal(href),
+      }),
+    [theme]
+  );
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -257,7 +285,7 @@ function PlaybookDetailView({
   };
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full overflow-hidden">
       {/* Header with back button and playbook info */}
       <div
         className="flex items-center gap-4 px-4 py-3 border-b shrink-0"
@@ -309,7 +337,14 @@ function PlaybookDetailView({
               Description
             </h4>
             <p className="text-sm" style={{ color: theme.colors.textMain }}>
-              {playbook.description}
+              {playbook.description}{' '}
+              <button
+                onClick={() => onSelectDocument('')}
+                className="hover:opacity-80 transition-colors"
+                style={{ color: theme.colors.accent }}
+              >
+                Read more...
+              </button>
             </p>
           </div>
 
@@ -352,12 +387,16 @@ function PlaybookDetailView({
               >
                 Tags
               </h4>
-              <div className="flex flex-wrap gap-1">
+              <div className="flex flex-wrap gap-1.5">
                 {playbook.tags.map((tag) => (
                   <span
                     key={tag}
-                    className="px-2 py-0.5 rounded text-xs"
-                    style={{ backgroundColor: theme.colors.bgActivity, color: theme.colors.textDim }}
+                    className="px-2 py-0.5 rounded-full text-xs font-medium"
+                    style={{
+                      backgroundColor: `${theme.colors.accent}20`,
+                      color: theme.colors.accent,
+                      border: `1px solid ${theme.colors.accent}40`,
+                    }}
                   >
                     {tag}
                   </span>
@@ -366,7 +405,7 @@ function PlaybookDetailView({
             </div>
           )}
 
-          {/* Documents list */}
+          {/* Documents list - clickable to open in viewer */}
           <div className="mb-4">
             <h4
               className="text-xs font-semibold mb-1 uppercase tracking-wide"
@@ -374,12 +413,25 @@ function PlaybookDetailView({
             >
               Documents ({playbook.documents.length})
             </h4>
-            <ul className="space-y-1">
-              {playbook.documents.map((doc, i) => (
-                <li key={doc.filename} className="text-sm" style={{ color: theme.colors.textMain }}>
-                  {i + 1}. {doc.filename}.md
-                </li>
-              ))}
+            <ul className="space-y-0.5">
+              {playbook.documents.map((doc, i) => {
+                const isActive = selectedDocFilename === doc.filename;
+                return (
+                  <li key={doc.filename}>
+                    <button
+                      onClick={() => onSelectDocument(doc.filename)}
+                      className="text-sm text-left transition-colors hover:opacity-80 w-full px-2 py-1 rounded"
+                      style={{
+                        color: theme.colors.accent,
+                        fontWeight: isActive ? 600 : 400,
+                        backgroundColor: isActive ? `${theme.colors.accent}20` : 'transparent',
+                      }}
+                    >
+                      {i + 1}. {doc.filename}.md
+                    </button>
+                  </li>
+                );
+              })}
             </ul>
           </div>
 
@@ -416,7 +468,7 @@ function PlaybookDetailView({
         </div>
 
         {/* Main content area with document dropdown and markdown preview */}
-        <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+        <div className="flex-1 flex flex-col min-w-0 min-h-0 overflow-hidden">
           {/* Document selector dropdown */}
           <div className="px-4 py-3 border-b shrink-0" style={{ borderColor: theme.colors.border }}>
             <div className="relative" ref={dropdownRef}>
@@ -482,27 +534,16 @@ function PlaybookDetailView({
             </div>
           </div>
 
-          {/* Markdown preview */}
-          <div className="flex-1 overflow-y-auto p-4">
+          {/* Markdown preview - scrollable container with prose styles */}
+          <div className="marketplace-preview flex-1 min-h-0 overflow-y-auto p-4">
+            <style>{proseStyles}</style>
             {isLoadingDocument ? (
               <div className="flex items-center justify-center h-32">
                 <Loader2 className="w-6 h-6 animate-spin" style={{ color: theme.colors.accent }} />
               </div>
             ) : (
-              <div
-                className="prose prose-sm max-w-none"
-                style={{
-                  color: theme.colors.textMain,
-                  // Prose overrides for dark theme
-                  '--tw-prose-body': theme.colors.textMain,
-                  '--tw-prose-headings': theme.colors.textMain,
-                  '--tw-prose-links': theme.colors.accent,
-                  '--tw-prose-bold': theme.colors.textMain,
-                  '--tw-prose-code': theme.colors.textMain,
-                  '--tw-prose-quotes': theme.colors.textDim,
-                } as React.CSSProperties}
-              >
-                <ReactMarkdown remarkPlugins={[remarkGfm]}>
+              <div className="prose prose-sm max-w-none" style={{ color: theme.colors.textMain }}>
+                <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
                   {selectedDocFilename
                     ? documentContent || '*Document not found*'
                     : readmeContent || '*No README available*'}
@@ -522,19 +563,29 @@ function PlaybookDetailView({
           {/* Target folder input */}
           <div className="flex-1">
             <label className="block text-xs mb-1" style={{ color: theme.colors.textDim }}>
-              Import to folder
+              Import to folder (relative to Auto Run folder or absolute path)
             </label>
-            <input
-              type="text"
-              value={targetFolderName}
-              onChange={(e) => onTargetFolderChange(e.target.value)}
-              className="w-full px-3 py-2 rounded border bg-transparent outline-none text-sm focus:ring-1"
-              style={{
-                borderColor: theme.colors.border,
-                color: theme.colors.textMain,
-              }}
-              placeholder="folder-name"
-            />
+            <div className="flex items-center gap-2">
+              <input
+                type="text"
+                value={targetFolderName}
+                onChange={(e) => onTargetFolderChange(e.target.value)}
+                className="flex-1 px-3 py-2 rounded border bg-transparent outline-none text-sm focus:ring-1"
+                style={{
+                  borderColor: theme.colors.border,
+                  color: theme.colors.textMain,
+                }}
+                placeholder="folder-name or /absolute/path"
+              />
+              <button
+                onClick={onBrowseFolder}
+                className="p-2 rounded border transition-colors hover:bg-white/5"
+                style={{ borderColor: theme.colors.border }}
+                title="Browse for folder"
+              >
+                <FolderOpen className="w-4 h-4" style={{ color: theme.colors.textDim }} />
+              </button>
+            </div>
           </div>
 
           {/* Import button */}
@@ -618,6 +669,10 @@ export function MarketplaceModal({
   const [isLoadingDocument, setIsLoadingDocument] = useState(false);
   const [targetFolderName, setTargetFolderName] = useState('');
 
+  // Help popover state
+  const [showHelp, setShowHelp] = useState(false);
+  const helpButtonRef = useRef<HTMLButtonElement>(null);
+
   // Reset selection when filtered playbooks change
   useEffect(() => {
     setSelectedTileIndex(0);
@@ -626,9 +681,11 @@ export function MarketplaceModal({
   // Calculate grid columns based on container width (default to 3)
   const gridColumns = 3;
 
-  // Reference for escape handling to include showDetailView state
+  // Reference for escape handling to include showDetailView and showHelp state
   const showDetailViewRef = useRef(showDetailView);
   showDetailViewRef.current = showDetailView;
+  const showHelpRef = useRef(showHelp);
+  showHelpRef.current = showHelp;
 
   // Back navigation handler
   const handleBackToList = useCallback(() => {
@@ -652,9 +709,11 @@ export function MarketplaceModal({
         blocksLowerLayers: true,
         capturesFocus: true,
         focusTrap: 'strict',
-        ariaLabel: 'Playbook Marketplace',
+        ariaLabel: 'Playbook Exchange',
         onEscape: () => {
-          if (showDetailViewRef.current) {
+          if (showHelpRef.current) {
+            setShowHelp(false);
+          } else if (showDetailViewRef.current) {
             handleBackToListRef.current();
           } else {
             onCloseRef.current();
@@ -746,6 +805,14 @@ export function MarketplaceModal({
     onImportComplete,
     onClose,
   ]);
+
+  // Handle browse folder action
+  const handleBrowseFolder = useCallback(async () => {
+    const folder = await window.maestro.dialog.selectFolder();
+    if (folder) {
+      setTargetFolderName(folder);
+    }
+  }, []);
 
   // Keyboard shortcuts for category tabs: Cmd+Shift+[ and Cmd+Shift+]
   useEffect(() => {
@@ -849,6 +916,7 @@ export function MarketplaceModal({
             onBack={handleBackToList}
             onSelectDocument={handleSelectDocument}
             onTargetFolderChange={setTargetFolderName}
+            onBrowseFolder={handleBrowseFolder}
             onImport={handleImport}
           />
         ) : (
@@ -869,8 +937,72 @@ export function MarketplaceModal({
                   className="text-lg font-semibold"
                   style={{ color: theme.colors.textMain }}
                 >
-                  Playbook Marketplace
+                  Playbook Exchange
                 </h2>
+                {/* Help button */}
+                <div className="relative">
+                  <button
+                    ref={helpButtonRef}
+                    onClick={() => setShowHelp(!showHelp)}
+                    className="p-1 rounded hover:bg-white/10 transition-colors"
+                    title="About the Playbook Exchange"
+                    aria-label="Help"
+                  >
+                    <HelpCircle className="w-4 h-4" style={{ color: theme.colors.textDim }} />
+                  </button>
+                  {showHelp && (
+                    <div
+                      className="absolute top-full left-0 mt-2 w-80 p-4 rounded-lg shadow-xl z-50"
+                      style={{
+                        backgroundColor: theme.colors.bgSidebar,
+                        border: `1px solid ${theme.colors.border}`,
+                      }}
+                    >
+                      <h3
+                        className="text-sm font-semibold mb-2"
+                        style={{ color: theme.colors.textMain }}
+                      >
+                        About the Playbook Exchange
+                      </h3>
+                      <p className="text-xs mb-3" style={{ color: theme.colors.textDim }}>
+                        The Playbook Exchange is a curated collection of Auto Run playbooks
+                        for common development workflows. Browse, preview, and import playbooks
+                        directly into your Auto Run folder.
+                      </p>
+                      <h4
+                        className="text-xs font-semibold mb-1"
+                        style={{ color: theme.colors.textMain }}
+                      >
+                        Submit Your Playbook
+                      </h4>
+                      <p className="text-xs mb-2" style={{ color: theme.colors.textDim }}>
+                        Want to share your playbook with the community? Submit a pull request to
+                        the Maestro-Playbooks repository:
+                      </p>
+                      <button
+                        onClick={() => {
+                          window.maestro.shell.openExternal(
+                            'https://github.com/pedramamini/Maestro-Playbooks'
+                          );
+                          setShowHelp(false);
+                        }}
+                        className="text-xs hover:opacity-80 transition-colors"
+                        style={{ color: theme.colors.accent }}
+                      >
+                        github.com/pedramamini/Maestro-Playbooks
+                      </button>
+                      <div className="mt-3 pt-3 border-t" style={{ borderColor: theme.colors.border }}>
+                        <button
+                          onClick={() => setShowHelp(false)}
+                          className="text-xs px-2 py-1 rounded hover:bg-white/10 transition-colors"
+                          style={{ color: theme.colors.textDim }}
+                        >
+                          Close
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
               <div className="flex items-center gap-3">
                 {/* Cache status */}

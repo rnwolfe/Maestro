@@ -8391,6 +8391,7 @@ function MaestroConsoleInner() {
         autoRunDocumentTree={autoRunDocumentTree}
         getDocumentTaskCount={getDocumentTaskCount}
         onAutoRunRefresh={handleAutoRunRefresh}
+        onOpenMarketplace={handleOpenMarketplace}
         tabSwitcherOpen={tabSwitcherOpen}
         onCloseTabSwitcher={handleCloseTabSwitcher}
         onTabSelect={handleUtilityTabSelect}

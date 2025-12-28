@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { X, RotateCcw, Play, Variable, ChevronDown, ChevronRight, Save, FolderOpen, Bookmark, Maximize2, Download, Upload } from 'lucide-react';
+import { X, RotateCcw, Play, Variable, ChevronDown, ChevronRight, Save, FolderOpen, Bookmark, Maximize2, Download, Upload, LayoutGrid } from 'lucide-react';
 import type { Theme, BatchDocumentEntry, BatchRunConfig } from '../types';
 import { useLayerStack } from '../contexts/LayerStackContext';
 import { MODAL_PRIORITIES } from '../constants/modalPriorities';
@@ -39,6 +39,8 @@ interface BatchRunnerModalProps {
   onRefreshDocuments: () => Promise<void>; // Refresh document list from folder
   // Session ID for playbook storage
   sessionId: string;
+  // Callback to open the Playbook Exchange modal
+  onOpenMarketplace?: () => void;
 }
 
 // Helper function to format the last modified date
@@ -75,6 +77,7 @@ export function BatchRunnerModal(props: BatchRunnerModalProps) {
     getDocumentTaskCount,
     onRefreshDocuments,
     sessionId,
+    onOpenMarketplace,
   } = props;
 
   // Document list state
@@ -334,94 +337,108 @@ export function BatchRunnerModal(props: BatchRunnerModalProps) {
         <div className="flex-1 overflow-y-auto p-6">
           {/* Playbook Section */}
           <div className="mb-6 flex items-center justify-between">
-            {/* Load Playbook Dropdown - only show when playbooks exist or one is loaded */}
-            {(playbooks.length > 0 || loadedPlaybook) ? (
-              <div className="relative" ref={playbackDropdownRef}>
+            {/* Left side: Load Playbook and Playbook Exchange buttons */}
+            <div className="flex items-center gap-2">
+              {/* Load Playbook Dropdown - only show when playbooks exist or one is loaded */}
+              {(playbooks.length > 0 || loadedPlaybook) && (
+                <div className="relative" ref={playbackDropdownRef}>
+                  <button
+                    onClick={() => setShowPlaybookDropdown(!showPlaybookDropdown)}
+                    className="flex items-center gap-2 px-3 py-1.5 rounded-lg border hover:bg-white/5 transition-colors"
+                    style={{ borderColor: theme.colors.border, color: theme.colors.textMain }}
+                    disabled={loadingPlaybooks}
+                  >
+                    <FolderOpen className="w-4 h-4" style={{ color: theme.colors.accent }} />
+                    <span className="text-sm">
+                      {loadedPlaybook ? loadedPlaybook.name : 'Load Playbook'}
+                    </span>
+                    <ChevronDown className="w-3.5 h-3.5" style={{ color: theme.colors.textDim }} />
+                  </button>
+
+                  {/* Dropdown Menu */}
+                  {showPlaybookDropdown && (
+                    <div
+                      className="absolute top-full left-0 mt-1 min-w-64 max-w-[calc(700px-48px)] w-max rounded-lg border shadow-lg z-10 overflow-hidden"
+                      style={{ backgroundColor: theme.colors.bgSidebar, borderColor: theme.colors.border }}
+                    >
+                      <div className="max-h-48 overflow-y-auto">
+                        {playbooks.map((pb) => (
+                          <div
+                            key={pb.id}
+                            className={`flex items-center gap-2 px-3 py-2 hover:bg-white/5 cursor-pointer transition-colors ${
+                              loadedPlaybook?.id === pb.id ? 'bg-white/10' : ''
+                            }`}
+                            onClick={() => handleLoadPlaybook(pb)}
+                          >
+                            <span
+                              className="flex-1 text-sm"
+                              style={{ color: theme.colors.textMain }}
+                            >
+                              {pb.name}
+                            </span>
+                            <span
+                              className="text-[10px] shrink-0"
+                              style={{ color: theme.colors.textDim }}
+                            >
+                              {pb.documents.length} doc{pb.documents.length !== 1 ? 's' : ''}
+                            </span>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleExportPlaybook(pb);
+                              }}
+                              className="p-1 rounded hover:bg-white/10 transition-colors shrink-0"
+                              style={{ color: theme.colors.textDim }}
+                              title="Export playbook"
+                            >
+                              <Download className="w-3 h-3" />
+                            </button>
+                            <button
+                              onClick={(e) => handleDeletePlaybook(pb, e)}
+                              className="p-1 rounded hover:bg-white/10 transition-colors shrink-0"
+                              style={{ color: theme.colors.textDim }}
+                              title="Delete playbook"
+                            >
+                              <X className="w-3 h-3" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                      {/* Import playbook button */}
+                      <div
+                        className="border-t px-3 py-2"
+                        style={{ borderColor: theme.colors.border }}
+                      >
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleImportPlaybook();
+                          }}
+                          className="flex items-center gap-2 w-full px-2 py-1.5 rounded hover:bg-white/5 transition-colors text-sm"
+                          style={{ color: theme.colors.accent }}
+                        >
+                          <Upload className="w-3.5 h-3.5" />
+                          Import Playbook
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Playbook Exchange button */}
+              {onOpenMarketplace && (
                 <button
-                  onClick={() => setShowPlaybookDropdown(!showPlaybookDropdown)}
+                  onClick={onOpenMarketplace}
                   className="flex items-center gap-2 px-3 py-1.5 rounded-lg border hover:bg-white/5 transition-colors"
                   style={{ borderColor: theme.colors.border, color: theme.colors.textMain }}
-                  disabled={loadingPlaybooks}
+                  title="Browse Playbook Exchange"
                 >
-                  <FolderOpen className="w-4 h-4" style={{ color: theme.colors.accent }} />
-                  <span className="text-sm">
-                    {loadedPlaybook ? loadedPlaybook.name : 'Load Playbook'}
-                  </span>
-                  <ChevronDown className="w-3.5 h-3.5" style={{ color: theme.colors.textDim }} />
+                  <LayoutGrid className="w-4 h-4" style={{ color: theme.colors.accent }} />
+                  <span className="text-sm">Playbook Exchange</span>
                 </button>
-
-                {/* Dropdown Menu */}
-                {showPlaybookDropdown && (
-                  <div
-                    className="absolute top-full left-0 mt-1 min-w-64 max-w-[calc(700px-48px)] w-max rounded-lg border shadow-lg z-10 overflow-hidden"
-                    style={{ backgroundColor: theme.colors.bgSidebar, borderColor: theme.colors.border }}
-                  >
-                    <div className="max-h-48 overflow-y-auto">
-                      {playbooks.map((pb) => (
-                        <div
-                          key={pb.id}
-                          className={`flex items-center gap-2 px-3 py-2 hover:bg-white/5 cursor-pointer transition-colors ${
-                            loadedPlaybook?.id === pb.id ? 'bg-white/10' : ''
-                          }`}
-                          onClick={() => handleLoadPlaybook(pb)}
-                        >
-                          <span
-                            className="flex-1 text-sm"
-                            style={{ color: theme.colors.textMain }}
-                          >
-                            {pb.name}
-                          </span>
-                          <span
-                            className="text-[10px] shrink-0"
-                            style={{ color: theme.colors.textDim }}
-                          >
-                            {pb.documents.length} doc{pb.documents.length !== 1 ? 's' : ''}
-                          </span>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleExportPlaybook(pb);
-                            }}
-                            className="p-1 rounded hover:bg-white/10 transition-colors shrink-0"
-                            style={{ color: theme.colors.textDim }}
-                            title="Export playbook"
-                          >
-                            <Download className="w-3 h-3" />
-                          </button>
-                          <button
-                            onClick={(e) => handleDeletePlaybook(pb, e)}
-                            className="p-1 rounded hover:bg-white/10 transition-colors shrink-0"
-                            style={{ color: theme.colors.textDim }}
-                            title="Delete playbook"
-                          >
-                            <X className="w-3 h-3" />
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                    {/* Import playbook button */}
-                    <div
-                      className="border-t px-3 py-2"
-                      style={{ borderColor: theme.colors.border }}
-                    >
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleImportPlaybook();
-                        }}
-                        className="flex items-center gap-2 w-full px-2 py-1.5 rounded hover:bg-white/5 transition-colors text-sm"
-                        style={{ color: theme.colors.accent }}
-                      >
-                        <Upload className="w-3.5 h-3.5" />
-                        Import Playbook
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            ) : (
-              <div /> /* Empty placeholder to maintain flex layout */
-            )}
+              )}
+            </div>
 
             {/* Right side: Save as Playbook OR Save Update/Discard buttons */}
             <div className="flex items-center gap-2">

@@ -30,5 +30,5 @@ Run multiple agents in parallel with a Linear/Superhuman-level responsive interf
 - [Getting Started](./getting-started)
 - [Features](./features)
 - [Auto Run + Playbooks](./autorun-playbooks)
-- [Playbook Marketplace](./playbook-marketplace)
+- [Playbook Exchange](./playbook-exchange)
 - [Keyboard Shortcuts](./keyboard-shortcuts)

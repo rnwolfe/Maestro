@@ -1525,6 +1525,20 @@ contextBridge.exposeInMainWorld('maestro', {
       ipcRenderer.on('stats:updated', handler);
       return () => ipcRenderer.removeListener('stats:updated', handler);
     },
+
+    // Clear old stats data (older than specified number of days)
+    clearOldData: (olderThanDays: number) =>
+      ipcRenderer.invoke('stats:clear-old-data', olderThanDays) as Promise<{
+        success: boolean;
+        deletedQueryEvents: number;
+        deletedAutoRunSessions: number;
+        deletedAutoRunTasks: number;
+        error?: string;
+      }>,
+
+    // Get database size in bytes
+    getDatabaseSize: () =>
+      ipcRenderer.invoke('stats:get-database-size') as Promise<number>,
   },
 
   // Leaderboard API (runmaestro.ai integration)
@@ -1910,6 +1924,14 @@ export interface MaestroAPI {
     }>;
     exportCsv: (range: 'day' | 'week' | 'month' | 'year' | 'all') => Promise<string>;
     onStatsUpdate: (callback: () => void) => () => void;
+    clearOldData: (olderThanDays: number) => Promise<{
+      success: boolean;
+      deletedQueryEvents: number;
+      deletedAutoRunSessions: number;
+      deletedAutoRunTasks: number;
+      error?: string;
+    }>;
+    getDatabaseSize: () => Promise<number>;
   };
   updates: {
     check: () => Promise<{

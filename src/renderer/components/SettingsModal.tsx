@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, memo } from 'react';
-import { X, Key, Moon, Sun, Keyboard, Check, Terminal, Bell, Cpu, Settings, Palette, Sparkles, History, Download, Bug, Cloud, FolderSync, RotateCcw, Folder, ChevronDown, Plus, Trash2, Brain, AlertTriangle, FlaskConical } from 'lucide-react';
+import { X, Key, Moon, Sun, Keyboard, Check, Terminal, Bell, Cpu, Settings, Palette, Sparkles, History, Download, Bug, Cloud, FolderSync, RotateCcw, Folder, ChevronDown, Plus, Trash2, Brain, AlertTriangle, FlaskConical, Database } from 'lucide-react';
 import { useSettings } from '../hooks';
 import type { Theme, ThemeColors, ThemeId, Shortcut, ShellInfo, CustomAICommand, LLMProvider } from '../types';
 import { CustomThemeBuilder } from './CustomThemeBuilder';
@@ -254,6 +254,17 @@ export const SettingsModal = memo(function SettingsModal(props: SettingsModalPro
   const [syncError, setSyncError] = useState<string | null>(null);
   const [syncMigratedCount, setSyncMigratedCount] = useState<number | null>(null);
 
+  // Stats data management state
+  const [statsDbSize, setStatsDbSize] = useState<number | null>(null);
+  const [statsClearing, setStatsClearing] = useState(false);
+  const [statsClearResult, setStatsClearResult] = useState<{
+    success: boolean;
+    deletedQueryEvents: number;
+    deletedAutoRunSessions: number;
+    deletedAutoRunTasks: number;
+    error?: string;
+  } | null>(null);
+
   // Layer stack integration
   const { registerLayer, unregisterLayer, updateLayerHandler } = useLayerStack();
   const layerIdRef = useRef<string>();
@@ -282,6 +293,16 @@ export const SettingsModal = memo(function SettingsModal(props: SettingsModalPro
         console.error('Failed to load sync settings:', err);
         setSyncError('Failed to load storage settings');
       });
+
+      // Load stats database size
+      window.maestro.stats.getDatabaseSize().then((size) => {
+        setStatsDbSize(size);
+      }).catch((err) => {
+        console.error('Failed to load stats database size:', err);
+      });
+
+      // Reset stats clear state
+      setStatsClearResult(null);
     }
   }, [isOpen, initialTab]);
 
@@ -1281,6 +1302,121 @@ export const SettingsModal = memo(function SettingsModal(props: SettingsModalPro
                       }}
                     />
                   </div>
+                </div>
+              </div>
+
+              {/* Stats Data Management */}
+              <div>
+                <label className="block text-xs font-bold opacity-70 uppercase mb-2 flex items-center gap-2">
+                  <Database className="w-3 h-3" />
+                  Usage Stats Data
+                </label>
+                <div
+                  className="p-3 rounded border space-y-3"
+                  style={{ borderColor: theme.colors.border, backgroundColor: theme.colors.bgMain }}
+                >
+                  {/* Database Size Display */}
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm" style={{ color: theme.colors.textDim }}>Database size</span>
+                    <span className="text-sm font-mono" style={{ color: theme.colors.textMain }}>
+                      {statsDbSize !== null
+                        ? (statsDbSize / 1024 / 1024).toFixed(2) + ' MB'
+                        : 'Loading...'}
+                    </span>
+                  </div>
+
+                  {/* Clear Old Data Dropdown */}
+                  <div>
+                    <label className="block text-xs opacity-60 mb-2">Clear stats older than...</label>
+                    <div className="flex items-center gap-2">
+                      <select
+                        id="clear-stats-period"
+                        className="flex-1 p-2 rounded border bg-transparent outline-none text-sm"
+                        style={{ borderColor: theme.colors.border, color: theme.colors.textMain }}
+                        defaultValue=""
+                        disabled={statsClearing}
+                      >
+                        <option value="" disabled>Select a time period</option>
+                        <option value="7">7 days</option>
+                        <option value="30">30 days</option>
+                        <option value="90">90 days</option>
+                        <option value="180">6 months</option>
+                        <option value="365">1 year</option>
+                      </select>
+                      <button
+                        onClick={async () => {
+                          const select = document.getElementById('clear-stats-period') as HTMLSelectElement;
+                          const days = parseInt(select.value, 10);
+                          if (!days || isNaN(days)) {
+                            return; // No selection
+                          }
+                          setStatsClearing(true);
+                          setStatsClearResult(null);
+                          try {
+                            const result = await window.maestro.stats.clearOldData(days);
+                            setStatsClearResult(result);
+                            if (result.success) {
+                              // Refresh database size
+                              const newSize = await window.maestro.stats.getDatabaseSize();
+                              setStatsDbSize(newSize);
+                            }
+                          } catch (err) {
+                            console.error('Failed to clear old stats:', err);
+                            setStatsClearResult({
+                              success: false,
+                              deletedQueryEvents: 0,
+                              deletedAutoRunSessions: 0,
+                              deletedAutoRunTasks: 0,
+                              error: err instanceof Error ? err.message : 'Unknown error',
+                            });
+                          } finally {
+                            setStatsClearing(false);
+                          }
+                        }}
+                        disabled={statsClearing}
+                        className="px-3 py-2 rounded text-xs font-medium transition-colors flex items-center gap-2 disabled:opacity-50"
+                        style={{
+                          backgroundColor: theme.colors.error + '20',
+                          color: theme.colors.error,
+                          border: `1px solid ${theme.colors.error}40`,
+                        }}
+                      >
+                        <Trash2 className="w-3 h-3" />
+                        {statsClearing ? 'Clearing...' : 'Clear'}
+                      </button>
+                    </div>
+                    <p className="text-xs opacity-50 mt-2">
+                      Remove old query events, Auto Run sessions, and tasks from the stats database.
+                    </p>
+                  </div>
+
+                  {/* Clear Result Feedback */}
+                  {statsClearResult && (
+                    <div
+                      className="p-2 rounded text-xs flex items-start gap-2"
+                      style={{
+                        backgroundColor: statsClearResult.success
+                          ? theme.colors.success + '20'
+                          : theme.colors.error + '20',
+                        color: statsClearResult.success ? theme.colors.success : theme.colors.error,
+                      }}
+                    >
+                      {statsClearResult.success ? (
+                        <>
+                          <Check className="w-3 h-3 flex-shrink-0 mt-0.5" />
+                          <span>
+                            Cleared {statsClearResult.deletedQueryEvents + statsClearResult.deletedAutoRunSessions + statsClearResult.deletedAutoRunTasks} records
+                            ({statsClearResult.deletedQueryEvents} queries, {statsClearResult.deletedAutoRunSessions} sessions, {statsClearResult.deletedAutoRunTasks} tasks)
+                          </span>
+                        </>
+                      ) : (
+                        <>
+                          <X className="w-3 h-3 flex-shrink-0 mt-0.5" />
+                          <span>{statsClearResult.error || 'Failed to clear stats data'}</span>
+                        </>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
 

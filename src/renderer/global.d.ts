@@ -1490,6 +1490,16 @@ interface MaestroAPI {
     exportCsv: (range: 'day' | 'week' | 'month' | 'year' | 'all') => Promise<string>;
     // Subscribe to stats updates (for real-time dashboard refresh)
     onStatsUpdate: (callback: () => void) => () => void;
+    // Clear old stats data (older than specified number of days)
+    clearOldData: (olderThanDays: number) => Promise<{
+      success: boolean;
+      deletedQueryEvents: number;
+      deletedAutoRunSessions: number;
+      deletedAutoRunTasks: number;
+      error?: string;
+    }>;
+    // Get database size in bytes
+    getDatabaseSize: () => Promise<number>;
   };
   // Document Graph API (file watching for graph visualization)
   documentGraph: {

@@ -359,6 +359,13 @@ const mockMaestro = {
     }),
     exportCsv: vi.fn().mockResolvedValue(''),
     onStatsUpdate: vi.fn().mockReturnValue(() => {}),
+    getDatabaseSize: vi.fn().mockResolvedValue(1024 * 1024), // 1MB mock
+    clearOldData: vi.fn().mockResolvedValue({
+      success: true,
+      deletedQueryEvents: 0,
+      deletedAutoRunSessions: 0,
+      deletedAutoRunTasks: 0,
+    }),
   },
 };
 

@@ -925,6 +925,110 @@ export class StatsDB {
   }
 
   // ============================================================================
+  // Data Management
+  // ============================================================================
+
+  /**
+   * Clear old data from the database.
+   *
+   * Deletes query_events, auto_run_sessions, and auto_run_tasks that are older
+   * than the specified number of days. This is useful for managing database size
+   * and removing stale historical data.
+   *
+   * @param olderThanDays - Delete records older than this many days (e.g., 30, 90, 180, 365)
+   * @returns Object with success status, number of records deleted from each table, and any error
+   */
+  clearOldData(olderThanDays: number): {
+    success: boolean;
+    deletedQueryEvents: number;
+    deletedAutoRunSessions: number;
+    deletedAutoRunTasks: number;
+    error?: string;
+  } {
+    if (!this.db) {
+      return {
+        success: false,
+        deletedQueryEvents: 0,
+        deletedAutoRunSessions: 0,
+        deletedAutoRunTasks: 0,
+        error: 'Database not initialized',
+      };
+    }
+
+    if (olderThanDays <= 0) {
+      return {
+        success: false,
+        deletedQueryEvents: 0,
+        deletedAutoRunSessions: 0,
+        deletedAutoRunTasks: 0,
+        error: 'olderThanDays must be greater than 0',
+      };
+    }
+
+    try {
+      const cutoffTime = Date.now() - olderThanDays * 24 * 60 * 60 * 1000;
+
+      logger.info(
+        `Clearing stats data older than ${olderThanDays} days (before ${new Date(cutoffTime).toISOString()})`,
+        LOG_CONTEXT
+      );
+
+      // Get IDs of auto_run_sessions to be deleted (for cascading to tasks)
+      const sessionsToDelete = this.db
+        .prepare('SELECT id FROM auto_run_sessions WHERE start_time < ?')
+        .all(cutoffTime) as Array<{ id: string }>;
+      const sessionIds = sessionsToDelete.map((row) => row.id);
+
+      // Delete auto_run_tasks for the sessions being deleted
+      let deletedTasks = 0;
+      if (sessionIds.length > 0) {
+        // SQLite doesn't support array binding, so we use a subquery
+        const tasksResult = this.db
+          .prepare(
+            'DELETE FROM auto_run_tasks WHERE auto_run_session_id IN (SELECT id FROM auto_run_sessions WHERE start_time < ?)'
+          )
+          .run(cutoffTime);
+        deletedTasks = tasksResult.changes;
+      }
+
+      // Delete auto_run_sessions
+      const sessionsResult = this.db
+        .prepare('DELETE FROM auto_run_sessions WHERE start_time < ?')
+        .run(cutoffTime);
+      const deletedSessions = sessionsResult.changes;
+
+      // Delete query_events
+      const eventsResult = this.db
+        .prepare('DELETE FROM query_events WHERE start_time < ?')
+        .run(cutoffTime);
+      const deletedEvents = eventsResult.changes;
+
+      const totalDeleted = deletedEvents + deletedSessions + deletedTasks;
+      logger.info(
+        `Cleared ${totalDeleted} old stats records (${deletedEvents} query events, ${deletedSessions} auto-run sessions, ${deletedTasks} auto-run tasks)`,
+        LOG_CONTEXT
+      );
+
+      return {
+        success: true,
+        deletedQueryEvents: deletedEvents,
+        deletedAutoRunSessions: deletedSessions,
+        deletedAutoRunTasks: deletedTasks,
+      };
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      logger.error(`Failed to clear old stats data: ${errorMessage}`, LOG_CONTEXT);
+      return {
+        success: false,
+        deletedQueryEvents: 0,
+        deletedAutoRunSessions: 0,
+        deletedAutoRunTasks: 0,
+        error: errorMessage,
+      };
+    }
+  }
+
+  // ============================================================================
   // Export
   // ============================================================================
 

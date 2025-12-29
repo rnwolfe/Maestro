@@ -464,8 +464,9 @@ describe('SettingsModal', () => {
         await vi.advanceTimersByTimeAsync(100);
       });
 
-      // Find the font select and trigger change
-      const fontSelect = screen.getByRole('combobox') as HTMLSelectElement;
+      // Find the font select (first combobox) and trigger change
+      const comboboxes = screen.getAllByRole('combobox');
+      const fontSelect = comboboxes[0] as HTMLSelectElement;
       fireEvent.change(fontSelect, { target: { value: 'Monaco' } });
 
       expect(setFontFamily).toHaveBeenCalledWith('Monaco');
@@ -478,7 +479,9 @@ describe('SettingsModal', () => {
         await vi.advanceTimersByTimeAsync(100);
       });
 
-      const fontSelect = screen.getByRole('combobox');
+      // Get the font select (first combobox)
+      const comboboxes = screen.getAllByRole('combobox');
+      const fontSelect = comboboxes[0];
       fireEvent.focus(fontSelect);
 
       await act(async () => {
@@ -823,9 +826,13 @@ describe('SettingsModal', () => {
         await vi.advanceTimersByTimeAsync(100);
       });
 
-      // Find the Clear button near the gh path input
-      const clearButtons = screen.getAllByText('Clear');
-      fireEvent.click(clearButtons[clearButtons.length - 1]); // Last clear button is for gh path
+      // Find the Clear button near the gh path input by locating the gh input first
+      const ghInput = screen.getByDisplayValue('/usr/local/bin/gh');
+      // The clear button should be a sibling of the input in the same container
+      const parentContainer = ghInput.closest('div');
+      const clearButton = parentContainer?.querySelector('button');
+      expect(clearButton).toBeDefined();
+      fireEvent.click(clearButton!);
 
       expect(setGhPath).toHaveBeenCalledWith('');
     });
@@ -1245,7 +1252,9 @@ describe('SettingsModal', () => {
         await vi.advanceTimersByTimeAsync(100);
       });
 
-      const fontSelect = screen.getByRole('combobox');
+      // Get the font select (first combobox)
+      const comboboxes = screen.getAllByRole('combobox');
+      const fontSelect = comboboxes[0];
       fireEvent.focus(fontSelect);
 
       await act(async () => {
@@ -1642,8 +1651,9 @@ describe('SettingsModal', () => {
         await vi.advanceTimersByTimeAsync(100);
       });
 
-      // Trigger font loading
-      const fontSelect = screen.getByRole('combobox');
+      // Trigger font loading - get the first combobox which is the font selector
+      const comboboxes = screen.getAllByRole('combobox');
+      const fontSelect = comboboxes[0]; // Font selector is the first combobox
       fireEvent.focus(fontSelect);
 
       await act(async () => {
@@ -1719,8 +1729,9 @@ describe('SettingsModal', () => {
         await vi.advanceTimersByTimeAsync(100);
       });
 
-      // Trigger font loading
-      const fontSelect = screen.getByRole('combobox');
+      // Trigger font loading - get the first combobox which is the font selector
+      const comboboxes = screen.getAllByRole('combobox');
+      const fontSelect = comboboxes[0]; // Font selector is the first combobox
       fireEvent.focus(fontSelect);
 
       await act(async () => {

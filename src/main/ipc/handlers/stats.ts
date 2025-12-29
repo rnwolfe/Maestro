@@ -187,4 +187,27 @@ export function registerStatsHandlers(deps: StatsHandlerDependencies): void {
       return db.exportToCsv(range);
     })
   );
+
+  // Clear old stats data (older than specified number of days)
+  ipcMain.handle(
+    'stats:clear-old-data',
+    withIpcErrorLogging(handlerOpts('clearOldData'), async (olderThanDays: number) => {
+      const db = getStatsDB();
+      const result = db.clearOldData(olderThanDays);
+      if (result.success) {
+        // Broadcast update so any open dashboards refresh
+        broadcastStatsUpdate(getMainWindow);
+      }
+      return result;
+    })
+  );
+
+  // Get database size (for UI display)
+  ipcMain.handle(
+    'stats:get-database-size',
+    withIpcErrorLogging(handlerOpts('getDatabaseSize'), async () => {
+      const db = getStatsDB();
+      return db.getDatabaseSize();
+    })
+  );
 }

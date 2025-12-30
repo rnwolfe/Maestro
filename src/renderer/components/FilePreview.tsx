@@ -577,7 +577,7 @@ export function FilePreview({ file, onClose, theme, markdownEditMode, setMarkdow
       setShowStatsBar(contentEl.scrollTop <= 10);
     };
 
-    contentEl.addEventListener('scroll', handleScroll);
+    contentEl.addEventListener('scroll', handleScroll, { passive: true });
     return () => contentEl.removeEventListener('scroll', handleScroll);
   }, []);
 

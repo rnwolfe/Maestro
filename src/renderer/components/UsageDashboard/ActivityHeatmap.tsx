@@ -192,9 +192,10 @@ export function ActivityHeatmap({ data, timeRange, theme, colorBlindMode = false
 
     // Determine hour rows based on mode
     const hours = useAmPm ? [0, 12] : Array.from({ length: 24 }, (_, i) => i);
+    // Labels for Y-axis: show every 2 hours for readability
     const labels = useAmPm
       ? ['AM', 'PM']
-      : ['12a', '', '2a', '', '4a', '', '6a', '', '8a', '', '10a', '', '12p', '', '2p', '', '4p', '', '6p', '', '8p', '', '10p', ''];
+      : ['12a', '1a', '2a', '3a', '4a', '5a', '6a', '7a', '8a', '9a', '10a', '11a', '12p', '1p', '2p', '3p', '4p', '5p', '6p', '7p', '8p', '9p', '10p', '11p'];
 
     // Track max values for intensity calculation
     let maxCount = 0;
@@ -272,9 +273,10 @@ export function ActivityHeatmap({ data, timeRange, theme, colorBlindMode = false
     (cell: HourData, event: React.MouseEvent<HTMLDivElement>) => {
       setHoveredCell(cell);
       const rect = event.currentTarget.getBoundingClientRect();
+      // Position tooltip above and centered on the cell
       setTooltipPos({
         x: rect.left + rect.width / 2,
-        y: rect.top,
+        y: rect.top - 4,
       });
     },
     []
@@ -354,7 +356,7 @@ export function ActivityHeatmap({ data, timeRange, theme, colorBlindMode = false
 
       {/* Heatmap grid */}
       <div className="flex gap-2">
-        {/* Hour labels (Y-axis) */}
+        {/* Hour labels (Y-axis) - only show every 2 hours for readability */}
         <div className="flex flex-col flex-shrink-0" style={{ width: 28, paddingTop: 20 }}>
           {hourLabels.map((label, idx) => (
             <div
@@ -362,10 +364,11 @@ export function ActivityHeatmap({ data, timeRange, theme, colorBlindMode = false
               className="text-xs text-right flex items-center justify-end"
               style={{
                 color: theme.colors.textDim,
-                height: useAmPm ? 32 : 12,
+                height: useAmPm ? 34 : 14,
               }}
             >
-              {label}
+              {/* Only show labels for even hours (0, 2, 4, etc.) */}
+              {useAmPm || idx % 2 === 0 ? label : ''}
             </div>
           ))}
         </div>
@@ -393,7 +396,7 @@ export function ActivityHeatmap({ data, timeRange, theme, colorBlindMode = false
                     key={hourData.hourKey}
                     className="rounded-sm cursor-default"
                     style={{
-                      height: useAmPm ? 32 : 12,
+                      height: useAmPm ? 34 : 14,
                       backgroundColor: getIntensityColor(
                         hourData.intensity,
                         theme,

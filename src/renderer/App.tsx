@@ -312,7 +312,7 @@ function MaestroConsoleInner() {
     tabShortcuts, setTabShortcuts,
     customAICommands, setCustomAICommands,
     globalStats, updateGlobalStats,
-    autoRunStats, recordAutoRunComplete, updateAutoRunProgress, acknowledgeBadge, getUnacknowledgedBadgeLevel,
+    autoRunStats, setAutoRunStats, recordAutoRunComplete, updateAutoRunProgress, acknowledgeBadge, getUnacknowledgedBadgeLevel,
     usageStats, updateUsageStats,
     tourCompleted: _tourCompleted, setTourCompleted,
     firstAutoRunCompleted, setFirstAutoRunCompleted,
@@ -3101,6 +3101,27 @@ function MaestroConsoleInner() {
   const handleLeaderboardOptOut = useCallback(() => {
     setLeaderboardRegistration(null);
   }, []);
+
+  // Sync autorun stats from server (for new device installations)
+  const handleSyncAutoRunStats = useCallback((stats: {
+    cumulativeTimeMs: number;
+    totalRuns: number;
+    currentBadgeLevel: number;
+    longestRunMs: number;
+    longestRunTimestamp: number;
+  }) => {
+    setAutoRunStats({
+      ...autoRunStats,
+      cumulativeTimeMs: stats.cumulativeTimeMs,
+      totalRuns: stats.totalRuns,
+      currentBadgeLevel: stats.currentBadgeLevel,
+      longestRunMs: stats.longestRunMs,
+      longestRunTimestamp: stats.longestRunTimestamp,
+      // Also update badge tracking to match synced level
+      lastBadgeUnlockLevel: stats.currentBadgeLevel,
+      lastAcknowledgedBadgeLevel: stats.currentBadgeLevel,
+    });
+  }, [autoRunStats, setAutoRunStats]);
 
   // MergeSessionModal handlers
   const handleCloseMergeSession = useCallback(() => {
@@ -8631,6 +8652,7 @@ function MaestroConsoleInner() {
         leaderboardRegistration={leaderboardRegistration}
         onSaveLeaderboardRegistration={handleSaveLeaderboardRegistration}
         onLeaderboardOptOut={handleLeaderboardOptOut}
+        onSyncAutoRunStats={handleSyncAutoRunStats}
         errorSession={errorSession}
         recoveryActions={recoveryActions}
         onDismissAgentError={handleCloseAgentErrorModal}

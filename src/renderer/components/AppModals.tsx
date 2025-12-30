@@ -1424,6 +1424,13 @@ export interface AppAgentModalsProps {
   leaderboardRegistration: LeaderboardRegistration | null;
   onSaveLeaderboardRegistration: (registration: LeaderboardRegistration) => void;
   onLeaderboardOptOut: () => void;
+  onSyncAutoRunStats?: (stats: {
+    cumulativeTimeMs: number;
+    totalRuns: number;
+    currentBadgeLevel: number;
+    longestRunMs: number;
+    longestRunTimestamp: number;
+  }) => void;
 
   // AgentErrorModal (for individual agents)
   errorSession: Session | null | undefined;
@@ -1484,6 +1491,7 @@ export function AppAgentModals({
   leaderboardRegistration,
   onSaveLeaderboardRegistration,
   onLeaderboardOptOut,
+  onSyncAutoRunStats,
   // AgentErrorModal (for individual agents)
   errorSession,
   recoveryActions,
@@ -1520,6 +1528,7 @@ export function AppAgentModals({
           onClose={onCloseLeaderboardRegistration}
           onSave={onSaveLeaderboardRegistration}
           onOptOut={onLeaderboardOptOut}
+          onSyncStats={onSyncAutoRunStats}
         />
       )}
 
@@ -1872,6 +1881,13 @@ export interface AppModalsProps {
   leaderboardRegistration: LeaderboardRegistration | null;
   onSaveLeaderboardRegistration: (registration: LeaderboardRegistration) => void;
   onLeaderboardOptOut: () => void;
+  onSyncAutoRunStats?: (stats: {
+    cumulativeTimeMs: number;
+    totalRuns: number;
+    currentBadgeLevel: number;
+    longestRunMs: number;
+    longestRunTimestamp: number;
+  }) => void;
   errorSession: Session | null | undefined;
   recoveryActions: RecoveryAction[];
   onDismissAgentError: () => void;
@@ -2146,6 +2162,7 @@ export function AppModals(props: AppModalsProps) {
     leaderboardRegistration,
     onSaveLeaderboardRegistration,
     onLeaderboardOptOut,
+    onSyncAutoRunStats,
     errorSession,
     recoveryActions,
     onDismissAgentError,
@@ -2453,6 +2470,7 @@ export function AppModals(props: AppModalsProps) {
         leaderboardRegistration={leaderboardRegistration}
         onSaveLeaderboardRegistration={onSaveLeaderboardRegistration}
         onLeaderboardOptOut={onLeaderboardOptOut}
+        onSyncAutoRunStats={onSyncAutoRunStats}
         errorSession={errorSession}
         recoveryActions={recoveryActions}
         onDismissAgentError={onDismissAgentError}

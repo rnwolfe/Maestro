@@ -334,15 +334,21 @@ export function DocumentGraphView({
   }, []);
 
   /**
-   * Handle node double-click
+   * Handle node double-click - focus on node to expand its neighbors
    */
   const handleNodeDoubleClick = useCallback((node: ForceGraphNode) => {
-    if (node.nodeType === 'document' && onDocumentOpen && node.filePath) {
-      onDocumentOpen(node.filePath);
-    } else if (node.nodeType === 'external' && onExternalLinkOpen && node.urls?.length) {
-      onExternalLinkOpen(node.urls[0]);
+    if (node.nodeType === 'document' && node.filePath) {
+      // Set this node as the focus to show its ego-network
+      setActiveFocusFile(node.filePath);
+      // Ensure neighbor depth is set if it was 0 (show all)
+      if (neighborDepth === 0) {
+        setNeighborDepth(2);
+        onNeighborDepthChange?.(2);
+      }
     }
-  }, [onDocumentOpen, onExternalLinkOpen]);
+    // For external nodes, we could potentially show all documents linking to it
+    // For now, just select it
+  }, [neighborDepth, onNeighborDepthChange]);
 
   /**
    * Handle node context menu
@@ -510,7 +516,7 @@ export function DocumentGraphView({
   return (
     <div
       className="fixed inset-0 modal-overlay flex items-center justify-center z-[9999] animate-in fade-in duration-100"
-      onClick={onClose}
+      onClick={handleEscapeRequest}
     >
       <div
         ref={containerRef}
@@ -722,7 +728,7 @@ export function DocumentGraphView({
 
             {/* Close Button */}
             <button
-              onClick={onClose}
+              onClick={handleEscapeRequest}
               className="p-1.5 rounded transition-colors"
               style={{ color: theme.colors.textDim }}
               onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = `${theme.colors.accent}20`)}

@@ -14,7 +14,7 @@
  */
 
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { X, BarChart3, Calendar, Download, RefreshCw, Database } from 'lucide-react';
+import { X, BarChart3, Calendar, Download, Database } from 'lucide-react';
 import { SummaryCards } from './SummaryCards';
 import { ActivityHeatmap } from './ActivityHeatmap';
 import { AgentComparisonChart } from './AgentComparisonChart';
@@ -114,7 +114,6 @@ export function UsageDashboardModal({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isExporting, setIsExporting] = useState(false);
-  const [isRefreshing, setIsRefreshing] = useState(false);
   const [containerWidth, setContainerWidth] = useState(0);
   const [showNewDataIndicator, setShowNewDataIndicator] = useState(false);
   const [databaseSize, setDatabaseSize] = useState<number | null>(null);
@@ -151,12 +150,10 @@ export function UsageDashboardModal({
   }, [isOpen, registerLayer, unregisterLayer]);
 
   // Fetch stats data when range changes
-  const fetchStats = useCallback(async (showRefresh = false) => {
+  const fetchStats = useCallback(async (isRealTimeUpdate = false) => {
     const fetchStart = perfMetrics.start();
 
-    if (showRefresh) {
-      setIsRefreshing(true);
-    } else {
+    if (!isRealTimeUpdate) {
       setLoading(true);
     }
     setError(null);
@@ -174,7 +171,7 @@ export function UsageDashboardModal({
       const fetchDuration = perfMetrics.end(fetchStart, 'fetchStats', {
         timeRange,
         totalQueries: stats?.totalQueries,
-        isRefresh: showRefresh,
+        isRealTimeUpdate,
       });
 
       // Warn if fetch is slow
@@ -184,19 +181,18 @@ export function UsageDashboardModal({
           { timeRange, totalQueries: stats?.totalQueries }
         );
       }
+
+      // Show "new data" indicator for real-time updates
+      if (isRealTimeUpdate) {
+        setShowNewDataIndicator(true);
+        setTimeout(() => setShowNewDataIndicator(false), 3000);
+      }
     } catch (err) {
       console.error('Failed to fetch usage stats:', err);
       setError(err instanceof Error ? err.message : 'Failed to load stats');
       perfMetrics.end(fetchStart, 'fetchStats:error', { timeRange, error: String(err) });
     } finally {
       setLoading(false);
-      if (showRefresh) {
-        // Keep refresh spinner visible briefly for visual feedback
-        setTimeout(() => setIsRefreshing(false), 300);
-        // Show "new data" indicator for real-time updates
-        setShowNewDataIndicator(true);
-        setTimeout(() => setShowNewDataIndicator(false), 3000);
-      }
     }
   }, [timeRange]);
 
@@ -227,6 +223,35 @@ export function UsageDashboardModal({
       containerRef.current?.focus();
     }
   }, [isOpen]);
+
+  // Handle Cmd+Shift+[ and Cmd+Shift+] for tab navigation
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Check for Cmd+Shift+[ or Cmd+Shift+]
+      if (e.metaKey && e.shiftKey && (e.key === '[' || e.key === ']')) {
+        e.preventDefault();
+        e.stopPropagation();
+
+        const currentIndex = VIEW_MODE_TABS.findIndex(tab => tab.value === viewMode);
+
+        if (e.key === '[') {
+          // Previous tab
+          const prevIndex = currentIndex > 0 ? currentIndex - 1 : VIEW_MODE_TABS.length - 1;
+          setViewMode(VIEW_MODE_TABS[prevIndex].value);
+        } else {
+          // Next tab
+          const nextIndex = currentIndex < VIEW_MODE_TABS.length - 1 ? currentIndex + 1 : 0;
+          setViewMode(VIEW_MODE_TABS[nextIndex].value);
+        }
+        setFocusedSection(null);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown, true);
+    return () => window.removeEventListener('keydown', handleKeyDown, true);
+  }, [isOpen, viewMode]);
 
   // Track container width for responsive layout
   useEffect(() => {
@@ -462,12 +487,15 @@ export function UsageDashboardModal({
 
           <div className="flex items-center gap-3">
             {/* Time Range Dropdown */}
-            <div className="flex items-center gap-2">
-              <Calendar className="w-4 h-4" style={{ color: theme.colors.textDim }} />
+            <div className="relative flex items-center">
+              <Calendar
+                className="w-4 h-4 absolute left-2.5 pointer-events-none"
+                style={{ color: theme.colors.textDim }}
+              />
               <select
                 value={timeRange}
                 onChange={(e) => setTimeRange(e.target.value as StatsTimeRange)}
-                className="px-3 py-1.5 rounded text-sm border cursor-pointer outline-none"
+                className="pl-8 pr-6 py-1.5 rounded text-sm border cursor-pointer outline-none appearance-none"
                 style={{
                   backgroundColor: theme.colors.bgMain,
                   borderColor: theme.colors.border,
@@ -480,20 +508,16 @@ export function UsageDashboardModal({
                   </option>
                 ))}
               </select>
+              {/* Custom dropdown indicator */}
+              <div
+                className="absolute right-2 pointer-events-none"
+                style={{ color: theme.colors.textDim }}
+              >
+                <svg width="10" height="6" viewBox="0 0 10 6" fill="currentColor">
+                  <path d="M1 1L5 5L9 1" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+                </svg>
+              </div>
             </div>
-
-            {/* Refresh Button */}
-            <button
-              onClick={() => fetchStats(true)}
-              className="p-1.5 rounded hover:bg-opacity-10 transition-colors"
-              style={{ color: theme.colors.textDim }}
-              onMouseEnter={(e) => e.currentTarget.style.backgroundColor = `${theme.colors.accent}20`}
-              onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
-              title="Refresh"
-              disabled={isRefreshing}
-            >
-              <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
-            </button>
 
             {/* Export Button */}
             <button

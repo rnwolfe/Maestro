@@ -1638,6 +1638,30 @@ contextBridge.exposeInMainWorld('maestro', {
       ipcRenderer.invoke('leaderboard:get', options),
     getLongestRuns: (options?: { limit?: number }) =>
       ipcRenderer.invoke('leaderboard:getLongestRuns', options),
+    // Sync stats from server (for new device installations)
+    sync: (data: { email: string; authToken: string }) =>
+      ipcRenderer.invoke('leaderboard:sync', data) as Promise<{
+        success: boolean;
+        found: boolean;
+        message?: string;
+        error?: string;
+        errorCode?: 'EMAIL_NOT_CONFIRMED' | 'INVALID_TOKEN' | 'MISSING_FIELDS';
+        data?: {
+          displayName: string;
+          badgeLevel: number;
+          badgeName: string;
+          cumulativeTimeMs: number;
+          totalRuns: number;
+          longestRunMs: number | null;
+          longestRunDate: string | null;
+          keyboardLevel: number | null;
+          coveragePercent: number | null;
+          ranking: {
+            cumulative: { rank: number; total: number };
+            longestRun: { rank: number; total: number } | null;
+          };
+        };
+      }>,
   },
 });
 

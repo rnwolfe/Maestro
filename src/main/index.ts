@@ -2112,6 +2112,137 @@ function setupIpcHandlers() {
       }
     }
   );
+
+  // Sync user stats from server (for new device installations)
+  ipcMain.handle(
+    'leaderboard:sync',
+    async (
+      _event,
+      data: {
+        email: string;
+        authToken: string;
+      }
+    ): Promise<{
+      success: boolean;
+      found: boolean;
+      message?: string;
+      error?: string;
+      errorCode?: 'EMAIL_NOT_CONFIRMED' | 'INVALID_TOKEN' | 'MISSING_FIELDS';
+      data?: {
+        displayName: string;
+        badgeLevel: number;
+        badgeName: string;
+        cumulativeTimeMs: number;
+        totalRuns: number;
+        longestRunMs: number | null;
+        longestRunDate: string | null;
+        keyboardLevel: number | null;
+        coveragePercent: number | null;
+        ranking: {
+          cumulative: { rank: number; total: number };
+          longestRun: { rank: number; total: number } | null;
+        };
+      };
+    }> => {
+      try {
+        logger.info('Syncing leaderboard stats from server', 'Leaderboard', {
+          email: data.email.substring(0, 3) + '***',
+        });
+
+        const response = await fetch('https://runmaestro.ai/api/m4estr0/sync', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'User-Agent': `Maestro/${app.getVersion()}`,
+          },
+          body: JSON.stringify({
+            email: data.email,
+            authToken: data.authToken,
+          }),
+        });
+
+        const result = await response.json() as {
+          success: boolean;
+          found?: boolean;
+          message?: string;
+          error?: string;
+          errorCode?: string;
+          data?: {
+            displayName: string;
+            badgeLevel: number;
+            badgeName: string;
+            cumulativeTimeMs: number;
+            totalRuns: number;
+            longestRunMs: number | null;
+            longestRunDate: string | null;
+            keyboardLevel: number | null;
+            coveragePercent: number | null;
+            ranking: {
+              cumulative: { rank: number; total: number };
+              longestRun: { rank: number; total: number } | null;
+            };
+          };
+        };
+
+        if (response.ok && result.success) {
+          if (result.found && result.data) {
+            logger.info('Leaderboard sync successful', 'Leaderboard', {
+              badgeLevel: result.data.badgeLevel,
+              cumulativeTimeMs: result.data.cumulativeTimeMs,
+            });
+            return {
+              success: true,
+              found: true,
+              data: result.data,
+            };
+          } else {
+            logger.info('Leaderboard sync: user not found', 'Leaderboard');
+            return {
+              success: true,
+              found: false,
+              message: result.message || 'No existing registration found',
+            };
+          }
+        } else if (response.status === 401) {
+          logger.warn('Leaderboard sync: invalid token', 'Leaderboard');
+          return {
+            success: false,
+            found: false,
+            error: result.error || 'Invalid authentication token',
+            errorCode: 'INVALID_TOKEN',
+          };
+        } else if (response.status === 403) {
+          logger.warn('Leaderboard sync: email not confirmed', 'Leaderboard');
+          return {
+            success: false,
+            found: false,
+            error: result.error || 'Email not yet confirmed',
+            errorCode: 'EMAIL_NOT_CONFIRMED',
+          };
+        } else if (response.status === 400) {
+          return {
+            success: false,
+            found: false,
+            error: result.error || 'Missing required fields',
+            errorCode: 'MISSING_FIELDS',
+          };
+        } else {
+          return {
+            success: false,
+            found: false,
+            error: result.error || `Server error: ${response.status}`,
+          };
+        }
+      } catch (error) {
+        logger.error('Error syncing from leaderboard server', 'Leaderboard', error);
+        return {
+          success: false,
+          found: false,
+          error: error instanceof Error ? error.message : 'Unknown error',
+        };
+      }
+    }
+  );
 }
 
 // Buffer for group chat output (keyed by sessionId)

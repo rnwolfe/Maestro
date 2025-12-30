@@ -7,7 +7,7 @@
  */
 
 import React, { useEffect, useRef, useState, useCallback } from 'react';
-import { X, Trophy, Mail, User, Loader2, Check, AlertCircle, ExternalLink, UserX, Key, RefreshCw, Send } from 'lucide-react';
+import { X, Trophy, Mail, User, Loader2, Check, AlertCircle, ExternalLink, UserX, Key, RefreshCw, Send, DownloadCloud } from 'lucide-react';
 import type { Theme, AutoRunStats, LeaderboardRegistration, KeyboardMasteryStats } from '../types';
 import { useLayerStack } from '../contexts/LayerStackContext';
 import { MODAL_PRIORITIES } from '../constants/modalPriorities';
@@ -52,6 +52,13 @@ interface LeaderboardRegistrationModalProps {
   onClose: () => void;
   onSave: (registration: LeaderboardRegistration) => void;
   onOptOut: () => void;
+  onSyncStats?: (stats: {
+    cumulativeTimeMs: number;
+    totalRuns: number;
+    currentBadgeLevel: number;
+    longestRunMs: number;
+    longestRunTimestamp: number;
+  }) => void;
 }
 
 type SubmitState = 'idle' | 'submitting' | 'success' | 'awaiting_confirmation' | 'polling' | 'error' | 'opted_out';
@@ -72,6 +79,7 @@ export function LeaderboardRegistrationModal({
   onClose,
   onSave,
   onOptOut,
+  onSyncStats,
 }: LeaderboardRegistrationModalProps) {
   const { registerLayer, unregisterLayer } = useLayerStack();
   const layerIdRef = useRef<string>();
@@ -107,6 +115,10 @@ export function LeaderboardRegistrationModal({
   // Resend confirmation state
   const [isResending, setIsResending] = useState(false);
   const [resendSuccess, setResendSuccess] = useState(false);
+
+  // Sync from server state
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [syncMessage, setSyncMessage] = useState('');
 
   // Get current badge info
   const currentBadge = getBadgeForTime(autoRunStats.cumulativeTimeMs);
@@ -437,6 +449,71 @@ export function LeaderboardRegistrationModal({
       setIsResending(false);
     }
   }, [email, clientToken, startPolling]);
+
+  // Handle sync from server (for new device installations)
+  const handleSyncFromServer = useCallback(async () => {
+    if (!existingRegistration?.authToken || !email.trim()) return;
+
+    setIsSyncing(true);
+    setSyncMessage('');
+    setErrorMessage('');
+
+    try {
+      const result = await window.maestro.leaderboard.sync({
+        email: email.trim(),
+        authToken: existingRegistration.authToken,
+      });
+
+      if (result.success && result.found && result.data) {
+        // Check if server has more data than local
+        const serverTime = result.data.cumulativeTimeMs;
+        const localTime = autoRunStats.cumulativeTimeMs;
+
+        if (serverTime > localTime) {
+          // Server has more data - sync it down
+          const longestRunTimestamp = result.data.longestRunDate
+            ? new Date(result.data.longestRunDate).getTime()
+            : 0;
+
+          if (onSyncStats) {
+            onSyncStats({
+              cumulativeTimeMs: serverTime,
+              totalRuns: result.data.totalRuns,
+              currentBadgeLevel: result.data.badgeLevel,
+              longestRunMs: result.data.longestRunMs || 0,
+              longestRunTimestamp,
+            });
+          }
+
+          const hours = Math.floor(serverTime / 3600000);
+          const minutes = Math.floor((serverTime % 3600000) / 60000);
+          setSyncMessage(`Synced! Updated to ${hours}h ${minutes}m from server (was ${Math.floor(localTime / 3600000)}h ${Math.floor((localTime % 3600000) / 60000)}m locally)`);
+        } else if (serverTime === localTime) {
+          setSyncMessage('Already in sync! Local and server stats match.');
+        } else {
+          // Local has more data - no update needed
+          const hours = Math.floor(localTime / 3600000);
+          const minutes = Math.floor((localTime % 3600000) / 60000);
+          setSyncMessage(`Local is ahead (${hours}h ${minutes}m). No sync needed - your next submission will update the server.`);
+        }
+      } else if (result.success && !result.found) {
+        setSyncMessage('No server record found. Submit your first entry to create one!');
+      } else {
+        // Handle errors
+        if (result.errorCode === 'EMAIL_NOT_CONFIRMED') {
+          setErrorMessage('Email not yet confirmed. Please check your inbox for the confirmation email.');
+        } else if (result.errorCode === 'INVALID_TOKEN') {
+          setErrorMessage('Invalid auth token. Please re-register to get a new token.');
+        } else {
+          setErrorMessage(result.error || 'Failed to sync from server');
+        }
+      }
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : 'Failed to sync from server');
+    } finally {
+      setIsSyncing(false);
+    }
+  }, [existingRegistration?.authToken, email, autoRunStats.cumulativeTimeMs, onSyncStats]);
 
   // Cleanup polling on unmount
   useEffect(() => {
@@ -899,12 +976,43 @@ export function LeaderboardRegistrationModal({
               </div>
             </div>
           )}
+
+          {/* Sync status message */}
+          {syncMessage && (
+            <div
+              className="flex items-start gap-2 p-3 rounded-lg"
+              style={{ backgroundColor: `${theme.colors.success}15`, border: `1px solid ${theme.colors.success}30` }}
+            >
+              <DownloadCloud className="w-4 h-4 flex-shrink-0 mt-0.5" style={{ color: theme.colors.success }} />
+              <p className="text-xs" style={{ color: theme.colors.success }}>{syncMessage}</p>
+            </div>
+          )}
         </div>
 
         {/* Footer */}
         <div className="p-4 border-t flex justify-between" style={{ borderColor: theme.colors.border }}>
-          {/* Left side - Opt Out (only for existing registrations) */}
-          <div>
+          {/* Left side - Opt Out and Sync from Cloud (only for existing registrations with auth token) */}
+          <div className="flex gap-2">
+            {existingRegistration?.authToken && !showOptOutConfirm && submitState === 'idle' && onSyncStats && (
+              <button
+                onClick={handleSyncFromServer}
+                disabled={isSyncing}
+                className="px-3 py-2 text-xs rounded hover:bg-white/10 transition-colors flex items-center gap-1.5 disabled:opacity-50"
+                style={{ color: theme.colors.accent }}
+              >
+                {isSyncing ? (
+                  <>
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    Syncing...
+                  </>
+                ) : (
+                  <>
+                    <DownloadCloud className="w-3.5 h-3.5" />
+                    Sync from Cloud
+                  </>
+                )}
+              </button>
+            )}
             {existingRegistration && !showOptOutConfirm && submitState === 'idle' && (
               <button
                 onClick={() => setShowOptOutConfirm(true)}

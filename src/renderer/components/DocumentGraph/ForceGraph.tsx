@@ -239,7 +239,7 @@ export function ForceGraph({
   height,
   selectedNodeId,
   onNodeSelect,
-  onNodeDoubleClick: _onNodeDoubleClick,
+  onNodeDoubleClick,
   onNodeContextMenu,
   searchQuery,
   showExternalLinks,
@@ -250,6 +250,10 @@ export function ForceGraph({
   const graphRef = useRef<ForceGraphMethods<ForceGraphNode, ForceGraphLink>>();
   const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
   const [hasInitialized, setHasInitialized] = useState(false);
+
+  // Double-click detection
+  const lastClickRef = useRef<{ nodeId: string; time: number } | null>(null);
+  const DOUBLE_CLICK_THRESHOLD = 300; // ms
 
   // Filter out external nodes if not showing them
   const filteredByType = useMemo(() => {
@@ -370,8 +374,8 @@ export function ForceGraph({
 
   // Get link color based on state
   const getLinkColor = useCallback((link: ForceGraphLink): string => {
-    const sourceId = typeof link.source === 'string' ? link.source : link.source.id;
-    const targetId = typeof link.target === 'string' ? link.target : link.target.id;
+    const sourceId = typeof link.source === 'string' ? link.source : link.source?.id;
+    const targetId = typeof link.target === 'string' ? link.target : link.target?.id;
 
     const activeNodeId = hoveredNodeId || selectedNodeId;
 
@@ -380,26 +384,26 @@ export function ForceGraph({
       return theme.colors.accent + 'CC';
     }
 
-    // External links are dimmer
+    // External links are dimmer (check the type property we set)
     if (link.type === 'external') {
       return theme.colors.textDim + '44';
     }
 
-    return theme.colors.textDim + '66';
+    return theme.colors.textDim + '88';
   }, [theme, selectedNodeId, hoveredNodeId]);
 
   // Get link width based on state
   const getLinkWidth = useCallback((link: ForceGraphLink): number => {
-    const sourceId = typeof link.source === 'string' ? link.source : link.source.id;
-    const targetId = typeof link.target === 'string' ? link.target : link.target.id;
+    const sourceId = typeof link.source === 'string' ? link.source : link.source?.id;
+    const targetId = typeof link.target === 'string' ? link.target : link.target?.id;
 
     const activeNodeId = hoveredNodeId || selectedNodeId;
 
     if (activeNodeId && (sourceId === activeNodeId || targetId === activeNodeId)) {
-      return 2;
+      return 2.5;
     }
 
-    return link.type === 'external' ? 0.5 : 1;
+    return link.type === 'external' ? 1 : 1.5;
   }, [selectedNodeId, hoveredNodeId]);
 
   // Draw node with label
@@ -458,10 +462,22 @@ export function ForceGraph({
     }
   }, [theme, selectedNodeId, hoveredNodeId, getNodeSize, getNodeColor]);
 
-  // Handle node click
+  // Handle node click (with double-click detection)
   const handleNodeClick = useCallback((node: ForceGraphNode) => {
-    onNodeSelect(node);
-  }, [onNodeSelect]);
+    const now = Date.now();
+    const lastClick = lastClickRef.current;
+
+    // Check for double-click
+    if (lastClick && lastClick.nodeId === node.id && (now - lastClick.time) < DOUBLE_CLICK_THRESHOLD) {
+      // Double-click detected - expand neighbors
+      onNodeDoubleClick(node);
+      lastClickRef.current = null; // Reset
+    } else {
+      // Single click - select node
+      onNodeSelect(node);
+      lastClickRef.current = { nodeId: node.id, time: now };
+    }
+  }, [onNodeSelect, onNodeDoubleClick]);
 
   // Handle node hover
   const handleNodeHover = useCallback((node: ForceGraphNode | null) => {
@@ -557,11 +573,25 @@ export function ForceGraph({
         ctx.fillStyle = color;
         ctx.fill();
       }}
-      // Link rendering
-      linkColor={getLinkColor}
-      linkWidth={getLinkWidth}
+      // Link rendering - use custom canvas object for full control
+      linkCanvasObject={(link, ctx, globalScale) => {
+        const source = link.source as ForceGraphNode;
+        const target = link.target as ForceGraphNode;
+
+        if (!source || !target || source.x === undefined || target.x === undefined) return;
+
+        const color = getLinkColor(link);
+        const width = getLinkWidth(link);
+
+        ctx.beginPath();
+        ctx.moveTo(source.x, source.y ?? 0);
+        ctx.lineTo(target.x, target.y ?? 0);
+        ctx.strokeStyle = color;
+        ctx.lineWidth = width / globalScale;
+        ctx.stroke();
+      }}
+      linkCanvasObjectMode={() => 'replace'}
       linkDirectionalParticles={0}
-      linkCurvature={0.1}
       // Interactions
       onNodeClick={handleNodeClick}
       onNodeHover={handleNodeHover}

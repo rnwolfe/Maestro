@@ -25,6 +25,8 @@ interface SlashCommand {
 export interface MainPanelHandle {
   /** Refresh git info (branch, ahead/behind, uncommitted changes) */
   refreshGitInfo: () => Promise<void>;
+  /** Focus the file preview container (if open) */
+  focusFilePreview: () => void;
 }
 
 interface MainPanelProps {
@@ -290,6 +292,7 @@ export const MainPanel = React.memo(forwardRef<MainPanelHandle, MainPanelProps>(
   // Panel width for responsive hiding of widgets
   const [panelWidth, setPanelWidth] = useState(Infinity); // Start with Infinity so widgets show by default
   const headerRef = useRef<HTMLDivElement>(null);
+  const filePreviewContainerRef = useRef<HTMLDivElement>(null);
   const [configuredContextWindow, setConfiguredContextWindow] = useState(0);
 
   // Extract tab handlers from props
@@ -441,7 +444,10 @@ export const MainPanel = React.memo(forwardRef<MainPanelHandle, MainPanelProps>(
 
   // Expose methods to parent via ref
   useImperativeHandle(ref, () => ({
-    refreshGitInfo: refreshGitStatus
+    refreshGitInfo: refreshGitStatus,
+    focusFilePreview: () => {
+      filePreviewContainerRef.current?.focus();
+    }
   }), [refreshGitStatus]);
 
   // Handler for input focus - select session in sidebar
@@ -1026,7 +1032,7 @@ export const MainPanel = React.memo(forwardRef<MainPanelHandle, MainPanelProps>(
 
           {/* Show File Preview in main area when open, otherwise show terminal output and input */}
           {previewFile ? (
-            <div className="flex-1 overflow-hidden">
+            <div ref={filePreviewContainerRef} tabIndex={-1} className="flex-1 overflow-hidden outline-none">
               <FilePreview
                 file={previewFile}
                 onClose={() => {

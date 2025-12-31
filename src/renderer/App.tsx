@@ -382,6 +382,34 @@ function MaestroConsoleInner() {
     clearGroupChatError: handleClearGroupChatErrorBase,
   } = useGroupChat();
 
+  // SSH Remote configs for looking up SSH remote names (used for participant cards in group chat)
+  const [sshRemoteConfigs, setSshRemoteConfigs] = useState<Array<{ id: string; name: string }>>([]);
+
+  // Load SSH configs once on mount
+  useEffect(() => {
+    window.maestro.sshRemote.getConfigs()
+      .then((result) => {
+        if (result.success && result.configs) {
+          setSshRemoteConfigs(result.configs.map((c: { id: string; name: string }) => ({ id: c.id, name: c.name })));
+        }
+      })
+      .catch(console.error);
+  }, []);
+
+  // Compute map of session names to SSH remote names (for group chat participant cards)
+  const sessionSshRemoteNames = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const session of sessions) {
+      if (session.sessionSshRemoteConfig?.enabled && session.sessionSshRemoteConfig.remoteId) {
+        const sshConfig = sshRemoteConfigs.find(c => c.id === session.sessionSshRemoteConfig?.remoteId);
+        if (sshConfig) {
+          map.set(session.name, sshConfig.name);
+        }
+      }
+    }
+    return map;
+  }, [sessions, sshRemoteConfigs]);
+
   // Wrapper for setActiveSessionId that also dismisses active group chat
   const setActiveSessionId = useCallback((id: string) => {
     setActiveGroupChatId(null); // Dismiss group chat when selecting an agent
@@ -8798,6 +8826,10 @@ function MaestroConsoleInner() {
           onClose={() => {
             setIsGraphViewOpen(false);
             setGraphFocusFilePath(undefined);
+            // Return focus to file preview if it was open
+            requestAnimationFrame(() => {
+              mainPanelRef.current?.focusFilePreview();
+            });
           }}
           theme={theme}
           rootPath={activeSession?.cwd ?? ''}
@@ -9040,6 +9072,7 @@ function MaestroConsoleInner() {
                 .filter(s => groupChats.find(c => c.id === activeGroupChatId)?.participants.some(p => p.sessionId === s.id))
                 .map(s => [s.id, s.projectRoot])
             )}
+            sessionSshRemoteNames={sessionSshRemoteNames}
             isOpen={rightPanelOpen}
             onToggle={() => setRightPanelOpen(!rightPanelOpen)}
             width={rightPanelWidth}

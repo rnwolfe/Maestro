@@ -96,32 +96,34 @@ export function ParticipantCard({
         borderLeftColor: color || theme.colors.accent,
       }}
     >
-      {/* Header row: status + name on left, SSH pill + session ID pill on right */}
-      <div className="flex items-center justify-between gap-2">
-        <div className="flex items-center gap-2 min-w-0">
-          <div
-            className={`w-2 h-2 rounded-full shrink-0 ${shouldPulse ? 'animate-pulse' : ''}`}
-            style={{ backgroundColor: getStatusColor(state, theme) }}
-            title={getStatusLabel()}
-          />
+      {/* Row 1: status dot + name (full width) */}
+      <div className="flex items-center gap-2">
+        <div
+          className={`w-2 h-2 rounded-full shrink-0 ${shouldPulse ? 'animate-pulse' : ''}`}
+          style={{ backgroundColor: getStatusColor(state, theme) }}
+          title={getStatusLabel()}
+        />
+        <span
+          className="font-medium"
+          style={{ color: color || theme.colors.textMain }}
+        >
+          {participant.name}
+        </span>
+      </div>
+
+      {/* Row 2: Pills row - SSH pill + session ID pill */}
+      <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+        {/* SSH Remote pill - shown when running on SSH remote */}
+        {participant.sshRemoteName && (
           <span
-            className="font-medium truncate"
-            style={{ color: color || theme.colors.textMain }}
+            className="flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full shrink-0 border border-purple-500/30 text-purple-500 bg-purple-500/10"
+            title={`SSH Remote: ${participant.sshRemoteName}`}
           >
-            {participant.name}
+            <Server className="w-2.5 h-2.5 shrink-0" />
+            <span className="uppercase">{participant.sshRemoteName}</span>
           </span>
-          {/* SSH Remote pill - shown when running on SSH remote */}
-          {participant.sshRemoteName && (
-            <span
-              className="flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full shrink-0 border border-purple-500/30 text-purple-500 bg-purple-500/10 max-w-[80px]"
-              title={`SSH Remote: ${participant.sshRemoteName}`}
-            >
-              <Server className="w-2.5 h-2.5 shrink-0" />
-              <span className="truncate uppercase">{participant.sshRemoteName}</span>
-            </span>
-          )}
-        </div>
-        {/* Session ID pill - top right */}
+        )}
+        {/* Session ID pill */}
         {isPending ? (
           <span
             className="text-[10px] px-2 py-0.5 rounded-full shrink-0 italic"

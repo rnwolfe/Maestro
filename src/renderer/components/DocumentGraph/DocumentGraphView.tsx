@@ -649,7 +649,7 @@ export function DocumentGraphView({
   /**
    * Handle search input escape key
    * First Escape: clear search if there's content
-   * Second Escape (or first if empty): blur search and return focus to graph
+   * Second Escape (or first if empty): blur search, return focus to graph, select center node
    */
   const handleSearchKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Escape') {
@@ -661,9 +661,17 @@ export function DocumentGraphView({
         // Blur search and focus the mind map container
         searchInputRef.current?.blur();
         mindMapContainerRef.current?.focus();
+
+        // Select the center node (the focus file)
+        if (activeFocusFile) {
+          const centerNode = nodes.find(n => n.filePath === activeFocusFile);
+          if (centerNode) {
+            handleNodeSelect(centerNode);
+          }
+        }
       }
     }
-  }, [searchQuery]);
+  }, [searchQuery, activeFocusFile, nodes, handleNodeSelect]);
 
   /**
    * Handle container keyboard shortcuts (Cmd+F for search)

@@ -804,6 +804,23 @@ export function MindMap({
     );
   }, [rawNodes, rawLinks, centerFilePath, maxDepth, width, height, showExternalLinks]);
 
+  // Set initial focus to center node when center file changes
+  useEffect(() => {
+    const centerNode = layout.nodes.find(n => n.isFocused);
+    if (centerNode) {
+      setFocusedNodeId(centerNode.id);
+      onNodeSelect(centerNode);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [centerFilePath]); // Only trigger when center file changes, not on every layout/callback update
+
+  // Sync focusedNodeId when selectedNodeId changes from parent (e.g., returning from search)
+  useEffect(() => {
+    if (selectedNodeId && selectedNodeId !== focusedNodeId) {
+      setFocusedNodeId(selectedNodeId);
+    }
+  }, [selectedNodeId, focusedNodeId]);
+
   // Apply selection state and custom positions to nodes
   const nodesWithState = useMemo(() => {
     return layout.nodes.map(node => {
@@ -1179,48 +1196,74 @@ export function MindMap({
     const focusedNode = nodesWithState.find(n => n.id === focusedNodeId);
     if (!focusedNode) return;
 
-    // Find nodes for navigation
-    const sameColumn = nodesWithState.filter(n => n.side === focusedNode.side && n.id !== focusedNodeId);
-    const leftColumn = nodesWithState.filter(n => n.x < focusedNode.x - 50);
-    const rightColumn = nodesWithState.filter(n => n.x > focusedNode.x + 50);
+    // Spatial navigation based on X/Y coordinates
+    // Column threshold: nodes within this X distance are considered same column
+    const COLUMN_THRESHOLD = 50;
+
+    // Find nodes in same column (similar X coordinate)
+    const sameColumn = nodesWithState.filter(
+      n => n.id !== focusedNodeId && Math.abs(n.x - focusedNode.x) < COLUMN_THRESHOLD
+    );
+
+    // Find nodes to the left (X is smaller)
+    const leftNodes = nodesWithState.filter(n => n.x < focusedNode.x - COLUMN_THRESHOLD);
+
+    // Find nodes to the right (X is larger)
+    const rightNodes = nodesWithState.filter(n => n.x > focusedNode.x + COLUMN_THRESHOLD);
 
     let nextNode: MindMapNode | undefined;
 
     switch (e.key) {
       case 'ArrowUp':
-        // Find closest node above in same column
+        // Find closest node above in same column (smaller Y)
         nextNode = sameColumn
           .filter(n => n.y < focusedNode.y)
-          .sort((a, b) => b.y - a.y)[0];
+          .sort((a, b) => b.y - a.y)[0]; // Closest above (largest Y that's still smaller)
         e.preventDefault();
         break;
 
       case 'ArrowDown':
-        // Find closest node below in same column
+        // Find closest node below in same column (larger Y)
         nextNode = sameColumn
           .filter(n => n.y > focusedNode.y)
-          .sort((a, b) => a.y - b.y)[0];
+          .sort((a, b) => a.y - b.y)[0]; // Closest below (smallest Y that's still larger)
         e.preventDefault();
         break;
 
       case 'ArrowLeft':
-        // Find closest node to the left
-        nextNode = leftColumn
+        // Find closest node to the left, preferring similar Y position
+        nextNode = leftNodes
           .sort((a, b) => {
-            const distA = Math.abs(a.y - focusedNode.y);
-            const distB = Math.abs(b.y - focusedNode.y);
-            return distA - distB;
+            // Primary: prefer nodes in the closest column (largest X)
+            // Secondary: prefer nodes at similar Y position
+            const xDiffA = focusedNode.x - a.x;
+            const xDiffB = focusedNode.x - b.x;
+            const yDistA = Math.abs(a.y - focusedNode.y);
+            const yDistB = Math.abs(b.y - focusedNode.y);
+            // Group by column (nodes with similar X), then sort by Y distance
+            if (Math.abs(xDiffA - xDiffB) < COLUMN_THRESHOLD) {
+              return yDistA - yDistB;
+            }
+            return xDiffA - xDiffB; // Prefer closer columns
           })[0];
         e.preventDefault();
         break;
 
       case 'ArrowRight':
-        // Find closest node to the right
-        nextNode = rightColumn
+        // Find closest node to the right, preferring similar Y position
+        nextNode = rightNodes
           .sort((a, b) => {
-            const distA = Math.abs(a.y - focusedNode.y);
-            const distB = Math.abs(b.y - focusedNode.y);
-            return distA - distB;
+            // Primary: prefer nodes in the closest column (smallest X)
+            // Secondary: prefer nodes at similar Y position
+            const xDiffA = a.x - focusedNode.x;
+            const xDiffB = b.x - focusedNode.x;
+            const yDistA = Math.abs(a.y - focusedNode.y);
+            const yDistB = Math.abs(b.y - focusedNode.y);
+            // Group by column (nodes with similar X), then sort by Y distance
+            if (Math.abs(xDiffA - xDiffB) < COLUMN_THRESHOLD) {
+              return yDistA - yDistB;
+            }
+            return xDiffA - xDiffB; // Prefer closer columns
           })[0];
         e.preventDefault();
         break;

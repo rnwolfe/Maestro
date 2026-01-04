@@ -605,7 +605,7 @@ src/renderer/components/Wizard/
 3. **Conversation** → AI asks clarifying questions, builds confidence score (0-100)
 4. **Phase Review** → View/edit generated Phase 1 document, choose to start tour
 
-When confidence reaches 80+ and agent signals "ready", user proceeds to Phase Review where Auto Run documents are generated and saved to `Auto Run Docs/`.
+When confidence reaches 80+ and agent signals "ready", user proceeds to Phase Review where Auto Run documents are generated and saved to `Auto Run Docs/Initiation/`. The `Initiation/` subfolder keeps wizard-generated documents separate from user-created playbooks.
 
 ### Triggering the Wizard
 

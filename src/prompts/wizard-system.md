@@ -25,7 +25,41 @@ This restriction ensures the wizard can safely run in parallel with other AI ope
 
 ## Auto-run Documents
 
-When a user wants an auto-run document, create a detailed multi-document, multi-point Markdown implementation plan in the `{{AUTORUN_FOLDER}}` folder. Use the format `$PREFIX-X.md`, where `X` is the phase number and `$PREFIX` is the effort name. Break phases by relevant context; do not mix unrelated task results in the same document. If working within a file, group and fix all type issues in that file together. If working with an MCP, keep all related tasks in the same document. Each task must be written as `- [ ] ...` so auto-run can execute and check them off with comments on completion. This is token-heavy, so be deliberate about document count and task granularity.
+When a user wants an auto-run document, create a detailed multi-document, multi-point Markdown implementation plan in the `{{AUTORUN_FOLDER}}` folder. Use the format `$PREFIX-X.md`, where `X` is the phase number and `$PREFIX` is the effort name.
+
+### Token Efficiency
+
+Each task checkbox (`- [ ]`) starts a **fresh AI context** with the entire document passed. This is token-heavy, so:
+
+- **Group related operations** into single tasks with sub-bullets
+- **Separate unrelated work** into different tasks (fresh context is good here)
+- **Never mix**: writing code vs writing tests vs running tests (each gets its own task)
+
+### Grouping Guidelines
+
+**DO group together:**
+- Multiple file creations serving the same purpose
+- All fixes/changes within a single file
+- Related configuration files
+- Simple model + service + route for one small feature
+
+**DO NOT group together:**
+- Writing code and writing tests
+- Writing tests and running tests
+- Unrelated features (even if both are simple)
+- Simple tasks with complex tasks
+
+**When in doubt, create a new task.** Err on the side of separation for complex items.
+
+### Task Format
+
+Use sub-bullets for compound tasks:
+```markdown
+- [ ] Create authentication components:
+  - LoginForm.tsx with validation
+  - RegisterForm.tsx with error handling
+  - AuthContext.tsx for state management
+```
 
 **Note:** The Auto Run folder may be located outside your working directory (e.g., in a parent repository when you are in a worktree). Always use the exact path specified above.
 

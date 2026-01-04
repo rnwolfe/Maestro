@@ -60,11 +60,78 @@ Each Auto Run document MUST follow this exact format:
 
 ## Task Writing Guidelines
 
+### Token Efficiency is Critical
+
+Each task checkbox (`- [ ]`) starts a **fresh AI context**. The entire document and system prompt are passed each time. Therefore:
+
+- **Group related operations into single tasks** to minimize redundant context
+- **Use sub-bullets** to list multiple items within a compound task
+- **Separate by logical context**, not by individual file or operation
+
+### What Makes a Good Task
+
 Each task should be:
-- **Specific**: Not "set up the project" but "Create package.json with required dependencies"
+- **Self-contained**: Everything needed to complete the work is in one place
+- **Context-appropriate**: All items in a task belong in the same mental context
 - **Actionable**: Clear what needs to be done
 - **Verifiable**: You can tell when it's complete
 - **Autonomous**: Can be done without asking the user questions
+
+### Grouping Rules
+
+**DO group together:**
+- Multiple file creations that serve the same purpose
+- All fixes/changes within a single file
+- Related configuration (ESLint + Prettier + tsconfig)
+- Simple model + service + route for one small feature
+
+**DO NOT group together:**
+- Writing code and writing tests (separate contexts)
+- Writing tests and running tests (separate contexts)
+- Unrelated features, even if both are "simple"
+- A simple task with a complex task (complexity bleeds over)
+
+**When in doubt, create a new task.** Err on the side of separation.
+
+### Task Format with Sub-bullets
+
+Use sub-bullets to list multiple items within a compound task:
+
+```markdown
+- [ ] Create dashboard widgets:
+  - StatsCard.tsx displaying key metrics
+  - ChartWidget.tsx with configurable chart types
+  - RecentActivity.tsx showing latest events
+
+- [ ] Write widget test suites:
+  - StatsCard.test.tsx covering data display
+  - ChartWidget.test.tsx covering chart rendering
+
+- [ ] Run widget tests and fix any failures
+```
+
+### Bad Examples (Token-Wasteful)
+
+```markdown
+- [ ] Create StatsCard.tsx
+- [ ] Create ChartWidget.tsx
+- [ ] Create RecentActivity.tsx
+```
+
+### Good Examples (Efficient Grouping)
+
+```markdown
+- [ ] Add notification system components:
+  - NotificationBell.tsx with unread count badge
+  - NotificationList.tsx with infinite scroll
+  - NotificationItem.tsx with read/unread states
+  - useNotifications.ts hook for fetching and marking read
+
+- [ ] Implement notification backend integration:
+  - notificationService.ts with API calls
+  - NotificationContext.tsx for app-wide state
+  - Real-time updates via WebSocket connection
+```
 
 ## Output Format
 

@@ -115,6 +115,9 @@ export function useSessionDebounce<T>(
     updater: (prev: T) => T,
     immediate: boolean = false
   ) => {
+    // DEBUG: Log schedule attempt
+    console.log('[useSessionDebounce:scheduleUpdate]', { sessionId, immediate, hasPending: !!pendingUpdatesRef.current[sessionId] });
+
     // For immediate updates (start/stop/error), bypass debouncing
     if (immediate) {
       // Clear any pending timer for this session
@@ -167,6 +170,11 @@ export function useSessionDebounce<T>(
    * Flush a pending update immediately (if any)
    */
   const flushUpdate = useCallback((sessionId: string) => {
+    // DEBUG: Log flush attempt
+    const hasTimer = !!debounceTimerRefs.current[sessionId];
+    const hasPending = !!pendingUpdatesRef.current[sessionId];
+    console.log('[useSessionDebounce:flushUpdate]', { sessionId, hasTimer, hasPending, isMounted: isMountedRef.current });
+
     // Clear the timer
     if (debounceTimerRefs.current[sessionId]) {
       clearTimeout(debounceTimerRefs.current[sessionId]);
@@ -176,6 +184,7 @@ export function useSessionDebounce<T>(
     // Apply the pending update if any
     const composedUpdater = pendingUpdatesRef.current[sessionId];
     if (composedUpdater && isMountedRef.current) {
+      console.log('[useSessionDebounce:flushUpdate] Applying pending update');
       onUpdate(sessionId, composedUpdater);
     }
     delete pendingUpdatesRef.current[sessionId];

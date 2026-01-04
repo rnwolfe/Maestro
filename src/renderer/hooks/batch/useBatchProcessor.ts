@@ -186,11 +186,23 @@ export function useBatchProcessor({
   // Wrap dispatch to update ref synchronously, fixing race condition where
   // debounced callbacks read stale ref state before React re-renders
   const dispatch = useCallback((action: Parameters<typeof batchReducer>[1]) => {
+    const prevRef = batchRunStatesRef.current;
     dispatchRaw(action);
     // Synchronously update ref with the new state so debounced callbacks see it
     // This must happen after dispatch since the reducer computes the new state
     // Note: We apply the reducer directly to compute what the new state will be
     batchRunStatesRef.current = batchReducer(batchRunStatesRef.current, action);
+
+    // DEBUG: Log dispatch to trace state updates
+    if (action.type === 'START_BATCH' || action.type === 'UPDATE_PROGRESS') {
+      const sessionId = action.sessionId;
+      console.log('[BatchProcessor:dispatch]', action.type, {
+        sessionId,
+        prevCompleted: prevRef[sessionId]?.completedTasksAcrossAllDocs,
+        newCompleted: batchRunStatesRef.current[sessionId]?.completedTasksAcrossAllDocs,
+        payload: action.type === 'UPDATE_PROGRESS' ? (action as { payload?: { completedTasksAcrossAllDocs?: number } }).payload?.completedTasksAcrossAllDocs : 'N/A',
+      });
+    }
   }, []);
 
   // Custom prompts per session
@@ -255,7 +267,7 @@ export function useBatchProcessor({
   }, []);
 
   // Use extracted debounce hook for batch state updates (replaces manual debounce logic)
-  const { scheduleUpdate: scheduleDebouncedUpdate } = useSessionDebounce<Record<string, BatchRunState>>({
+  const { scheduleUpdate: scheduleDebouncedUpdate, flushUpdate: flushDebouncedUpdate } = useSessionDebounce<Record<string, BatchRunState>>({
     delayMs: BATCH_STATE_DEBOUNCE_MS,
     onUpdate: useCallback((sessionId: string, updater: (prev: Record<string, BatchRunState>) => Record<string, BatchRunState>) => {
       // Apply the updater and get the new state for broadcasting
@@ -268,6 +280,14 @@ export function useBatchProcessor({
       const currentState = batchRunStatesRef.current;
       const newState = updater(currentState);
       newStateForSession = newState[sessionId] || null;
+
+      // DEBUG: Log to trace progress updates
+      console.log('[BatchProcessor:onUpdate] Debounce fired:', {
+        sessionId,
+        refHasSession: !!currentState[sessionId],
+        refCompletedTasks: currentState[sessionId]?.completedTasksAcrossAllDocs,
+        newCompletedTasks: newStateForSession?.completedTasksAcrossAllDocs,
+      });
 
       // Dispatch UPDATE_PROGRESS with the computed changes
       // For complex state changes, we extract the session's new state and dispatch appropriately
@@ -326,6 +346,9 @@ export function useBatchProcessor({
   const documentProcessor = useDocumentProcessor();
 
   // Helper to get batch state for a session
+  // Note: This reads from React state (not the ref) because consumers need React
+  // to trigger re-renders when state changes. The ref is used internally for
+  // synchronous access in debounced callbacks.
   const getBatchState = useCallback((sessionId: string): BatchRunState => {
     return batchRunStates[sessionId] || DEFAULT_BATCH_STATE;
   }, [batchRunStates]);
@@ -370,6 +393,8 @@ export function useBatchProcessor({
     updater: (prev: Record<string, BatchRunState>) => Record<string, BatchRunState>,
     immediate: boolean = false
   ) => {
+    // DEBUG: Log when updates are scheduled
+    console.log('[BatchProcessor:updateBatchStateAndBroadcast] Scheduling update', { sessionId, immediate });
     scheduleDebouncedUpdate(sessionId, updater, immediate);
   }, [scheduleDebouncedUpdate]);
 
@@ -1310,6 +1335,11 @@ export function useBatchProcessor({
 
     // Guard against state updates after unmount (async code may still be running)
     if (isMountedRef.current) {
+      // Flush any pending debounced updates before completing the batch
+      // This ensures progress updates aren't lost if the batch completes quickly
+      console.log('[BatchProcessor:startBatchRun] Flushing debounced updates before COMPLETE_BATCH');
+      flushDebouncedUpdate(sessionId);
+
       // Reset state for this session using COMPLETE_BATCH action
       // (not updateBatchStateAndBroadcast which only supports UPDATE_PROGRESS)
       dispatch({
@@ -1353,7 +1383,8 @@ export function useBatchProcessor({
     // Allow system to sleep now that Auto Run is complete
     window.maestro.power.removeReason(`autorun:${sessionId}`);
   // Note: updateBatchStateAndBroadcast is accessed via ref to avoid stale closure in long-running async
-  }, [onUpdateSession, onSpawnAgent, onAddHistoryEntry, onComplete, onPRResult, audioFeedbackEnabled, audioFeedbackCommand, timeTracking, onProcessQueueAfterCompletion]);
+  // flushDebouncedUpdate is stable (empty deps in useSessionDebounce) so adding it doesn't cause re-renders
+  }, [onUpdateSession, onSpawnAgent, onAddHistoryEntry, onComplete, onPRResult, audioFeedbackEnabled, audioFeedbackCommand, timeTracking, onProcessQueueAfterCompletion, flushDebouncedUpdate]);
 
   /**
    * Request to stop the batch run for a specific session after current task completes

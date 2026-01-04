@@ -773,10 +773,8 @@ export const FilePreview = forwardRef<FilePreviewHandle, FilePreviewProps>(funct
         }
       }
 
-      // Update match count - avoid triggering re-render if count hasn't changed
-      if (totalMatches !== allRanges.length) {
-        setTotalMatches(allRanges.length);
-      }
+      // Update match count
+      setTotalMatches(allRanges.length);
 
       // Create highlights
       if (allRanges.length > 0) {
@@ -843,7 +841,7 @@ export const FilePreview = forwardRef<FilePreviewHandle, FilePreviewProps>(funct
     }
 
     matchElementsRef.current = [];
-  }, [searchQuery, file?.content, isMarkdown, markdownEditMode, currentMatchIndex, theme.colors.accent, totalMatches]);
+  }, [searchQuery, file?.content, isMarkdown, markdownEditMode, currentMatchIndex, theme.colors.accent]);
 
   const copyPathToClipboard = () => {
     if (!file) return;

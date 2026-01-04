@@ -414,6 +414,103 @@ describe('ClaudeOutputParser', () => {
     });
   });
 
+  describe('thinking blocks extraction', () => {
+    it('should extract thinking content from assistant messages', () => {
+      const line = JSON.stringify({
+        type: 'assistant',
+        session_id: 'sess-abc123',
+        message: {
+          role: 'assistant',
+          content: [
+            { type: 'thinking', thinking: 'Let me analyze this codebase...' },
+          ],
+        },
+      });
+
+      const event = parser.parseJsonLine(line);
+      expect(event).not.toBeNull();
+      expect(event?.type).toBe('text');
+      expect(event?.text).toBe('Let me analyze this codebase...');
+      expect(event?.isPartial).toBe(true);
+    });
+
+    it('should prioritize thinking content over text content', () => {
+      const line = JSON.stringify({
+        type: 'assistant',
+        message: {
+          content: [
+            { type: 'thinking', thinking: 'Analyzing the problem...' },
+            { type: 'text', text: 'Some response text' },
+          ],
+        },
+      });
+
+      const event = parser.parseJsonLine(line);
+      // Thinking content should be emitted for thinking-chunk events
+      expect(event?.text).toBe('Analyzing the problem...');
+    });
+
+    it('should extract multiple thinking blocks', () => {
+      const line = JSON.stringify({
+        type: 'assistant',
+        message: {
+          content: [
+            { type: 'thinking', thinking: 'First I will analyze ' },
+            { type: 'thinking', thinking: 'the code structure.' },
+          ],
+        },
+      });
+
+      const event = parser.parseJsonLine(line);
+      expect(event?.text).toBe('First I will analyze the code structure.');
+    });
+
+    it('should fall back to text content when no thinking blocks', () => {
+      const line = JSON.stringify({
+        type: 'assistant',
+        message: {
+          content: [{ type: 'text', text: 'Here is my response.' }],
+        },
+      });
+
+      const event = parser.parseJsonLine(line);
+      expect(event?.text).toBe('Here is my response.');
+    });
+
+    it('should ignore redacted_thinking blocks', () => {
+      const line = JSON.stringify({
+        type: 'assistant',
+        message: {
+          content: [
+            { type: 'redacted_thinking', signature: 'encrypted_content' },
+            { type: 'text', text: 'Response after redacted thinking' },
+          ],
+        },
+      });
+
+      const event = parser.parseJsonLine(line);
+      // Should fall back to text since redacted_thinking is ignored
+      expect(event?.text).toBe('Response after redacted thinking');
+    });
+
+    it('should handle thinking blocks alongside tool_use blocks', () => {
+      const line = JSON.stringify({
+        type: 'assistant',
+        message: {
+          content: [
+            { type: 'thinking', thinking: 'I need to read the file.' },
+            { type: 'tool_use', id: 'toolu_1', name: 'Read', input: { file: 'test.ts' } },
+          ],
+        },
+      });
+
+      const event = parser.parseJsonLine(line);
+      expect(event?.text).toBe('I need to read the file.');
+      expect(event?.toolUseBlocks).toHaveLength(1);
+      expect(event?.toolUseBlocks?.[0].name).toBe('Read');
+    });
+  });
+
   describe('edge cases', () => {
     it('should handle empty result string', () => {
       const event = parser.parseJsonLine(

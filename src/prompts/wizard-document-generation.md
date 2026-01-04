@@ -56,21 +56,115 @@ Each Auto Run document MUST follow this exact format:
 
 ## Task Writing Guidelines
 
+### Token Efficiency is Critical
+
+Each task checkbox (`- [ ]`) starts a **fresh AI context**. The entire document and system prompt are passed each time. Therefore:
+
+- **Group related operations into single tasks** to minimize redundant context
+- **Use sub-bullets** to list multiple items within a compound task
+- **Separate by logical context**, not by individual file or operation
+
+### What Makes a Good Task
+
 Each task should be:
-- **Specific**: Not "set up the project" but "Create package.json with required dependencies"
+- **Self-contained**: Everything needed to complete the work is in one place
+- **Context-appropriate**: All items in a task belong in the same mental context
 - **Actionable**: Clear what needs to be done
 - **Verifiable**: You can tell when it's complete
 - **Autonomous**: Can be done without asking the user questions
 
-Bad task examples (too vague):
-- [ ] Build the UI
-- [ ] Add features
-- [ ] Set up the backend
+### Grouping Rules
 
-Good task examples (specific and actionable):
-- [ ] Create src/components/Header.tsx with logo, navigation links, and responsive menu
-- [ ] Add Express route GET /api/users that returns mock user data array
-- [ ] Create CSS module for Button component with primary and secondary variants
+**DO group together:**
+- Multiple file creations that serve the same purpose
+- All fixes/changes within a single file
+- Related configuration (ESLint + Prettier + tsconfig)
+- Simple model + service + route for one small feature
+
+**DO NOT group together:**
+- Writing code and writing tests (separate contexts)
+- Writing tests and running tests (separate contexts)
+- Unrelated features, even if both are "simple"
+- A simple task with a complex task (complexity bleeds over)
+
+**When in doubt, create a new task.** Err on the side of separation.
+
+### Task Format with Sub-bullets
+
+Use sub-bullets to list multiple items within a compound task:
+
+```markdown
+- [ ] Create authentication components:
+  - LoginForm.tsx with email/password fields and validation
+  - RegisterForm.tsx with email/password/confirm fields
+  - AuthContext.tsx for session state management
+  - useAuth.ts hook for login/logout/register functions
+
+- [ ] Set up project configuration:
+  - package.json with dependencies (React, TypeScript, etc.)
+  - tsconfig.json with strict mode enabled
+  - .eslintrc.js with recommended rules
+  - .prettierrc with consistent formatting
+```
+
+### Bad Examples (Token-Wasteful)
+
+These create unnecessary separate contexts:
+
+```markdown
+- [ ] Create LoginForm.tsx
+- [ ] Create RegisterForm.tsx
+- [ ] Create AuthContext.tsx
+- [ ] Create useAuth.ts hook
+```
+
+### Good Examples (Efficient Grouping)
+
+```markdown
+- [ ] Create user authentication UI components:
+  - LoginForm.tsx with email/password fields, validation, and error display
+  - RegisterForm.tsx with email/password/confirm fields and terms checkbox
+  - ForgotPassword.tsx with email input and reset flow
+
+- [ ] Implement auth state management:
+  - AuthContext.tsx providing user state and auth methods
+  - useAuth.ts hook exposing login, logout, register, and refreshToken
+  - authService.ts with API calls to /auth endpoints
+
+- [ ] Write authentication test suites:
+  - LoginForm.test.tsx covering validation and submission
+  - AuthContext.test.tsx covering state transitions
+  - authService.test.ts covering API mocking
+
+- [ ] Run authentication tests and fix any failures
+```
+
+### Complexity Separation
+
+If one item in a group is significantly more complex, give it its own task:
+
+```markdown
+# Instead of cramming everything together:
+- [ ] Create user system (BAD - mixed complexity)
+
+# Separate by complexity:
+- [ ] Create User model and basic CRUD service:
+  - User.ts entity with id, email, passwordHash, createdAt
+  - UserRepository.ts with findById, findByEmail, create, update, delete
+  - UserService.ts with basic getUser, createUser, updateUser
+
+- [ ] Implement role-based access control system:
+  - Role.ts and Permission.ts entities with relationships
+  - RoleService.ts with role assignment and permission checking
+  - RBAC middleware that validates permissions per route
+  - Permission decorator for controller methods
+```
+
+### Phase Sizing
+
+- Aim for **5-10 meaningful tasks per phase**, not 20+ granular ones
+- Each task should represent a coherent unit of work
+- A phase should deliver tangible progress when complete
 
 ## Phase Guidelines
 

@@ -1158,10 +1158,12 @@ export function ConversationScreen({ theme }: ConversationScreenProps): JSX.Elem
             <div className="flex justify-center gap-2">
               <button
                 onClick={handleRetry}
-                className="px-4 py-1.5 rounded text-sm font-medium transition-colors"
+                className="px-4 py-1.5 rounded text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-offset-1"
                 style={{
                   backgroundColor: theme.colors.error,
                   color: 'white',
+                  ['--tw-ring-color' as any]: theme.colors.error,
+                  ['--tw-ring-offset-color' as any]: theme.colors.bgMain,
                 }}
               >
                 {detectedError && !detectedError.canRetry
@@ -1174,11 +1176,13 @@ export function ConversationScreen({ theme }: ConversationScreenProps): JSX.Elem
               {detectedError && !detectedError.canRetry && (
                 <button
                   onClick={previousStep}
-                  className="px-4 py-1.5 rounded text-sm font-medium transition-colors"
+                  className="px-4 py-1.5 rounded text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-offset-1"
                   style={{
                     backgroundColor: theme.colors.bgSidebar,
                     color: theme.colors.textMain,
                     border: `1px solid ${theme.colors.border}`,
+                    ['--tw-ring-color' as any]: theme.colors.accent,
+                    ['--tw-ring-offset-color' as any]: theme.colors.bgMain,
                   }}
                 >
                   Go Back
@@ -1205,14 +1209,16 @@ export function ConversationScreen({ theme }: ConversationScreenProps): JSX.Elem
             </p>
             <button
               onClick={handleLetsGo}
-              className="px-6 py-2.5 rounded-lg text-sm font-bold transition-all hover:scale-105"
+              className="px-6 py-2.5 rounded-lg text-sm font-bold transition-all hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2"
               style={{
                 backgroundColor: theme.colors.success,
                 color: theme.colors.bgMain,
                 boxShadow: `0 4px 12px ${theme.colors.success}40`,
+                ['--tw-ring-color' as any]: theme.colors.success,
+                ['--tw-ring-offset-color' as any]: theme.colors.bgMain,
               }}
             >
-              Let's Get Started! 🚀
+              Let's Get Started!
             </button>
             <p
               className="text-xs mt-3"
@@ -1272,7 +1278,7 @@ export function ConversationScreen({ theme }: ConversationScreenProps): JSX.Elem
           <button
             onClick={handleSendMessage}
             disabled={!inputValue.trim() || state.isConversationLoading}
-            className="px-4 rounded-lg font-medium transition-all flex items-center gap-2 shrink-0 self-end"
+            className="px-4 rounded-lg font-medium transition-all flex items-center gap-2 shrink-0 self-end focus:outline-none focus:ring-2 focus:ring-offset-2"
             style={{
               backgroundColor:
                 inputValue.trim() && !state.isConversationLoading
@@ -1287,6 +1293,8 @@ export function ConversationScreen({ theme }: ConversationScreenProps): JSX.Elem
                   ? 'pointer'
                   : 'not-allowed',
               height: '48px',
+              ['--tw-ring-color' as any]: theme.colors.accent,
+              ['--tw-ring-offset-color' as any]: theme.colors.bgSidebar,
             }}
           >
             {state.isConversationLoading ? (
@@ -1328,11 +1336,11 @@ export function ConversationScreen({ theme }: ConversationScreenProps): JSX.Elem
             </kbd>
             <button
               onClick={() => setShowThinking(!showThinking)}
-              className={`flex items-center gap-1 px-2 py-1 rounded hover:bg-white/5 transition-opacity ${
+              className={`flex items-center gap-1 px-2 py-1 rounded hover:bg-white/5 transition-opacity focus:outline-none focus:ring-2 focus:ring-offset-1 ${
                 showThinking ? 'opacity-100' : 'opacity-50 hover:opacity-100'
               }`}
               title={showThinking ? 'Hide AI thinking (show filler messages)' : 'Show AI thinking'}
-              style={showThinking ? { color: theme.colors.accent } : { color: theme.colors.textDim }}
+              style={showThinking ? { color: theme.colors.accent, ['--tw-ring-color' as any]: theme.colors.accent, ['--tw-ring-offset-color' as any]: theme.colors.bgSidebar } : { color: theme.colors.textDim, ['--tw-ring-color' as any]: theme.colors.accent, ['--tw-ring-offset-color' as any]: theme.colors.bgSidebar }}
             >
               <Brain className="w-3 h-3" />
               <span>Thinking</span>

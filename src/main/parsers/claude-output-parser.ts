@@ -137,11 +137,17 @@ export class ClaudeOutputParser implements AgentOutputParser {
     // Handle assistant messages (streaming partial responses)
     if (msg.type === 'assistant') {
       const text = this.extractTextFromMessage(msg);
+      const thinkingText = this.extractThinkingFromMessage(msg);
       const toolUseBlocks = this.extractToolUseBlocks(msg);
+
+      // For thinking content, prioritize thinking blocks over text blocks
+      // This ensures extended thinking (Claude 3.7+, Claude 4+) content streams properly
+      // When thinking blocks are present, emit them as partial content for thinking-chunk events
+      const contentToEmit = thinkingText || text;
 
       return {
         type: 'text',
-        text,
+        text: contentToEmit,
         sessionId: msg.session_id,
         isPartial: true,
         toolUseBlocks: toolUseBlocks.length > 0 ? toolUseBlocks : undefined,
@@ -201,12 +207,11 @@ export class ClaudeOutputParser implements AgentOutputParser {
    * Extract text content from a Claude assistant message
    *
    * Only extracts 'text' type blocks - explicitly excludes:
-   * - 'thinking' blocks (extended thinking reasoning content)
+   * - 'thinking' blocks (handled by extractThinkingFromMessage)
    * - 'redacted_thinking' blocks (safety-encrypted thinking)
    * - 'tool_use' blocks (handled separately by extractToolUseBlocks)
    *
-   * Extended thinking content is emitted separately via thinking-chunk events
-   * and controlled by the tab's showThinking setting in the renderer.
+   * @see extractThinkingFromMessage for thinking content extraction
    */
   private extractTextFromMessage(msg: ClaudeRawMessage): string {
     if (!msg.message?.content) {
@@ -223,6 +228,32 @@ export class ClaudeOutputParser implements AgentOutputParser {
     return msg.message.content
       .filter((block) => block.type === 'text' && block.text)
       .map((block) => block.text!)
+      .join('');
+  }
+
+  /**
+   * Extract thinking content from a Claude assistant message
+   *
+   * Extracts 'thinking' type blocks from extended thinking (Claude 3.7+, Claude 4+).
+   * This content represents the model's internal reasoning process.
+   *
+   * Note: 'redacted_thinking' blocks are excluded as they contain encrypted content
+   * that cannot be displayed.
+   */
+  private extractThinkingFromMessage(msg: ClaudeRawMessage): string {
+    if (!msg.message?.content) {
+      return '';
+    }
+
+    // Content must be array for thinking blocks
+    if (typeof msg.message.content === 'string') {
+      return '';
+    }
+
+    // Extract thinking blocks (excluding redacted_thinking which is encrypted)
+    return msg.message.content
+      .filter((block) => block.type === 'thinking' && block.thinking)
+      .map((block) => block.thinking!)
       .join('');
   }
 

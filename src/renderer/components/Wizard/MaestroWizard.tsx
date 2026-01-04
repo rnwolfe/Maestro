@@ -14,6 +14,18 @@ import { WizardExitConfirmModal } from './WizardExitConfirmModal';
 import { ScreenReaderAnnouncement } from './ScreenReaderAnnouncement';
 import type { Theme } from '../../types';
 
+/**
+ * Selector for all focusable elements within a container
+ */
+const FOCUSABLE_SELECTOR = [
+  'button:not([disabled]):not([tabindex="-1"])',
+  'input:not([disabled]):not([tabindex="-1"])',
+  'select:not([disabled]):not([tabindex="-1"])',
+  'textarea:not([disabled]):not([tabindex="-1"])',
+  'a[href]:not([tabindex="-1"])',
+  '[tabindex]:not([tabindex="-1"]):not([disabled])',
+].join(', ');
+
 /** Duration of the fade-out animation in ms */
 const FADE_OUT_DURATION = 150;
 /** Duration of the fade-in animation in ms */
@@ -290,6 +302,64 @@ export function MaestroWizard({
     return () => modal.removeEventListener('keydown', handleBubbleKeyDown, false);
   }, [state.isOpen]);
 
+  // Focus trap - keep Tab navigation within the modal
+  useEffect(() => {
+    if (!state.isOpen || showExitConfirm) return;
+
+    const modal = modalRef.current;
+    if (!modal) return;
+
+    const handleFocusTrap = (e: KeyboardEvent) => {
+      if (e.key !== 'Tab') return;
+
+      // Get all focusable elements within the modal
+      const focusableElements = modal.querySelectorAll(FOCUSABLE_SELECTOR);
+      const focusableArray = Array.from(focusableElements) as HTMLElement[];
+
+      if (focusableArray.length === 0) return;
+
+      const firstElement = focusableArray[0];
+      const lastElement = focusableArray[focusableArray.length - 1];
+      const activeElement = document.activeElement;
+
+      // Check if focus is within the modal
+      const focusIsInModal = modal.contains(activeElement);
+
+      if (e.shiftKey) {
+        // Shift+Tab: going backwards
+        if (!focusIsInModal || activeElement === firstElement) {
+          e.preventDefault();
+          lastElement.focus();
+        }
+      } else {
+        // Tab: going forwards
+        if (!focusIsInModal || activeElement === lastElement) {
+          e.preventDefault();
+          firstElement.focus();
+        }
+      }
+    };
+
+    // Use capture phase to intercept Tab before it reaches other handlers
+    document.addEventListener('keydown', handleFocusTrap, { capture: true });
+    return () => document.removeEventListener('keydown', handleFocusTrap, { capture: true });
+  }, [state.isOpen, showExitConfirm]);
+
+  // Focus the modal when it opens to ensure focus is trapped
+  useEffect(() => {
+    if (state.isOpen && modalRef.current) {
+      // Focus the first focusable element in the modal
+      const focusableElements = modalRef.current.querySelectorAll(FOCUSABLE_SELECTOR);
+      const firstFocusable = focusableElements[0] as HTMLElement | undefined;
+      if (firstFocusable) {
+        // Small delay to let the modal render
+        requestAnimationFrame(() => {
+          firstFocusable.focus();
+        });
+      }
+    }
+  }, [state.isOpen]);
+
   /**
    * Render the appropriate screen component based on displayed step
    * Uses displayedStep (not currentStep) to allow for transition animations
@@ -442,8 +512,8 @@ export function MaestroWizard({
                     goToStep(targetStep);
                   }
                 }}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors hover:bg-white/10"
-                style={{ color: theme.colors.textDim }}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-offset-1"
+                style={{ color: theme.colors.textDim, ['--tw-ring-color' as any]: theme.colors.accent, ['--tw-ring-offset-color' as any]: theme.colors.bgSidebar }}
                 title="Go back"
                 aria-label="Go back to previous step"
               >
@@ -467,8 +537,8 @@ export function MaestroWizard({
             {/* Close button */}
             <button
               onClick={handleCloseRequest}
-              className="p-2 rounded-lg hover:bg-white/10 transition-colors"
-              style={{ color: theme.colors.textDim }}
+              className="p-2 rounded-lg hover:bg-white/10 transition-colors focus:outline-none focus:ring-2 focus:ring-offset-1"
+              style={{ color: theme.colors.textDim, ['--tw-ring-color' as any]: theme.colors.accent, ['--tw-ring-offset-color' as any]: theme.colors.bgSidebar }}
               title="Close wizard (Escape)"
               aria-label="Close wizard"
             >

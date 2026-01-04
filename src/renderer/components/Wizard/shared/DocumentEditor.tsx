@@ -212,6 +212,10 @@ export interface DocumentEditorProps {
   proseClassPrefix?: string;
   /** Whether to show document selector and stats (default: true) */
   showHeader?: boolean;
+  /** Whether the document dropdown is open (controlled mode) */
+  isDropdownOpen?: boolean;
+  /** Called when dropdown open state changes */
+  onDropdownOpenChange?: (isOpen: boolean) => void;
 }
 
 /**
@@ -244,6 +248,8 @@ export function DocumentEditor({
   statsText,
   proseClassPrefix = 'doc-editor',
   showHeader = true,
+  isDropdownOpen,
+  onDropdownOpenChange,
 }: DocumentEditorProps): JSX.Element {
   const _fileInputRef = useRef<HTMLInputElement>(null);
   const [attachmentsExpanded, setAttachmentsExpanded] = useState(true);
@@ -530,6 +536,8 @@ export function DocumentEditor({
               theme={theme}
               disabled={isLocked}
               className="min-w-0"
+              isOpen={isDropdownOpen}
+              onOpenChange={onDropdownOpenChange}
             />
 
             {/* Edit/Preview toggle */}

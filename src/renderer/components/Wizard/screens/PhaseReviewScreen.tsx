@@ -94,6 +94,8 @@ function DocumentReview({
   // Track which button is launching: 'ready', 'tour', or null (not launching)
   const [launchingButton, setLaunchingButton] = useState<'ready' | 'tour' | null>(null);
   const [launchError, setLaunchError] = useState<string | null>(null);
+  // Document dropdown open state - controlled to handle Escape key priority
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
   // Refs for button focus and editor content
   const readyButtonRef = useRef<HTMLButtonElement>(null);
@@ -223,25 +225,56 @@ function DocumentReview({
     }, 50);
   }, []);
 
-  // Global Cmd+E handler - attaches to container to work regardless of focus
-  // Uses capture phase to intercept the event before any child elements
+  // Global keyboard handler - attaches to window in capture phase to intercept
+  // events before the LayerStack (which also uses capture phase on window)
+  // We need to handle Escape here to close the dropdown before it closes the modal
   useEffect(() => {
-    const container = containerRef.current;
-    if (!container) return;
-
     const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      // Handle Escape when dropdown is open - close dropdown instead of modal
+      if (e.key === 'Escape' && isDropdownOpen) {
+        e.preventDefault();
+        e.stopPropagation();
+        setIsDropdownOpen(false);
+        return;
+      }
+
       // Toggle edit/preview with Cmd+E
       if ((e.metaKey || e.ctrlKey) && e.key === 'e' && !e.shiftKey) {
         e.preventDefault();
         e.stopPropagation();
         handleModeChange(mode === 'edit' ? 'preview' : 'edit');
+        return;
+      }
+
+      // Cycle through documents with Cmd+Shift+[ and Cmd+Shift+]
+      if ((e.metaKey || e.ctrlKey) && e.shiftKey && generatedDocuments.length > 1) {
+        if (e.key === '[') {
+          e.preventDefault();
+          e.stopPropagation();
+          // Previous document (wrap around)
+          const newIndex = currentDocumentIndex === 0
+            ? generatedDocuments.length - 1
+            : currentDocumentIndex - 1;
+          handleDocumentSelect(newIndex);
+          return;
+        }
+        if (e.key === ']') {
+          e.preventDefault();
+          e.stopPropagation();
+          // Next document (wrap around)
+          const newIndex = (currentDocumentIndex + 1) % generatedDocuments.length;
+          handleDocumentSelect(newIndex);
+          return;
+        }
       }
     };
 
-    // Use capture phase to handle the event before it reaches any child elements
-    container.addEventListener('keydown', handleGlobalKeyDown, true);
-    return () => container.removeEventListener('keydown', handleGlobalKeyDown, true);
-  }, [mode, handleModeChange]);
+    // Use capture phase at window level - this fires before LayerStackContext's handler
+    // since we register after it (registration order matters for same-phase handlers)
+    // Actually, we need to be first, so we'll attach directly to the modal element
+    window.addEventListener('keydown', handleGlobalKeyDown, true);
+    return () => window.removeEventListener('keydown', handleGlobalKeyDown, true);
+  }, [mode, handleModeChange, currentDocumentIndex, generatedDocuments.length, handleDocumentSelect, isDropdownOpen]);
 
   // Handle adding attachment
   const handleAddAttachment = useCallback(
@@ -418,6 +451,8 @@ function DocumentReview({
           onDocumentSelect={handleDocumentSelect}
           statsText={statsText}
           proseClassPrefix="phase-review"
+          isDropdownOpen={isDropdownOpen}
+          onDropdownOpenChange={setIsDropdownOpen}
         />
       </div>
 
@@ -449,8 +484,8 @@ function DocumentReview({
           </span>
           <button
             onClick={() => setLaunchError(null)}
-            className="ml-auto p-1 hover:opacity-80"
-            style={{ color: theme.colors.error }}
+            className="ml-auto p-1 hover:opacity-80 focus:outline-none focus:ring-2 focus:ring-offset-1 rounded"
+            style={{ color: theme.colors.error, ['--tw-ring-color' as any]: theme.colors.error, ['--tw-ring-offset-color' as any]: theme.colors.bgMain }}
           >
             <X className="w-4 h-4" />
           </button>
@@ -471,13 +506,15 @@ function DocumentReview({
             ref={readyButtonRef}
             onClick={() => handleLaunch(false)}
             disabled={launchingButton !== null}
-            className={`flex-1 flex items-center justify-center gap-2 px-6 py-3.5 rounded-lg font-semibold text-base transition-all ${
+            className={`flex-1 flex items-center justify-center gap-2 px-6 py-3.5 rounded-lg font-semibold text-base transition-all focus:outline-none focus:ring-2 focus:ring-offset-2 ${
               launchingButton !== null ? 'opacity-70 cursor-not-allowed' : 'hover:scale-[1.02]'
             }`}
             style={{
               backgroundColor: theme.colors.accent,
               color: theme.colors.accentForeground,
               boxShadow: `0 4px 14px ${theme.colors.accent}40`,
+              ['--tw-ring-color' as any]: theme.colors.textMain,
+              ['--tw-ring-offset-color' as any]: theme.colors.bgSidebar,
             }}
           >
             {launchingButton === 'ready' ? (
@@ -493,13 +530,15 @@ function DocumentReview({
             ref={tourButtonRef}
             onClick={() => handleLaunch(true)}
             disabled={launchingButton !== null}
-            className={`flex-1 flex items-center justify-center gap-2 px-6 py-3.5 rounded-lg font-medium text-base transition-all ${
+            className={`flex-1 flex items-center justify-center gap-2 px-6 py-3.5 rounded-lg font-medium text-base transition-all focus:outline-none focus:ring-2 focus:ring-offset-2 ${
               launchingButton !== null ? 'opacity-70 cursor-not-allowed' : 'hover:scale-[1.02]'
             }`}
             style={{
               backgroundColor: theme.colors.bgActivity,
               color: theme.colors.textMain,
               border: `2px solid ${theme.colors.border}`,
+              ['--tw-ring-color' as any]: theme.colors.accent,
+              ['--tw-ring-offset-color' as any]: theme.colors.bgSidebar,
             }}
           >
             {launchingButton === 'tour' ? (
@@ -512,7 +551,7 @@ function DocumentReview({
         </div>
 
         {/* Keyboard hints */}
-        <div className="mt-4 flex justify-center gap-6">
+        <div className="mt-4 flex justify-center gap-6 flex-wrap">
           <span
             className="text-xs flex items-center gap-1"
             style={{ color: theme.colors.textDim }}
@@ -525,6 +564,20 @@ function DocumentReview({
             </kbd>
             Toggle Edit/Preview
           </span>
+          {generatedDocuments.length > 1 && (
+            <span
+              className="text-xs flex items-center gap-1"
+              style={{ color: theme.colors.textDim }}
+            >
+              <kbd
+                className="px-1.5 py-0.5 rounded text-xs"
+                style={{ backgroundColor: theme.colors.border }}
+              >
+                ⌘⇧[]
+              </kbd>
+              Cycle documents
+            </span>
+          )}
           <span
             className="text-xs flex items-center gap-1"
             style={{ color: theme.colors.textDim }}

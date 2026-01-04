@@ -30,6 +30,10 @@ export interface DocumentSelectorProps {
   className?: string;
   /** Whether the selector is disabled */
   disabled?: boolean;
+  /** Whether the dropdown is currently open (controlled mode) */
+  isOpen?: boolean;
+  /** Called when dropdown open state changes (controlled mode) */
+  onOpenChange?: (isOpen: boolean) => void;
 }
 
 /**
@@ -45,10 +49,22 @@ export function DocumentSelector({
   theme,
   className = '',
   disabled = false,
+  isOpen: controlledIsOpen,
+  onOpenChange,
 }: DocumentSelectorProps): JSX.Element {
-  const [isOpen, setIsOpen] = useState(false);
+  const [internalIsOpen, setInternalIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
+
+  // Support both controlled and uncontrolled modes
+  const isOpen = controlledIsOpen !== undefined ? controlledIsOpen : internalIsOpen;
+  const setIsOpen = (open: boolean) => {
+    if (onOpenChange) {
+      onOpenChange(open);
+    } else {
+      setInternalIsOpen(open);
+    }
+  };
 
   const selectedDoc = documents[selectedIndex];
 

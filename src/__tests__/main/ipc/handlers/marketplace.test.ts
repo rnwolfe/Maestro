@@ -131,6 +131,20 @@ describe('marketplace IPC handlers', () => {
         maxLoops: 3,
         prompt: 'Custom instructions here',
       },
+      {
+        id: 'test-playbook-with-assets',
+        title: 'Playbook With Assets',
+        description: 'A playbook with asset files',
+        category: 'Development',
+        author: 'Test Author',
+        lastUpdated: '2024-01-15',
+        path: 'playbooks/test-playbook-assets',
+        documents: [{ filename: 'main-doc', resetOnCompletion: false }],
+        loopEnabled: false,
+        maxLoops: null,
+        prompt: null,
+        assets: ['config.yaml', 'logo.png'],
+      },
     ],
   };
 
@@ -919,6 +933,207 @@ describe('marketplace IPC handlers', () => {
         expect(mockMkdirRemote).not.toHaveBeenCalled();
         expect(mockWriteFileRemote).not.toHaveBeenCalled();
         expect(fs.mkdir).toHaveBeenCalled();
+      });
+    });
+
+    describe('asset import', () => {
+      it('should import assets to assets/ subfolder', async () => {
+        const validCache: MarketplaceCache = {
+          fetchedAt: Date.now(),
+          manifest: sampleManifest,
+        };
+
+        vi.mocked(fs.readFile)
+          .mockResolvedValueOnce(JSON.stringify(validCache))
+          .mockRejectedValueOnce({ code: 'ENOENT' }); // No existing playbooks
+        vi.mocked(fs.mkdir).mockResolvedValue(undefined);
+        vi.mocked(fs.writeFile).mockResolvedValue(undefined);
+
+        // Mock document fetch
+        mockFetch
+          .mockResolvedValueOnce({
+            ok: true,
+            text: () => Promise.resolve('# Main Doc Content'),
+          })
+          // Mock asset fetches - return arrayBuffer for binary content
+          .mockResolvedValueOnce({
+            ok: true,
+            arrayBuffer: () => Promise.resolve(Buffer.from('yaml: content').buffer),
+          })
+          .mockResolvedValueOnce({
+            ok: true,
+            arrayBuffer: () => Promise.resolve(Buffer.from([0x89, 0x50, 0x4e, 0x47]).buffer), // PNG header
+          });
+
+        const handler = handlers.get('marketplace:importPlaybook');
+        const result = await handler!(
+          {} as any,
+          'test-playbook-with-assets',
+          'With Assets',
+          '/autorun/folder',
+          'session-123'
+        );
+
+        // Verify assets directory was created
+        expect(fs.mkdir).toHaveBeenCalledWith('/autorun/folder/With Assets/assets', {
+          recursive: true,
+        });
+
+        // Verify assets were written
+        expect(fs.writeFile).toHaveBeenCalledWith(
+          '/autorun/folder/With Assets/assets/config.yaml',
+          expect.any(Buffer)
+        );
+        expect(fs.writeFile).toHaveBeenCalledWith(
+          '/autorun/folder/With Assets/assets/logo.png',
+          expect.any(Buffer)
+        );
+
+        // Verify response includes imported assets
+        expect(result.importedAssets).toEqual(['config.yaml', 'logo.png']);
+      });
+
+      it('should continue importing when individual asset fetch fails', async () => {
+        const validCache: MarketplaceCache = {
+          fetchedAt: Date.now(),
+          manifest: sampleManifest,
+        };
+
+        vi.mocked(fs.readFile)
+          .mockResolvedValueOnce(JSON.stringify(validCache))
+          .mockRejectedValueOnce({ code: 'ENOENT' });
+        vi.mocked(fs.mkdir).mockResolvedValue(undefined);
+        vi.mocked(fs.writeFile).mockResolvedValue(undefined);
+
+        // Mock document fetch
+        mockFetch
+          .mockResolvedValueOnce({
+            ok: true,
+            text: () => Promise.resolve('# Main Doc'),
+          })
+          // First asset fails (404)
+          .mockResolvedValueOnce({
+            ok: false,
+            status: 404,
+            statusText: 'Not Found',
+          })
+          // Second asset succeeds
+          .mockResolvedValueOnce({
+            ok: true,
+            arrayBuffer: () => Promise.resolve(Buffer.from([0x89, 0x50, 0x4e, 0x47]).buffer),
+          });
+
+        const handler = handlers.get('marketplace:importPlaybook');
+        const result = await handler!(
+          {} as any,
+          'test-playbook-with-assets',
+          'Partial Assets',
+          '/autorun',
+          'session-123'
+        );
+
+        // Should still succeed with partial assets
+        expect(result.success).toBe(true);
+        expect(result.importedAssets).toEqual(['logo.png']);
+      });
+
+      it('should import assets via SSH for remote sessions', async () => {
+        const validCache: MarketplaceCache = {
+          fetchedAt: Date.now(),
+          manifest: sampleManifest,
+        };
+
+        vi.mocked(fs.readFile)
+          .mockResolvedValueOnce(JSON.stringify(validCache))
+          .mockRejectedValueOnce({ code: 'ENOENT' });
+        vi.mocked(fs.mkdir).mockResolvedValue(undefined);
+        vi.mocked(fs.writeFile).mockResolvedValue(undefined);
+        mockMkdirRemote.mockResolvedValue({ success: true });
+        mockWriteFileRemote.mockResolvedValue({ success: true });
+
+        // Mock document fetch
+        mockFetch
+          .mockResolvedValueOnce({
+            ok: true,
+            text: () => Promise.resolve('# Main Doc'),
+          })
+          // Asset fetches
+          .mockResolvedValueOnce({
+            ok: true,
+            arrayBuffer: () => Promise.resolve(Buffer.from('yaml: content').buffer),
+          })
+          .mockResolvedValueOnce({
+            ok: true,
+            arrayBuffer: () => Promise.resolve(Buffer.from([0x89, 0x50, 0x4e, 0x47]).buffer),
+          });
+
+        const handler = handlers.get('marketplace:importPlaybook');
+        const result = await handler!(
+          {} as any,
+          'test-playbook-with-assets',
+          'Remote Assets',
+          '/remote/autorun',
+          'session-123',
+          'ssh-remote-1'
+        );
+
+        // Verify remote assets directory was created
+        expect(mockMkdirRemote).toHaveBeenCalledWith(
+          '/remote/autorun/Remote Assets/assets',
+          sampleSshRemote,
+          true
+        );
+
+        // Verify assets were written via remote-fs with Buffer content
+        expect(mockWriteFileRemote).toHaveBeenCalledWith(
+          '/remote/autorun/Remote Assets/assets/config.yaml',
+          expect.any(Buffer),
+          sampleSshRemote
+        );
+        expect(mockWriteFileRemote).toHaveBeenCalledWith(
+          '/remote/autorun/Remote Assets/assets/logo.png',
+          expect.any(Buffer),
+          sampleSshRemote
+        );
+
+        expect(result.importedAssets).toEqual(['config.yaml', 'logo.png']);
+      });
+
+      it('should not create assets folder when playbook has no assets', async () => {
+        const validCache: MarketplaceCache = {
+          fetchedAt: Date.now(),
+          manifest: sampleManifest,
+        };
+
+        vi.mocked(fs.readFile)
+          .mockResolvedValueOnce(JSON.stringify(validCache))
+          .mockRejectedValueOnce({ code: 'ENOENT' });
+        vi.mocked(fs.mkdir).mockResolvedValue(undefined);
+        vi.mocked(fs.writeFile).mockResolvedValue(undefined);
+
+        mockFetch.mockResolvedValue({
+          ok: true,
+          text: () => Promise.resolve('# Content'),
+        });
+
+        const handler = handlers.get('marketplace:importPlaybook');
+        const result = await handler!(
+          {} as any,
+          'test-playbook-2', // This playbook has no assets
+          'No Assets',
+          '/autorun',
+          'session-123'
+        );
+
+        // Should not create assets folder
+        const mkdirCalls = vi.mocked(fs.mkdir).mock.calls;
+        const assetsFolderCreated = mkdirCalls.some(
+          (call) => (call[0] as string).includes('/assets')
+        );
+        expect(assetsFolderCreated).toBe(false);
+
+        // importedAssets should be empty or undefined
+        expect(result.importedAssets || []).toEqual([]);
       });
     });
   });

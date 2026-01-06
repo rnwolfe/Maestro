@@ -53,6 +53,12 @@ export interface MarketplacePlaybook {
   maxLoops?: number | null;
   /** Custom prompt, or null to use Maestro's default Auto Run prompt */
   prompt: string | null;
+  /**
+   * Optional list of asset files in the assets/ subfolder.
+   * These are non-markdown files like config files, YAML, Dockerfiles, etc.
+   * that are bundled with the playbook.
+   */
+  assets?: string[];
 }
 
 /**
@@ -205,6 +211,8 @@ export interface ImportPlaybookResponse {
   };
   /** List of imported document filenames */
   importedDocs: string[];
+  /** List of imported asset filenames (from assets/ subfolder) */
+  importedAssets?: string[];
 }
 
 /**

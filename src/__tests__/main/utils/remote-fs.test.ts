@@ -468,6 +468,51 @@ describe('remote-fs', () => {
       expect(result.success).toBe(false);
       expect(result.error).toContain('Parent directory not found');
     });
+
+    it('handles Buffer content for binary files', async () => {
+      const deps = createMockDeps({
+        stdout: '',
+        stderr: '',
+        exitCode: 0,
+      });
+
+      // Create a buffer with binary content (PNG magic bytes as example)
+      const binaryContent = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+      const result = await writeFileRemote('/output.png', binaryContent, baseConfig, deps);
+
+      expect(result.success).toBe(true);
+      // Verify the SSH command includes base64-encoded content from buffer
+      const call = (deps.execSsh as any).mock.calls[0][1];
+      const remoteCommand = call[call.length - 1];
+      expect(remoteCommand).toContain('base64 -d');
+      // Verify it contains the base64-encoded buffer content
+      expect(remoteCommand).toContain(binaryContent.toString('base64'));
+    });
+
+    it('correctly encodes Buffer vs string content differently', async () => {
+      const deps = createMockDeps({
+        stdout: '',
+        stderr: '',
+        exitCode: 0,
+      });
+
+      // Same bytes interpreted as string vs buffer should produce different base64
+      const testString = 'Hello';
+      const testBuffer = Buffer.from([0x48, 0x65, 0x6c, 0x6c, 0x6f]); // Same as 'Hello' in ASCII
+
+      await writeFileRemote('/string.txt', testString, baseConfig, deps);
+      const stringCall = (deps.execSsh as any).mock.calls[0][1];
+      const stringCommand = stringCall[stringCall.length - 1];
+
+      await writeFileRemote('/buffer.txt', testBuffer, baseConfig, deps);
+      const bufferCall = (deps.execSsh as any).mock.calls[1][1];
+      const bufferCommand = bufferCall[bufferCall.length - 1];
+
+      // Both should produce the same base64 since 'Hello' === Buffer([0x48, 0x65, 0x6c, 0x6c, 0x6f])
+      const expectedBase64 = Buffer.from('Hello', 'utf-8').toString('base64');
+      expect(stringCommand).toContain(expectedBase64);
+      expect(bufferCommand).toContain(expectedBase64);
+    });
   });
 
   describe('existsRemote', () => {

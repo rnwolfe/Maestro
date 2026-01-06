@@ -307,6 +307,30 @@ export function registerPlaybooksHandlers(deps: PlaybooksHandlerDependencies): v
           }
         }
 
+        // Add assets/ folder if it exists
+        // Assets are stored in a subfolder relative to the first document's directory
+        if (playbook.documents.length > 0) {
+          const firstDocFilename = playbook.documents[0].filename;
+          const docDir = path.dirname(firstDocFilename);
+          const assetsDir = path.join(autoRunFolderPath, docDir, 'assets');
+
+          try {
+            const assetFiles = await fs.readdir(assetsDir);
+            for (const assetFile of assetFiles) {
+              const assetPath = path.join(assetsDir, assetFile);
+              const stat = await fs.stat(assetPath);
+              if (stat.isFile()) {
+                const content = await fs.readFile(assetPath);
+                archive.append(content, { name: `assets/${assetFile}` });
+                logger.debug(`Added asset to export: ${assetFile}`, LOG_CONTEXT);
+              }
+            }
+          } catch {
+            // assets/ folder doesn't exist, that's fine
+            logger.debug('No assets/ folder found during export', LOG_CONTEXT);
+          }
+        }
+
         // Finalize archive
         await archive.finalize();
         await archivePromise;
@@ -375,6 +399,24 @@ export function registerPlaybooksHandlers(deps: PlaybooksHandlerDependencies): v
         }
       }
 
+      // Extract asset files to assets/ subfolder
+      const importedAssets: string[] = [];
+      for (const entry of zipEntries) {
+        if (entry.entryName.startsWith('assets/') && !entry.isDirectory) {
+          const filename = path.basename(entry.entryName);
+          const assetsDir = path.join(autoRunFolderPath, 'assets');
+          const destPath = path.join(assetsDir, filename);
+
+          // Ensure assets folder exists
+          await fs.mkdir(assetsDir, { recursive: true });
+
+          // Write asset file (binary-safe)
+          await fs.writeFile(destPath, entry.getData());
+          importedAssets.push(filename);
+          logger.debug(`Imported asset: ${filename}`, LOG_CONTEXT);
+        }
+      }
+
       // Create new playbook entry
       const playbooks = await readPlaybooks(app, sessionId);
       const now = Date.now();
@@ -395,8 +437,8 @@ export function registerPlaybooksHandlers(deps: PlaybooksHandlerDependencies): v
       playbooks.push(newPlaybook);
       await writePlaybooks(app, sessionId, playbooks);
 
-      logger.info(`Imported playbook "${manifest.name}" with ${importedDocs.length} documents`, LOG_CONTEXT);
-      return { playbook: newPlaybook, importedDocs };
+      logger.info(`Imported playbook "${manifest.name}" with ${importedDocs.length} documents and ${importedAssets.length} assets`, LOG_CONTEXT);
+      return { playbook: newPlaybook, importedDocs, importedAssets };
     })
   );
 

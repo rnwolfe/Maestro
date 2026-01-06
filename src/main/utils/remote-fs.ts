@@ -478,7 +478,7 @@ export async function directorySizeRemote(
  */
 export async function writeFileRemote(
   filePath: string,
-  content: string,
+  content: string | Buffer,
   sshRemote: SshRemoteConfig,
   deps: RemoteFsDeps = defaultDeps
 ): Promise<RemoteFsResult<void>> {
@@ -486,7 +486,10 @@ export async function writeFileRemote(
 
   // Use base64 encoding to safely transfer the content
   // This avoids issues with special characters, quotes, and newlines
-  const base64Content = Buffer.from(content, 'utf-8').toString('base64');
+  // Accept both string and Buffer for binary file support
+  const base64Content = Buffer.isBuffer(content)
+    ? content.toString('base64')
+    : Buffer.from(content, 'utf-8').toString('base64');
 
   // Decode base64 on remote and write to file
   const remoteCommand = `echo '${base64Content}' | base64 -d > ${escapedPath}`;

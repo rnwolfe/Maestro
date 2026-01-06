@@ -201,6 +201,39 @@ async function fetchDocument(playbookPath: string, filename: string): Promise<st
 }
 
 /**
+ * Fetch an asset file from GitHub (from assets/ subfolder).
+ * Returns the raw content as a Buffer for binary-safe handling.
+ */
+async function fetchAsset(playbookPath: string, assetFilename: string): Promise<Buffer> {
+  const url = `${GITHUB_RAW_BASE}/${playbookPath}/assets/${assetFilename}`;
+  logger.debug(`Fetching asset: ${url}`, LOG_CONTEXT);
+
+  try {
+    const response = await fetch(url);
+
+    if (!response.ok) {
+      if (response.status === 404) {
+        throw new MarketplaceFetchError(`Asset not found: ${assetFilename}`, { status: 404 });
+      }
+      throw new MarketplaceFetchError(
+        `Failed to fetch asset: ${response.status} ${response.statusText}`
+      );
+    }
+
+    const arrayBuffer = await response.arrayBuffer();
+    return Buffer.from(arrayBuffer);
+  } catch (error) {
+    if (error instanceof MarketplaceFetchError) {
+      throw error;
+    }
+    throw new MarketplaceFetchError(
+      `Network error fetching asset: ${error instanceof Error ? error.message : String(error)}`,
+      error
+    );
+  }
+}
+
+/**
  * Fetch README from GitHub.
  */
 async function fetchReadme(playbookPath: string): Promise<string | null> {
@@ -409,6 +442,49 @@ export function registerMarketplaceHandlers(deps: MarketplaceHandlerDependencies
           }
         }
 
+        // Fetch and write all assets from assets/ subfolder (if any)
+        const importedAssets: string[] = [];
+        if (marketplacePlaybook.assets && marketplacePlaybook.assets.length > 0) {
+          // Create assets subdirectory
+          const assetsPath = isRemote
+            ? `${targetPath}/assets`
+            : path.join(targetPath, 'assets');
+
+          if (isRemote) {
+            const mkdirResult = await mkdirRemote(assetsPath, sshConfig!, true);
+            if (!mkdirResult.success) {
+              logger.warn(`Failed to create remote assets directory: ${mkdirResult.error}`, LOG_CONTEXT);
+            }
+          } else {
+            await fs.mkdir(assetsPath, { recursive: true });
+          }
+
+          for (const assetFilename of marketplacePlaybook.assets) {
+            try {
+              const content = await fetchAsset(marketplacePlaybook.path, assetFilename);
+              const assetPath = isRemote
+                ? `${assetsPath}/${assetFilename}`
+                : path.join(assetsPath, assetFilename);
+
+              if (isRemote) {
+                // Pass buffer directly - writeFileRemote handles binary content via base64
+                const writeResult = await writeFileRemote(assetPath, content, sshConfig!);
+                if (!writeResult.success) {
+                  throw new Error(writeResult.error || 'Failed to write remote asset file');
+                }
+              } else {
+                await fs.writeFile(assetPath, content);
+              }
+
+              importedAssets.push(assetFilename);
+              logger.debug(`Imported asset: ${assetFilename}${isRemote ? ' (remote)' : ''}`, LOG_CONTEXT);
+            } catch (error) {
+              logger.warn(`Failed to import asset ${assetFilename}`, LOG_CONTEXT, { error });
+              // Continue importing other assets
+            }
+          }
+        }
+
         // Create the playbook entry for local storage
         // Prefix document filenames with the target folder path so they can be found
         // when the playbook is loaded (allDocuments contains relative paths from root)
@@ -449,13 +525,14 @@ export function registerMarketplaceHandlers(deps: MarketplaceHandlerDependencies
         await fs.writeFile(playbooksFilePath, JSON.stringify({ playbooks }, null, 2), 'utf-8');
 
         logger.info(
-          `Successfully imported playbook "${marketplacePlaybook.title}" with ${importedDocs.length} documents`,
+          `Successfully imported playbook "${marketplacePlaybook.title}" with ${importedDocs.length} documents and ${importedAssets.length} assets`,
           LOG_CONTEXT
         );
 
         return {
           playbook: newPlaybook,
           importedDocs,
+          importedAssets,
         };
       }
     )

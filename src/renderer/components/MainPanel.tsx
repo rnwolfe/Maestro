@@ -155,6 +155,11 @@ interface MainPanelProps {
   showUnreadOnly?: boolean;
   onToggleUnreadFilter?: () => void;
   onOpenTabSearch?: () => void;
+  // Bulk tab close operations
+  onCloseAllTabs?: () => void;
+  onCloseOtherTabs?: () => void;
+  onCloseTabsLeft?: () => void;
+  onCloseTabsRight?: () => void;
   // Scroll position persistence
   onScrollPositionChange?: (scrollTop: number) => void;
   // Scroll bottom state change handler (for hasUnread logic)
@@ -321,7 +326,7 @@ export const MainPanel = React.memo(forwardRef<MainPanelHandle, MainPanelProps>(
   const [configuredContextWindow, setConfiguredContextWindow] = useState(0);
 
   // Extract tab handlers from props
-  const { onTabSelect, onTabClose, onNewTab, onRequestTabRename, onTabReorder, onTabStar, onTabMarkUnread, showUnreadOnly, onToggleUnreadFilter, onOpenTabSearch } = props;
+  const { onTabSelect, onTabClose, onNewTab, onRequestTabRename, onTabReorder, onTabStar, onTabMarkUnread, showUnreadOnly, onToggleUnreadFilter, onOpenTabSearch, onCloseAllTabs, onCloseOtherTabs, onCloseTabsLeft, onCloseTabsRight } = props;
 
   // Get the active tab for header display
   // The header should show the active tab's data (UUID, name, cost, context), not session-level data
@@ -1008,6 +1013,10 @@ export const MainPanel = React.memo(forwardRef<MainPanelHandle, MainPanelProps>(
               showUnreadOnly={showUnreadOnly}
               onToggleUnreadFilter={onToggleUnreadFilter}
               onOpenTabSearch={onOpenTabSearch}
+              onCloseAllTabs={onCloseAllTabs}
+              onCloseOtherTabs={onCloseOtherTabs}
+              onCloseTabsLeft={onCloseTabsLeft}
+              onCloseTabsRight={onCloseTabsRight}
             />
           )}
 

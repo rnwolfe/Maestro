@@ -474,12 +474,14 @@ const PROVIDERS: ProviderConfig[] = [
      */
     buildInitialArgs: (prompt: string, options?: { images?: string[] }) => {
       // OpenCode arg order from process.ts IPC handler:
-      // 1. base args: [] (empty for OpenCode)
-      // 2. jsonOutputArgs: ['--format', 'json']
-      // 3. Optional: --model provider/model (from OPENCODE_MODEL env var)
-      // 4. promptArgs: ['-p', prompt] (YOLO mode with auto-approve)
+      // 1. batchModePrefix: ['run'] (subcommand for batch mode)
+      // 2. base args: [] (empty for OpenCode)
+      // 3. jsonOutputArgs: ['--format', 'json']
+      // 4. Optional: --model provider/model (from OPENCODE_MODEL env var)
+      // 5. prompt as positional argument (noPromptSeparator: true)
 
       const args = [
+        'run', // batchModePrefix
         '--format', 'json',
       ];
 
@@ -501,11 +503,12 @@ const PROVIDERS: ProviderConfig[] = [
         throw new Error('OpenCode should not support stream-json input - capability misconfigured');
       }
 
-      // OpenCode uses -p flag for prompt (enables YOLO mode with auto-approve)
-      return [...args, '-p', prompt];
+      // OpenCode uses 'run' subcommand for batch mode with prompt as positional arg
+      return [...args, prompt];
     },
     buildResumeArgs: (sessionId: string, prompt: string) => {
       const args = [
+        'run', // batchModePrefix
         '--format', 'json',
       ];
 
@@ -515,8 +518,8 @@ const PROVIDERS: ProviderConfig[] = [
         args.push('--model', model);
       }
 
-      // -p flag for YOLO mode, --session for resume
-      args.push('--session', sessionId, '-p', prompt);
+      // --session for resume, prompt as positional arg
+      args.push('--session', sessionId, prompt);
       return args;
     },
     parseSessionId: (output: string) => {

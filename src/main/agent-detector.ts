@@ -120,17 +120,17 @@ const AGENT_DEFINITIONS: Omit<AgentConfig, 'available' | 'path' | 'capabilities'
     name: 'OpenCode',
     binaryName: 'opencode',
     command: 'opencode',
-    args: [], // Base args (none for OpenCode)
+    args: [], // Base args (none for OpenCode - batch mode uses 'run' subcommand)
     // OpenCode CLI argument builders
-    // Batch mode uses -p flag: opencode -p "prompt" --format json [--model provider/model] [--session <id>] [--agent plan]
-    // The -p flag runs in non-interactive mode and auto-approves all permissions (YOLO mode).
-    // Note: The 'run' subcommand does NOT auto-approve - only -p does.
+    // Batch mode: opencode run --format json [--model provider/model] [--session <id>] [--agent plan] -- "prompt"
+    // The 'run' subcommand auto-approves all permissions (YOLO mode is implicit).
+    batchModePrefix: ['run'], // OpenCode uses 'run' subcommand for batch mode
     jsonOutputArgs: ['--format', 'json'], // JSON output format
     resumeArgs: (sessionId: string) => ['--session', sessionId], // Resume with session ID
     readOnlyArgs: ['--agent', 'plan'], // Read-only/plan mode
     modelArgs: (modelId: string) => ['--model', modelId], // Model selection (e.g., 'ollama/qwen3:8b')
-    promptArgs: (prompt: string) => ['-p', prompt], // -p flag enables non-interactive mode with auto-approve (YOLO mode)
-    imageArgs: (imagePath: string) => ['-f', imagePath], // Image/file attachment: opencode -p "prompt" -f /path/to/image.png
+    imageArgs: (imagePath: string) => ['-f', imagePath], // Image/file attachment: opencode run -f /path/to/image.png -- "prompt"
+    noPromptSeparator: true, // OpenCode doesn't need '--' before prompt - yargs handles positional args
     // Agent-specific configuration options shown in UI
     configOptions: [
       {

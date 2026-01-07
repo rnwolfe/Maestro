@@ -4070,6 +4070,85 @@ You are taking over this conversation. Based on the context above, provide a bri
     }));
   }, [defaultSaveToHistory, defaultShowThinking]);
 
+  /**
+   * Close all tabs in the active session.
+   * Creates a fresh new tab after closing all existing ones.
+   */
+  const handleCloseAllTabs = useCallback(() => {
+    setSessions(prev => prev.map(s => {
+      if (s.id !== activeSessionIdRef.current) return s;
+      // Close all tabs by iterating through them
+      let updatedSession = s;
+      const tabIds = s.aiTabs.map(t => t.id);
+      for (const tabId of tabIds) {
+        const tab = updatedSession.aiTabs.find(t => t.id === tabId);
+        const result = closeTab(updatedSession, tabId, false, { skipHistory: tab ? hasActiveWizard(tab) : false });
+        if (result) {
+          updatedSession = result.session;
+        }
+      }
+      return updatedSession;
+    }));
+  }, []);
+
+  /**
+   * Close all tabs except the active tab.
+   */
+  const handleCloseOtherTabs = useCallback(() => {
+    setSessions(prev => prev.map(s => {
+      if (s.id !== activeSessionIdRef.current) return s;
+      let updatedSession = s;
+      const tabsToClose = s.aiTabs.filter(t => t.id !== s.activeTabId);
+      for (const tab of tabsToClose) {
+        const result = closeTab(updatedSession, tab.id, false, { skipHistory: hasActiveWizard(tab) });
+        if (result) {
+          updatedSession = result.session;
+        }
+      }
+      return updatedSession;
+    }));
+  }, []);
+
+  /**
+   * Close all tabs to the left of the active tab.
+   */
+  const handleCloseTabsLeft = useCallback(() => {
+    setSessions(prev => prev.map(s => {
+      if (s.id !== activeSessionIdRef.current) return s;
+      const activeIndex = s.aiTabs.findIndex(t => t.id === s.activeTabId);
+      if (activeIndex <= 0) return s; // Nothing to close
+      let updatedSession = s;
+      const tabsToClose = s.aiTabs.slice(0, activeIndex);
+      for (const tab of tabsToClose) {
+        const result = closeTab(updatedSession, tab.id, false, { skipHistory: hasActiveWizard(tab) });
+        if (result) {
+          updatedSession = result.session;
+        }
+      }
+      return updatedSession;
+    }));
+  }, []);
+
+  /**
+   * Close all tabs to the right of the active tab.
+   */
+  const handleCloseTabsRight = useCallback(() => {
+    setSessions(prev => prev.map(s => {
+      if (s.id !== activeSessionIdRef.current) return s;
+      const activeIndex = s.aiTabs.findIndex(t => t.id === s.activeTabId);
+      if (activeIndex < 0 || activeIndex >= s.aiTabs.length - 1) return s; // Nothing to close
+      let updatedSession = s;
+      const tabsToClose = s.aiTabs.slice(activeIndex + 1);
+      for (const tab of tabsToClose) {
+        const result = closeTab(updatedSession, tab.id, false, { skipHistory: hasActiveWizard(tab) });
+        if (result) {
+          updatedSession = result.session;
+        }
+      }
+      return updatedSession;
+    }));
+  }, []);
+
   const handleRemoveQueuedItem = useCallback((itemId: string) => {
     setSessions(prev => prev.map(s => {
       if (s.id !== activeSessionIdRef.current) return s;
@@ -9068,7 +9147,10 @@ You are taking over this conversation. Based on the context above, provide a bri
     setEditAgentSession, setEditAgentModalOpen,
 
     // Auto Run state for keyboard handler
-    activeBatchRunState
+    activeBatchRunState,
+
+    // Bulk tab close handlers
+    handleCloseAllTabs, handleCloseOtherTabs, handleCloseTabsLeft, handleCloseTabsRight
 
   };
 
@@ -9461,6 +9543,10 @@ You are taking over this conversation. Based on the context above, provide a bri
         onQuickActionsToggleReadOnlyMode={handleQuickActionsToggleReadOnlyMode}
         onQuickActionsToggleTabShowThinking={handleQuickActionsToggleTabShowThinking}
         onQuickActionsOpenTabSwitcher={handleQuickActionsOpenTabSwitcher}
+        onCloseAllTabs={handleCloseAllTabs}
+        onCloseOtherTabs={handleCloseOtherTabs}
+        onCloseTabsLeft={handleCloseTabsLeft}
+        onCloseTabsRight={handleCloseTabsRight}
         setPlaygroundOpen={setPlaygroundOpen}
         onQuickActionsRefreshGitFileState={handleQuickActionsRefreshGitFileState}
         onQuickActionsDebugReleaseQueuedItem={handleQuickActionsDebugReleaseQueuedItem}
@@ -10279,6 +10365,10 @@ You are taking over this conversation. Based on the context above, provide a bri
         showUnreadOnly={showUnreadOnly}
         onToggleUnreadFilter={toggleUnreadFilter}
         onOpenTabSearch={() => setTabSwitcherOpen(true)}
+        onCloseAllTabs={handleCloseAllTabs}
+        onCloseOtherTabs={handleCloseOtherTabs}
+        onCloseTabsLeft={handleCloseTabsLeft}
+        onCloseTabsRight={handleCloseTabsRight}
         onToggleTabSaveToHistory={() => {
           if (!activeSession) return;
           const activeTab = getActiveTab(activeSession);

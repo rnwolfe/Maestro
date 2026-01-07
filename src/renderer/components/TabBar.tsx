@@ -32,6 +32,14 @@ interface TabBarProps {
   showUnreadOnly?: boolean;
   onToggleUnreadFilter?: () => void;
   onOpenTabSearch?: () => void;
+  /** Handler to close all tabs */
+  onCloseAllTabs?: () => void;
+  /** Handler to close all tabs except active */
+  onCloseOtherTabs?: () => void;
+  /** Handler to close tabs to the left of active tab */
+  onCloseTabsLeft?: () => void;
+  /** Handler to close tabs to the right of active tab */
+  onCloseTabsRight?: () => void;
 }
 
 interface TabProps {
@@ -74,6 +82,18 @@ interface TabProps {
   shortcutHint?: number | null;
   registerRef?: (el: HTMLDivElement | null) => void;
   hasDraft?: boolean;
+  /** Handler to close all tabs */
+  onCloseAllTabs?: () => void;
+  /** Handler to close other tabs (all except this one) */
+  onCloseOtherTabs?: () => void;
+  /** Handler to close tabs to the left of this tab */
+  onCloseTabsLeft?: () => void;
+  /** Handler to close tabs to the right of this tab */
+  onCloseTabsRight?: () => void;
+  /** Total number of tabs */
+  totalTabs?: number;
+  /** Tab index in the full list (0-based) */
+  tabIndex?: number;
 }
 
 /**
@@ -149,7 +169,13 @@ function Tab({
   isLastTab,
   shortcutHint,
   registerRef,
-  hasDraft
+  hasDraft,
+  onCloseAllTabs,
+  onCloseOtherTabs,
+  onCloseTabsLeft,
+  onCloseTabsRight,
+  totalTabs,
+  tabIndex
 }: TabProps) {
   const [isHovered, setIsHovered] = useState(false);
   const [overlayOpen, setOverlayOpen] = useState(false);
@@ -287,6 +313,30 @@ function Tab({
   const handlePublishGistClick = (e: React.MouseEvent) => {
     e.stopPropagation();
     onPublishGist?.();
+    setOverlayOpen(false);
+  };
+
+  const handleCloseTabClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onClose();
+    setOverlayOpen(false);
+  };
+
+  const handleCloseOtherTabsClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onCloseOtherTabs?.();
+    setOverlayOpen(false);
+  };
+
+  const handleCloseTabsLeftClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onCloseTabsLeft?.();
+    setOverlayOpen(false);
+  };
+
+  const handleCloseTabsRightClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onCloseTabsRight?.();
     setOverlayOpen(false);
   };
 
@@ -626,6 +676,67 @@ function Tab({
                 Move to Last Position
               </button>
             )}
+
+            {/* Tab Close Actions Section - divider and close options */}
+            <div className="my-1 border-t" style={{ borderColor: theme.colors.border }} />
+
+            {/* Close Tab */}
+            <button
+              onClick={handleCloseTabClick}
+              className={`w-full flex items-center gap-2 px-2 py-1.5 rounded text-xs transition-colors ${
+                totalTabs === 1 ? 'opacity-40 cursor-default' : 'hover:bg-white/10'
+              }`}
+              style={{ color: theme.colors.textMain }}
+              disabled={totalTabs === 1}
+            >
+              <X className="w-3.5 h-3.5" style={{ color: theme.colors.textDim }} />
+              Close Tab
+            </button>
+
+            {/* Close Other Tabs */}
+            {onCloseOtherTabs && (
+              <button
+                onClick={handleCloseOtherTabsClick}
+                className={`w-full flex items-center gap-2 px-2 py-1.5 rounded text-xs transition-colors ${
+                  totalTabs === 1 ? 'opacity-40 cursor-default' : 'hover:bg-white/10'
+                }`}
+                style={{ color: theme.colors.textMain }}
+                disabled={totalTabs === 1}
+              >
+                <X className="w-3.5 h-3.5" style={{ color: theme.colors.textDim }} />
+                Close Other Tabs
+              </button>
+            )}
+
+            {/* Close Tabs to Left */}
+            {onCloseTabsLeft && (
+              <button
+                onClick={handleCloseTabsLeftClick}
+                className={`w-full flex items-center gap-2 px-2 py-1.5 rounded text-xs transition-colors ${
+                  tabIndex === 0 ? 'opacity-40 cursor-default' : 'hover:bg-white/10'
+                }`}
+                style={{ color: theme.colors.textMain }}
+                disabled={tabIndex === 0}
+              >
+                <ChevronsLeft className="w-3.5 h-3.5" style={{ color: theme.colors.textDim }} />
+                Close Tabs to Left
+              </button>
+            )}
+
+            {/* Close Tabs to Right */}
+            {onCloseTabsRight && (
+              <button
+                onClick={handleCloseTabsRightClick}
+                className={`w-full flex items-center gap-2 px-2 py-1.5 rounded text-xs transition-colors ${
+                  tabIndex === (totalTabs ?? 1) - 1 ? 'opacity-40 cursor-default' : 'hover:bg-white/10'
+                }`}
+                style={{ color: theme.colors.textMain }}
+                disabled={tabIndex === (totalTabs ?? 1) - 1}
+              >
+                <ChevronsRight className="w-3.5 h-3.5" style={{ color: theme.colors.textDim }} />
+                Close Tabs to Right
+              </button>
+            )}
           </div>
         </div>
         </div>,
@@ -660,7 +771,11 @@ function TabBarInner({
   ghCliAvailable,
   showUnreadOnly: showUnreadOnlyProp,
   onToggleUnreadFilter,
-  onOpenTabSearch
+  onOpenTabSearch,
+  onCloseAllTabs,
+  onCloseOtherTabs,
+  onCloseTabsLeft,
+  onCloseTabsRight
 }: TabBarProps) {
   const [draggingTabId, setDraggingTabId] = useState<string | null>(null);
   const [dragOverTabId, setDragOverTabId] = useState<string | null>(null);
@@ -891,6 +1006,12 @@ function TabBarInner({
                   tabRefs.current.delete(tab.id);
                 }
               }}
+              onCloseAllTabs={onCloseAllTabs}
+              onCloseOtherTabs={onCloseOtherTabs}
+              onCloseTabsLeft={onCloseTabsLeft}
+              onCloseTabsRight={onCloseTabsRight}
+              totalTabs={tabs.length}
+              tabIndex={originalIndex}
             />
           </React.Fragment>
         );

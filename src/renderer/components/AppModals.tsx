@@ -757,6 +757,11 @@ export interface AppUtilityModalsProps {
   onToggleReadOnlyMode: () => void;
   onToggleTabShowThinking: () => void;
   onOpenTabSwitcher: () => void;
+  // Bulk tab close operations
+  onCloseAllTabs?: () => void;
+  onCloseOtherTabs?: () => void;
+  onCloseTabsLeft?: () => void;
+  onCloseTabsRight?: () => void;
   setPlaygroundOpen?: (open: boolean) => void;
   onRefreshGitFileState: () => Promise<void>;
   onDebugReleaseQueuedItem: () => void;
@@ -932,6 +937,11 @@ export function AppUtilityModals({
   onToggleReadOnlyMode,
   onToggleTabShowThinking,
   onOpenTabSwitcher,
+  // Bulk tab close operations
+  onCloseAllTabs,
+  onCloseOtherTabs,
+  onCloseTabsLeft,
+  onCloseTabsRight,
   setPlaygroundOpen,
   onRefreshGitFileState,
   onDebugReleaseQueuedItem,
@@ -1081,6 +1091,10 @@ export function AppUtilityModals({
           onToggleReadOnlyMode={onToggleReadOnlyMode}
           onToggleTabShowThinking={onToggleTabShowThinking}
           onOpenTabSwitcher={onOpenTabSwitcher}
+          onCloseAllTabs={onCloseAllTabs}
+          onCloseOtherTabs={onCloseOtherTabs}
+          onCloseTabsLeft={onCloseTabsLeft}
+          onCloseTabsRight={onCloseTabsRight}
           setPlaygroundOpen={setPlaygroundOpen}
           onRefreshGitFileState={onRefreshGitFileState}
           onDebugReleaseQueuedItem={onDebugReleaseQueuedItem}
@@ -1788,6 +1802,11 @@ export interface AppModalsProps {
   onQuickActionsToggleReadOnlyMode: () => void;
   onQuickActionsToggleTabShowThinking: () => void;
   onQuickActionsOpenTabSwitcher: () => void;
+  // Bulk tab close operations (for QuickActionsModal)
+  onCloseAllTabs?: () => void;
+  onCloseOtherTabs?: () => void;
+  onCloseTabsLeft?: () => void;
+  onCloseTabsRight?: () => void;
   setPlaygroundOpen?: (open: boolean) => void;
   onQuickActionsRefreshGitFileState: () => Promise<void>;
   onQuickActionsDebugReleaseQueuedItem: () => void;
@@ -2075,6 +2094,11 @@ export function AppModals(props: AppModalsProps) {
     onQuickActionsToggleReadOnlyMode,
     onQuickActionsToggleTabShowThinking,
     onQuickActionsOpenTabSwitcher,
+    // Bulk tab close operations
+    onCloseAllTabs,
+    onCloseOtherTabs,
+    onCloseTabsLeft,
+    onCloseTabsRight,
     setPlaygroundOpen,
     onQuickActionsRefreshGitFileState,
     onQuickActionsDebugReleaseQueuedItem,
@@ -2373,6 +2397,10 @@ export function AppModals(props: AppModalsProps) {
         onToggleReadOnlyMode={onQuickActionsToggleReadOnlyMode}
         onToggleTabShowThinking={onQuickActionsToggleTabShowThinking}
         onOpenTabSwitcher={onQuickActionsOpenTabSwitcher}
+        onCloseAllTabs={onCloseAllTabs}
+        onCloseOtherTabs={onCloseOtherTabs}
+        onCloseTabsLeft={onCloseTabsLeft}
+        onCloseTabsRight={onCloseTabsRight}
         setPlaygroundOpen={setPlaygroundOpen}
         onRefreshGitFileState={onQuickActionsRefreshGitFileState}
         onDebugReleaseQueuedItem={onQuickActionsDebugReleaseQueuedItem}

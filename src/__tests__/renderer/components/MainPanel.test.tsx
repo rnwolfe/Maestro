@@ -2222,7 +2222,7 @@ describe('MainPanel', () => {
           usageStats: {
             inputTokens: 150000,
             outputTokens: 100000,
-            cacheReadInputTokens: 0,
+            cacheReadInputTokens: 100000,
             cacheCreationInputTokens: 0,
             totalCostUsd: 0.05,
             contextWindow: 200000,

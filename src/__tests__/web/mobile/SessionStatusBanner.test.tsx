@@ -318,8 +318,8 @@ describe('SessionStatusBanner', () => {
 
       render(<SessionStatusBanner session={session} />);
 
-      // (50000 + 50000) / 200000 * 100 = 50%
-      expect(screen.getByText('50%')).toBeInTheDocument();
+      // (50000) / 200000 * 100 = 25%
+      expect(screen.getByText('25%')).toBeInTheDocument();
     });
 
     it('rounds percentage to nearest integer', () => {
@@ -340,6 +340,7 @@ describe('SessionStatusBanner', () => {
       const usageStats = createUsageStats({
         inputTokens: 150000,
         outputTokens: 100000,
+        cacheReadInputTokens: 100000,
         contextWindow: 200000,
       });
       const session = createSession({ usageStats });
@@ -434,6 +435,7 @@ describe('SessionStatusBanner', () => {
       const usageStats = createUsageStats({
         inputTokens: 150000,
         outputTokens: 40000,
+        cacheReadInputTokens: 40000,
         contextWindow: 200000,
       });
       const session = createSession({ usageStats });
@@ -450,6 +452,7 @@ describe('SessionStatusBanner', () => {
       const usageStats = createUsageStats({
         inputTokens: 90000,
         outputTokens: 90000,
+        cacheReadInputTokens: 90000,
         contextWindow: 200000,
       });
       const session = createSession({ usageStats });

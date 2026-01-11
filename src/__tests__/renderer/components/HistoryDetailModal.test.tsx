@@ -482,9 +482,9 @@ describe('HistoryDetailModal', () => {
         />
       );
 
-      // Context = (inputTokens + outputTokens + cacheReadInputTokens) / contextWindow
-      // (5000 + 1000 + 2000) / 100000 = 8%
-      expect(screen.getByText('8%')).toBeInTheDocument();
+      // Context = (inputTokens + cacheCreationInputTokens + cacheReadInputTokens) / contextWindow
+      // (5000 + 3000 + 2000) / 100000 = 10%
+      expect(screen.getByText('10%')).toBeInTheDocument();
     });
 
     it('should display token counts', () => {
@@ -674,8 +674,8 @@ describe('HistoryDetailModal', () => {
         />
       );
 
-      // (94000 + 1000) / 100000 = 95%
-      expect(screen.getByText('95%')).toBeInTheDocument();
+      // (94000 + 0) / 100000 = 94%
+      expect(screen.getByText('94%')).toBeInTheDocument();
     });
 
     it('should cap context usage at 100%', () => {

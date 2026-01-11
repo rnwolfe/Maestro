@@ -403,9 +403,9 @@ export const MainPanel = React.memo(forwardRef<MainPanelHandle, MainPanelProps>(
   // Compute context usage percentage from active tab's usage stats
   const activeTabContextUsage = useMemo(() => {
     if (!activeTab?.usageStats) return 0;
-    const { inputTokens, outputTokens } = activeTab.usageStats;
+    const { inputTokens, cacheReadInputTokens = 0, cacheCreationInputTokens = 0 } = activeTab.usageStats;
     if (!activeTabContextWindow || activeTabContextWindow === 0) return 0;
-    const contextTokens = inputTokens + outputTokens;
+    const contextTokens = inputTokens + cacheCreationInputTokens + cacheReadInputTokens;
     return Math.min(Math.round((contextTokens / activeTabContextWindow) * 100), 100);
   }, [activeTab?.usageStats, activeTabContextWindow]);
 

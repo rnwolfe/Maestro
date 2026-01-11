@@ -20,8 +20,8 @@ describe('estimateContextUsage', () => {
     it('should calculate percentage from provided context window', () => {
       const stats = createStats({ contextWindow: 100000 });
       const result = estimateContextUsage(stats, 'claude-code');
-      // (10000 + 5000 + 0) / 100000 = 15%
-      expect(result).toBe(15);
+      // (10000 + 0 + 0) / 100000 = 10%
+      expect(result).toBe(10);
     });
 
     it('should include cacheReadInputTokens in calculation', () => {
@@ -32,8 +32,8 @@ describe('estimateContextUsage', () => {
         contextWindow: 100000,
       });
       const result = estimateContextUsage(stats, 'claude-code');
-      // (1000 + 500 + 50000) / 100000 = 51.5% -> 52%
-      expect(result).toBe(52);
+      // (1000 + 0 + 50000) / 100000 = 51% -> 51%
+      expect(result).toBe(51);
     });
 
     it('should cap at 100%', () => {
@@ -65,8 +65,8 @@ describe('estimateContextUsage', () => {
     it('should use claude-code default context window (200k)', () => {
       const stats = createStats({ contextWindow: 0 });
       const result = estimateContextUsage(stats, 'claude-code');
-      // (10000 + 5000 + 0) / 200000 = 7.5% -> 8%
-      expect(result).toBe(8);
+      // (10000 + 0 + 0) / 200000 = 5%
+      expect(result).toBe(5);
     });
 
     it('should use claude default context window (200k)', () => {
@@ -84,8 +84,8 @@ describe('estimateContextUsage', () => {
     it('should use opencode default context window (128k)', () => {
       const stats = createStats({ contextWindow: 0 });
       const result = estimateContextUsage(stats, 'opencode');
-      // (10000 + 5000 + 0) / 128000 = 11.7% -> 12%
-      expect(result).toBe(12);
+      // (10000 + 0 + 0) / 128000 = 7.8% -> 8%
+      expect(result).toBe(8);
     });
 
     it('should use aider default context window (128k)', () => {
@@ -128,8 +128,8 @@ describe('estimateContextUsage', () => {
       // @ts-expect-error - testing undefined case
       stats.cacheReadInputTokens = undefined;
       const result = estimateContextUsage(stats, 'claude-code');
-      // (10000 + 5000 + 0) / 100000 = 15%
-      expect(result).toBe(15);
+      // (10000 + 0 + 0) / 100000 = 10%
+      expect(result).toBe(10);
     });
 
     it('should correctly calculate with large cache read tokens', () => {
@@ -141,8 +141,8 @@ describe('estimateContextUsage', () => {
         contextWindow: 200000,
       });
       const result = estimateContextUsage(stats, 'claude-code');
-      // (500 + 1000 + 180000) / 200000 = 90.75% -> 91%
-      expect(result).toBe(91);
+      // (500 + 0 + 180000) / 200000 = 90% -> 90%
+      expect(result).toBe(90);
     });
   });
 
@@ -171,7 +171,7 @@ describe('estimateContextUsage', () => {
         contextWindow: 0,
       });
       const result = estimateContextUsage(stats, 'claude-code');
-      // (500000 + 500000 + 500000) / 200000 = 750% -> capped at 100%
+      // (500000 + 0 + 500000) / 200000 = 250% -> capped at 100%
       expect(result).toBe(100);
     });
 

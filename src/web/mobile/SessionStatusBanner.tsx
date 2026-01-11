@@ -83,27 +83,28 @@ function CostTracker({ usageStats }: { usageStats?: UsageStats | null }) {
  * Calculate context usage percentage from usage stats
  * Returns the percentage of context window used (0-100)
  *
- * IMPORTANT: Includes cacheReadInputTokens because they represent the
- * full conversation history sent with each API request.
+ * IMPORTANT: Includes cache read + cache creation tokens (conversation history)
+ * and excludes output tokens to match Claude Code / Claude Agent SDK behavior.
  */
 function calculateContextUsage(usageStats?: UsageStats | null): number | null {
   if (!usageStats) return null;
 
-  const { inputTokens, outputTokens, cacheReadInputTokens, contextWindow } = usageStats;
+  const { inputTokens, cacheReadInputTokens, cacheCreationInputTokens, contextWindow } = usageStats;
 
-  // Need input/output and context window to calculate percentage
+  // Need input and context window to calculate percentage
   if (
     inputTokens === undefined || inputTokens === null ||
-    outputTokens === undefined || outputTokens === null ||
     contextWindow === undefined || contextWindow === null ||
     contextWindow === 0
   ) {
     return null;
   }
 
-  // Context usage = (input + output + cache read tokens) / context window
-  // Cache read tokens represent the conversation history sent with each request
-  const contextTokens = inputTokens + outputTokens + (cacheReadInputTokens || 0);
+  // Context usage = (input + cache creation + cache read tokens) / context window
+  const contextTokens =
+    inputTokens +
+    (cacheCreationInputTokens || 0) +
+    (cacheReadInputTokens || 0);
   const percentage = Math.min(Math.round((contextTokens / contextWindow) * 100), 100);
 
   return percentage;

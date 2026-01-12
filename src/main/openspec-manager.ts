@@ -195,9 +195,9 @@ async function getBundledMetadata(): Promise<OpenSpecMetadata> {
   } catch {
     // Return default metadata if file doesn't exist
     return {
-      lastRefreshed: '2025-01-01T00:00:00Z',
-      commitSha: 'main',
-      sourceVersion: '0.1.0',
+      lastRefreshed: '2026-01-12T00:00:00Z',
+      commitSha: 'v0.19.0',
+      sourceVersion: '0.19.0',
       sourceUrl: 'https://github.com/Fission-AI/OpenSpec',
     };
   }
@@ -347,32 +347,33 @@ function parseAgentsMd(content: string): Record<string, string> {
 export async function refreshOpenSpecPrompts(): Promise<OpenSpecMetadata> {
   logger.info('Refreshing OpenSpec prompts from GitHub...', LOG_CONTEXT);
 
-  // Fetch AGENTS.md from the repository
-  const agentsMdUrl = 'https://raw.githubusercontent.com/Fission-AI/OpenSpec/main/openspec/AGENTS.md';
+  // First, get the latest release info to get the version
+  let version = 'main';
+  try {
+    const releaseResponse = await fetch('https://api.github.com/repos/Fission-AI/OpenSpec/releases/latest', {
+      headers: { 'User-Agent': 'Maestro-OpenSpec-Refresher' },
+    });
+    if (releaseResponse.ok) {
+      const releaseInfo = await releaseResponse.json() as { tag_name: string };
+      version = releaseInfo.tag_name;
+      logger.info(`Latest OpenSpec release: ${version}`, LOG_CONTEXT);
+    }
+  } catch {
+    logger.warn('Could not fetch release info, using main branch', LOG_CONTEXT);
+  }
+
+  // Fetch AGENTS.md from the release tag (or main if no release found)
+  const agentsMdUrl = `https://raw.githubusercontent.com/Fission-AI/OpenSpec/${version}/openspec/AGENTS.md`;
   const agentsResponse = await fetch(agentsMdUrl);
   if (!agentsResponse.ok) {
     throw new Error(`Failed to fetch AGENTS.md: ${agentsResponse.statusText}`);
   }
   const agentsMdContent = await agentsResponse.text();
-  logger.info('Downloaded AGENTS.md', LOG_CONTEXT);
+  logger.info(`Downloaded AGENTS.md from ${version}`, LOG_CONTEXT);
 
   // Parse the AGENTS.md content to extract sections
   const extractedPrompts = parseAgentsMd(agentsMdContent);
   logger.info(`Extracted ${Object.keys(extractedPrompts).length} sections from AGENTS.md`, LOG_CONTEXT);
-
-  // Get the latest commit SHA for version tracking
-  let commitSha = 'main';
-  try {
-    const commitsResponse = await fetch('https://api.github.com/repos/Fission-AI/OpenSpec/commits/main', {
-      headers: { 'User-Agent': 'Maestro-OpenSpec-Refresher' },
-    });
-    if (commitsResponse.ok) {
-      const commitInfo = await commitsResponse.json() as { sha: string };
-      commitSha = commitInfo.sha.substring(0, 7);
-    }
-  } catch {
-    logger.warn('Could not fetch commit SHA, using "main"', LOG_CONTEXT);
-  }
 
   // Create user prompts directory
   const userPromptsDir = getUserPromptsPath();
@@ -393,8 +394,8 @@ export async function refreshOpenSpecPrompts(): Promise<OpenSpecMetadata> {
   // Update metadata with new version info
   const newMetadata: OpenSpecMetadata = {
     lastRefreshed: new Date().toISOString(),
-    commitSha,
-    sourceVersion: '0.1.0',
+    commitSha: version,
+    sourceVersion: version.replace(/^v/, ''),
     sourceUrl: 'https://github.com/Fission-AI/OpenSpec',
   };
 
@@ -413,7 +414,7 @@ export async function refreshOpenSpecPrompts(): Promise<OpenSpecMetadata> {
   customizations.metadata = newMetadata;
   await saveUserCustomizations(customizations);
 
-  logger.info(`Refreshed OpenSpec prompts (commit: ${commitSha})`, LOG_CONTEXT);
+  logger.info(`Refreshed OpenSpec prompts to ${version}`, LOG_CONTEXT);
 
   return newMetadata;
 }

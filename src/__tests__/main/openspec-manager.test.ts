@@ -117,7 +117,10 @@ describe('openspec-manager', () => {
       const metadata = await getOpenSpecMetadata();
 
       expect(metadata.sourceUrl).toBe('https://github.com/Fission-AI/OpenSpec');
-      expect(metadata.sourceVersion).toBe('0.19.0');
+      // Check structure rather than specific version (which changes with releases)
+      expect(metadata.sourceVersion).toMatch(/^\d+\.\d+\.\d+$/);
+      expect(metadata.commitSha).toBeDefined();
+      expect(metadata.lastRefreshed).toBeDefined();
     });
   });
 

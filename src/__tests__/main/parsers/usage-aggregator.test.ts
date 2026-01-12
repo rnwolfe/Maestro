@@ -89,7 +89,7 @@ describe('estimateContextUsage', () => {
     it('should calculate percentage from provided context window', () => {
       const stats = createStats({ contextWindow: 100000 });
       const result = estimateContextUsage(stats, 'claude-code');
-      expect(result).toBe(15);
+      expect(result).toBe(10);
     });
 
     it('should cap at 100%', () => {
@@ -99,7 +99,8 @@ describe('estimateContextUsage', () => {
         contextWindow: 200000,
       });
       const result = estimateContextUsage(stats, 'claude-code');
-      expect(result).toBe(100);
+      // Output tokens excluded; 150k / 200k = 75%
+      expect(result).toBe(75);
     });
   });
 
@@ -107,19 +108,19 @@ describe('estimateContextUsage', () => {
     it('should use claude-code default context window (200k)', () => {
       const stats = createStats({ contextWindow: 0 });
       const result = estimateContextUsage(stats, 'claude-code');
-      expect(result).toBe(8);
+      expect(result).toBe(5);
     });
 
     it('should use codex default context window (200k)', () => {
       const stats = createStats({ contextWindow: 0 });
       const result = estimateContextUsage(stats, 'codex');
-      expect(result).toBe(8);
+      expect(result).toBe(5);
     });
 
     it('should use opencode default context window (128k)', () => {
       const stats = createStats({ contextWindow: 0 });
       const result = estimateContextUsage(stats, 'opencode');
-      expect(result).toBe(12);
+      expect(result).toBe(8);
     });
 
     it('should return null for terminal agent', () => {

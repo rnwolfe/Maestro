@@ -318,8 +318,8 @@ describe('SessionStatusBanner', () => {
 
       render(<SessionStatusBanner session={session} />);
 
-      // (50000 + 50000) / 200000 * 100 = 50%
-      expect(screen.getByText('50%')).toBeInTheDocument();
+      // (50000) / 200000 * 100 = 25%
+      expect(screen.getByText('25%')).toBeInTheDocument();
     });
 
     it('rounds percentage to nearest integer', () => {
@@ -340,6 +340,7 @@ describe('SessionStatusBanner', () => {
       const usageStats = createUsageStats({
         inputTokens: 150000,
         outputTokens: 100000,
+        cacheReadInputTokens: 100000,
         contextWindow: 200000,
       });
       const session = createSession({ usageStats });
@@ -416,7 +417,7 @@ describe('SessionStatusBanner', () => {
 
     it('shows warning color (yellow) for usage 70-89%', () => {
       const usageStats = createUsageStats({
-        inputTokens: 100000,
+        inputTokens: 160000,
         outputTokens: 60000,
         contextWindow: 200000,
       });
@@ -434,6 +435,7 @@ describe('SessionStatusBanner', () => {
       const usageStats = createUsageStats({
         inputTokens: 150000,
         outputTokens: 40000,
+        cacheReadInputTokens: 40000,
         contextWindow: 200000,
       });
       const session = createSession({ usageStats });
@@ -450,6 +452,7 @@ describe('SessionStatusBanner', () => {
       const usageStats = createUsageStats({
         inputTokens: 90000,
         outputTokens: 90000,
+        cacheReadInputTokens: 90000,
         contextWindow: 200000,
       });
       const session = createSession({ usageStats });
@@ -461,7 +464,7 @@ describe('SessionStatusBanner', () => {
 
     it('shows warning color at exactly 70%', () => {
       const usageStats = createUsageStats({
-        inputTokens: 70000,
+        inputTokens: 140000,
         outputTokens: 70000,
         contextWindow: 200000,
       });
@@ -767,7 +770,7 @@ describe('SessionStatusBanner', () => {
   describe('ContextUsageBar component', () => {
     it('renders progressbar with correct ARIA attributes', () => {
       const usageStats = createUsageStats({
-        inputTokens: 50000,
+        inputTokens: 100000,
         outputTokens: 50000,
         contextWindow: 200000,
       });
@@ -783,7 +786,7 @@ describe('SessionStatusBanner', () => {
 
     it('has accessible aria-label', () => {
       const usageStats = createUsageStats({
-        inputTokens: 50000,
+        inputTokens: 100000,
         outputTokens: 50000,
         contextWindow: 200000,
       });
@@ -796,7 +799,7 @@ describe('SessionStatusBanner', () => {
 
     it('has descriptive title', () => {
       const usageStats = createUsageStats({
-        inputTokens: 50000,
+        inputTokens: 100000,
         outputTokens: 50000,
         contextWindow: 200000,
       });
@@ -1282,7 +1285,7 @@ describe('SessionStatusBanner', () => {
         // Tokens
         expect(screen.getByText('7.0K')).toBeInTheDocument();
         // Context usage
-        expect(screen.getByText('4%')).toBeInTheDocument();
+        expect(screen.getByText('3%')).toBeInTheDocument();
         // Last response section
         expect(screen.getByText(/5m ago/)).toBeInTheDocument();
       });
@@ -1440,7 +1443,7 @@ describe('SessionStatusBanner', () => {
       expect(screen.getByText('AI')).toBeInTheDocument();
       expect(screen.getByText('$2.50')).toBeInTheDocument();
       expect(screen.getByText('180.0K')).toBeInTheDocument();
-      expect(screen.getByText('90%')).toBeInTheDocument();
+      expect(screen.getByText('75%')).toBeInTheDocument();
       expect(screen.getByText('1:05')).toBeInTheDocument();
       expect(screen.getByLabelText('AI is thinking')).toBeInTheDocument();
     });

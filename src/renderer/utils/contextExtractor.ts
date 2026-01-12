@@ -438,8 +438,12 @@ function mapHeaderToSource(header: string): LogEntry['source'] {
 export function estimateTokenCount(context: ContextSource): number {
   // If we have usage stats, use the actual token counts
   if (context.usageStats) {
-    const { inputTokens = 0, outputTokens = 0 } = context.usageStats;
-    return inputTokens + outputTokens;
+    const {
+      inputTokens = 0,
+      cacheCreationInputTokens = 0,
+      cacheReadInputTokens = 0,
+    } = context.usageStats;
+    return inputTokens + cacheCreationInputTokens + cacheReadInputTokens;
   }
 
   // Otherwise, estimate from log content
@@ -469,8 +473,12 @@ export function estimateTokenCount(context: ContextSource): number {
 export async function countContextTokens(context: ContextSource): Promise<number> {
   // If we have usage stats, use the actual token counts
   if (context.usageStats) {
-    const { inputTokens = 0, outputTokens = 0 } = context.usageStats;
-    return inputTokens + outputTokens;
+    const {
+      inputTokens = 0,
+      cacheCreationInputTokens = 0,
+      cacheReadInputTokens = 0,
+    } = context.usageStats;
+    return inputTokens + cacheCreationInputTokens + cacheReadInputTokens;
   }
 
   // Count tokens for all log content

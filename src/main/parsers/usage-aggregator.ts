@@ -71,9 +71,12 @@ export function estimateContextUsage(
   stats: Pick<UsageStats, 'inputTokens' | 'outputTokens' | 'cacheReadInputTokens' | 'cacheCreationInputTokens' | 'contextWindow'>,
   agentId?: ToolType
 ): number | null {
-  // Calculate total context: new input + output + cached conversation history
-  // The cacheReadInputTokens represent previous conversation being sent with each request
-  const totalContextTokens = stats.inputTokens + stats.outputTokens + (stats.cacheReadInputTokens || 0);
+  // Calculate total context: new input + cache writes + cached conversation history
+  // Matches Claude Code/Claude Agent SDK: output tokens are excluded from context sizing
+  const totalContextTokens =
+    stats.inputTokens +
+    (stats.cacheCreationInputTokens || 0) +
+    (stats.cacheReadInputTokens || 0);
 
   // If context window is provided and valid, use it
   if (stats.contextWindow && stats.contextWindow > 0) {

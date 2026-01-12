@@ -3142,7 +3142,10 @@ function setupProcessListeners() {
         const { groupChatId, participantName } = participantUsageInfo;
 
         // Calculate context usage percentage (include cache read tokens for actual prompt size)
-        const totalContextTokens = usageStats.inputTokens + usageStats.outputTokens + (usageStats.cacheReadInputTokens || 0);
+        const totalContextTokens =
+          usageStats.inputTokens +
+          (usageStats.cacheCreationInputTokens || 0) +
+          (usageStats.cacheReadInputTokens || 0);
         const contextUsage = usageStats.contextWindow > 0
           ? Math.round((totalContextTokens / usageStats.contextWindow) * 100)
           : 0;
@@ -3172,7 +3175,10 @@ function setupProcessListeners() {
       if (moderatorMatch) {
         const groupChatId = moderatorMatch[1];
         // Calculate context usage percentage for moderator display (include cache read tokens)
-        const totalContextTokens = usageStats.inputTokens + usageStats.outputTokens + (usageStats.cacheReadInputTokens || 0);
+        const totalContextTokens =
+          usageStats.inputTokens +
+          (usageStats.cacheCreationInputTokens || 0) +
+          (usageStats.cacheReadInputTokens || 0);
         const contextUsage = usageStats.contextWindow > 0
           ? Math.round((totalContextTokens / usageStats.contextWindow) * 100)
           : 0;

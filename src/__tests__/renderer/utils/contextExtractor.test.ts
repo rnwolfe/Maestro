@@ -94,8 +94,8 @@ describe('extractTabContext', () => {
       usageStats: {
         inputTokens: 100,
         outputTokens: 200,
-        cacheReadTokens: 50,
-        cacheCreationTokens: 0,
+        cacheReadInputTokens: 50,
+        cacheCreationInputTokens: 0,
         costUsd: 0.01,
       },
     });
@@ -424,15 +424,15 @@ describe('estimateTokenCount', () => {
       usageStats: {
         inputTokens: 500,
         outputTokens: 1000,
-        cacheReadTokens: 0,
-        cacheCreationTokens: 0,
+        cacheReadInputTokens: 0,
+        cacheCreationInputTokens: 200,
         costUsd: 0.05,
       },
     };
 
     const tokens = estimateTokenCount(context);
 
-    expect(tokens).toBe(1500);
+    expect(tokens).toBe(700); // input + cacheCreation + cacheRead
   });
 
   it('should estimate from log content when no usage stats', () => {
@@ -614,7 +614,13 @@ describe('calculateTotalTokens', () => {
         name: 'Context 1',
         logs: [],
         agentType: 'claude-code',
-        usageStats: { inputTokens: 100, outputTokens: 200, cacheReadTokens: 0, cacheCreationTokens: 0, costUsd: 0 },
+        usageStats: {
+          inputTokens: 100,
+          outputTokens: 200,
+          cacheReadInputTokens: 50,
+          cacheCreationInputTokens: 25,
+          costUsd: 0,
+        },
       },
       {
         type: 'tab',
@@ -623,13 +629,20 @@ describe('calculateTotalTokens', () => {
         name: 'Context 2',
         logs: [],
         agentType: 'claude-code',
-        usageStats: { inputTokens: 300, outputTokens: 400, cacheReadTokens: 0, cacheCreationTokens: 0, costUsd: 0 },
+        usageStats: {
+          inputTokens: 300,
+          outputTokens: 400,
+          cacheReadInputTokens: 75,
+          cacheCreationInputTokens: 25,
+          costUsd: 0,
+        },
       },
     ];
 
     const total = calculateTotalTokens(contexts);
 
-    expect(total).toBe(1000); // (100+200) + (300+400)
+    // input + cacheCreation + cacheRead for each context
+    expect(total).toBe(575); // (100+25+50) + (300+25+75)
   });
 });
 
@@ -643,7 +656,13 @@ describe('getContextSummary', () => {
         name: 'Context 1',
         logs: [createMockLog(), createMockLog()],
         agentType: 'claude-code',
-        usageStats: { inputTokens: 100, outputTokens: 100, cacheReadTokens: 0, cacheCreationTokens: 0, costUsd: 0 },
+        usageStats: {
+          inputTokens: 100,
+          outputTokens: 100,
+          cacheReadInputTokens: 50,
+          cacheCreationInputTokens: 25,
+          costUsd: 0,
+        },
       },
       {
         type: 'session',
@@ -652,7 +671,13 @@ describe('getContextSummary', () => {
         name: 'Context 2',
         logs: [createMockLog(), createMockLog(), createMockLog()],
         agentType: 'opencode',
-        usageStats: { inputTokens: 200, outputTokens: 200, cacheReadTokens: 0, cacheCreationTokens: 0, costUsd: 0 },
+        usageStats: {
+          inputTokens: 200,
+          outputTokens: 200,
+          cacheReadInputTokens: 75,
+          cacheCreationInputTokens: 25,
+          costUsd: 0,
+        },
       },
     ];
 
@@ -660,7 +685,7 @@ describe('getContextSummary', () => {
 
     expect(summary.totalSources).toBe(2);
     expect(summary.totalLogs).toBe(5);
-    expect(summary.estimatedTokens).toBe(600);
+    expect(summary.estimatedTokens).toBe(475);
     expect(summary.byAgent['claude-code']).toBe(1);
     expect(summary.byAgent['opencode']).toBe(1);
   });

@@ -40,16 +40,19 @@ import { useMobileAutoReconnect } from '../hooks/useMobileAutoReconnect';
 
 /**
  * Calculate context usage percentage from usage stats
- * Includes cacheReadInputTokens as they represent conversation history sent with each request
+ * Includes cache read + cache creation; excludes output tokens to mirror Claude Code behavior
  */
 function calculateContextUsage(usageStats?: Session['usageStats'] | null): number | null {
   if (!usageStats) return null;
-  const { inputTokens, outputTokens, cacheReadInputTokens, contextWindow } = usageStats;
-  if (inputTokens == null || outputTokens == null || contextWindow == null || contextWindow === 0) {
+  const { inputTokens, cacheReadInputTokens, cacheCreationInputTokens, contextWindow } = usageStats;
+  if (inputTokens == null || contextWindow == null || contextWindow === 0) {
     return null;
   }
-  // Include cache read tokens - they represent the full conversation context
-  const totalTokens = inputTokens + outputTokens + (cacheReadInputTokens || 0);
+  // Include cache read + cache creation tokens - they represent the full conversation context
+  const totalTokens =
+    inputTokens +
+    (cacheCreationInputTokens || 0) +
+    (cacheReadInputTokens || 0);
   return Math.min(Math.round((totalTokens / contextWindow) * 100), 100);
 }
 

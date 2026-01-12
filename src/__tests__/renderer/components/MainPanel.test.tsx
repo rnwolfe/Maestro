@@ -1794,8 +1794,8 @@ describe('MainPanel', () => {
           createdAt: Date.now(),
           usageStats: {
             inputTokens: 50000,
-            outputTokens: 25000,
-            cacheReadInputTokens: 0,
+            outputTokens: 0,
+            cacheReadInputTokens: 25000,
             cacheCreationInputTokens: 0,
             totalCostUsd: 0.05,
             contextWindow: 200000,
@@ -1806,7 +1806,7 @@ describe('MainPanel', () => {
 
       render(<MainPanel {...defaultProps} activeSession={session} getContextColor={getContextColor} />);
 
-      // Context usage should be (50000 + 25000) / 200000 * 100 = 37.5%
+      // Context usage should be (50000 + 25000 cache read) / 200000 * 100 = 37.5%
       expect(getContextColor).toHaveBeenCalledWith(38, theme); // Rounded to 38
     });
   });
@@ -2222,7 +2222,7 @@ describe('MainPanel', () => {
           usageStats: {
             inputTokens: 150000,
             outputTokens: 100000,
-            cacheReadInputTokens: 0,
+            cacheReadInputTokens: 100000,
             cacheCreationInputTokens: 0,
             totalCostUsd: 0.05,
             contextWindow: 200000,

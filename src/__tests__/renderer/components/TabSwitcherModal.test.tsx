@@ -61,8 +61,8 @@ const createTestTab = (overrides: Partial<AITab> = {}): AITab => ({
   usageStats: {
     inputTokens: 1000,
     outputTokens: 500,
-    cacheReadTokens: 0,
-    cacheWriteTokens: 0,
+    cacheReadInputTokens: 0,
+    cacheCreationInputTokens: 0,
     totalCostUsd: 0.05,
     contextWindow: 200000,
   },
@@ -104,8 +104,8 @@ describe('TabSwitcherModal', () => {
           usageStats: {
             inputTokens: 500,
             outputTokens: 200,
-            cacheReadTokens: 0,
-            cacheWriteTokens: 0,
+            cacheReadInputTokens: 0,
+            cacheCreationInputTokens: 0,
             totalCostUsd: 0.01,
             contextWindow: 200000,
           },
@@ -132,8 +132,8 @@ describe('TabSwitcherModal', () => {
           usageStats: {
             inputTokens: 5000,
             outputTokens: 3500,
-            cacheReadTokens: 0,
-            cacheWriteTokens: 0,
+            cacheReadInputTokens: 0,
+            cacheCreationInputTokens: 0,
             totalCostUsd: 0.10,
             contextWindow: 200000,
           },
@@ -160,8 +160,8 @@ describe('TabSwitcherModal', () => {
           usageStats: {
             inputTokens: 700,
             outputTokens: 300,
-            cacheReadTokens: 0,
-            cacheWriteTokens: 0,
+            cacheReadInputTokens: 0,
+            cacheCreationInputTokens: 0,
             totalCostUsd: 0.02,
             contextWindow: 200000,
           },
@@ -189,8 +189,8 @@ describe('TabSwitcherModal', () => {
           usageStats: {
             inputTokens: 100,
             outputTokens: 50,
-            cacheReadTokens: 0,
-            cacheWriteTokens: 0,
+            cacheReadInputTokens: 0,
+            cacheCreationInputTokens: 0,
             totalCostUsd: 0,
             contextWindow: 200000,
           },
@@ -216,8 +216,8 @@ describe('TabSwitcherModal', () => {
           usageStats: {
             inputTokens: 100,
             outputTokens: 50,
-            cacheReadTokens: 0,
-            cacheWriteTokens: 0,
+            cacheReadInputTokens: 0,
+            cacheCreationInputTokens: 0,
             totalCostUsd: 0.005,
             contextWindow: 200000,
           },
@@ -243,8 +243,8 @@ describe('TabSwitcherModal', () => {
           usageStats: {
             inputTokens: 1000,
             outputTokens: 500,
-            cacheReadTokens: 0,
-            cacheWriteTokens: 0,
+            cacheReadInputTokens: 0,
+            cacheCreationInputTokens: 0,
             totalCostUsd: 1.23,
             contextWindow: 200000,
           },
@@ -501,8 +501,8 @@ describe('TabSwitcherModal', () => {
           usageStats: {
             inputTokens: 1000,
             outputTokens: 500,
-            cacheReadTokens: 0,
-            cacheWriteTokens: 0,
+            cacheReadInputTokens: 0,
+            cacheCreationInputTokens: 0,
             totalCostUsd: 0.05,
             contextWindow: 0,
           },
@@ -527,10 +527,10 @@ describe('TabSwitcherModal', () => {
       it('calculates correct percentage', () => {
         const tab = createTestTab({
           usageStats: {
-            inputTokens: 10000,
+            inputTokens: 20000,
             outputTokens: 10000,
-            cacheReadTokens: 0,
-            cacheWriteTokens: 0,
+            cacheReadInputTokens: 0,
+            cacheCreationInputTokens: 0,
             totalCostUsd: 0.50,
             contextWindow: 100000,
           },
@@ -556,9 +556,9 @@ describe('TabSwitcherModal', () => {
         const tab = createTestTab({
           usageStats: {
             inputTokens: 150000,
-            outputTokens: 100000,
-            cacheReadTokens: 0,
-            cacheWriteTokens: 0,
+            outputTokens: 0,
+            cacheReadInputTokens: 100000,
+            cacheCreationInputTokens: 0,
             totalCostUsd: 5.00,
             contextWindow: 200000,
           },
@@ -810,8 +810,8 @@ describe('TabSwitcherModal', () => {
         usageStats: {
           inputTokens: 10000,
           outputTokens: 10000,
-          cacheReadTokens: 0,
-          cacheWriteTokens: 0,
+          cacheReadInputTokens: 0,
+          cacheCreationInputTokens: 0,
           totalCostUsd: 0.50,
           contextWindow: 100000,
         },
@@ -842,10 +842,10 @@ describe('TabSwitcherModal', () => {
     it('applies color based on percentage (success for low)', () => {
       const tab = createTestTab({
         usageStats: {
-          inputTokens: 5000,
+          inputTokens: 10000,
           outputTokens: 5000,
-          cacheReadTokens: 0,
-          cacheWriteTokens: 0,
+          cacheReadInputTokens: 0,
+          cacheCreationInputTokens: 0,
           totalCostUsd: 0.25,
           contextWindow: 200000,
         },

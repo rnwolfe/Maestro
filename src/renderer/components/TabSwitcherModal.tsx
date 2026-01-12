@@ -49,13 +49,13 @@ function getTabLastActivity(tab: AITab): number | undefined {
 
 /**
  * Get context usage percentage from usage stats
- * Uses inputTokens + outputTokens (not cache tokens) to match MainPanel calculation
+ * Uses inputTokens + cache creation + cache read (outputs excluded) to match Claude Code behavior
  */
 function getContextPercentage(tab: AITab): number {
   if (!tab.usageStats) return 0;
-  const { inputTokens, outputTokens, contextWindow } = tab.usageStats;
+  const { inputTokens, cacheCreationInputTokens = 0, cacheReadInputTokens = 0, contextWindow } = tab.usageStats;
   if (!contextWindow || contextWindow === 0) return 0;
-  const contextTokens = inputTokens + outputTokens;
+  const contextTokens = inputTokens + cacheCreationInputTokens + cacheReadInputTokens;
   return Math.min(100, Math.round((contextTokens / contextWindow) * 100));
 }
 

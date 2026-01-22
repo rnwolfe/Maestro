@@ -1983,11 +1983,19 @@ function MaestroConsoleInner() {
 						}
 
 						// Create a short summary from the last AI response
+						// Skip conversational fillers like "Excellent!", "Perfect!", etc.
 						let summary = '';
 						if (lastAiLog?.text) {
 							const text = lastAiLog.text.trim();
 							if (text.length > 10) {
-								const firstSentence = text.match(/^[^.!?\n]*[.!?]/)?.[0] || text.substring(0, 120);
+								// Match sentences (text ending with . ! or ?)
+								const sentences = text.match(/[^.!?\n]+[.!?]+/g) || [];
+								// Pattern to detect conversational filler sentences
+								const fillerPattern =
+									/^(excellent|perfect|great|awesome|wonderful|fantastic|good|nice|cool|done|ok|okay|alright|sure|yes|yeah|absolutely|certainly|definitely|looks?\s+good|all\s+(set|done|ready)|got\s+it|understood|will\s+do|on\s+it|no\s+problem|no\s+worries|happy\s+to\s+help)[!.\s]*$/i;
+								// Find the first non-filler sentence
+								const meaningfulSentence = sentences.find((s) => !fillerPattern.test(s.trim()));
+								const firstSentence = meaningfulSentence?.trim() || text.substring(0, 120);
 								summary =
 									firstSentence.length < text.length
 										? firstSentence

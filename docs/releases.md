@@ -15,7 +15,7 @@ Maestro can update itself automatically! This feature was introduced in **v0.8.7
 
 ## v0.14.x - Doc Graphs, SSH Agents, Inline Wizard
 
-**Latest: v0.14.5** | Released January 23, 2026
+**Latest: v0.14.5** | Released January 24, 2026
 
 Changes in this point release include:
 

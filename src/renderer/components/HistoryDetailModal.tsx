@@ -229,11 +229,23 @@ export function HistoryDetailModal({
 			>
 				{/* Header */}
 				<div
-					className="flex items-center justify-between px-6 py-4 border-b shrink-0"
+					className="flex flex-col px-6 py-4 border-b shrink-0 gap-3"
 					style={{ borderColor: theme.colors.border }}
 				>
-					<div className="flex items-center gap-3 flex-wrap">
-						{/* Success/Failure Indicator for AUTO entries */}
+					{/* Session Name - prominent header when available */}
+					{entry.sessionName && (
+						<h2
+							className="text-lg font-bold truncate"
+							style={{ color: theme.colors.textMain }}
+							title={entry.sessionName}
+						>
+							{entry.sessionName}
+						</h2>
+					)}
+
+					<div className="flex items-center justify-between">
+						<div className="flex items-center gap-3 flex-wrap">
+							{/* Success/Failure Indicator for AUTO entries */}
 						{entry.type === 'AUTO' && entry.success !== undefined && (
 							<span
 								className="flex items-center justify-center w-6 h-6 rounded-full"
@@ -358,12 +370,13 @@ export function HistoryDetailModal({
 								Validated
 							</button>
 						)}
-					</div>
+						</div>
 
-					{/* Close button */}
-					<button onClick={onClose} className="p-1 rounded hover:bg-white/10 transition-colors">
-						<X className="w-5 h-5" style={{ color: theme.colors.textDim }} />
-					</button>
+						{/* Close button */}
+						<button onClick={onClose} className="p-1 rounded hover:bg-white/10 transition-colors">
+							<X className="w-5 h-5" style={{ color: theme.colors.textDim }} />
+						</button>
+					</div>
 				</div>
 
 				{/* Stats Panel - shown when we have usage stats */}

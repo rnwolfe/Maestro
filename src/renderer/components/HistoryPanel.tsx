@@ -568,12 +568,12 @@ const HistoryEntryItem = memo(function HistoryEntryItem({
 			}}
 		>
 			{/* Header Row */}
-			<div className="flex items-center justify-between mb-2">
-				<div className="flex items-center gap-2">
+			<div className="flex items-center justify-between mb-2 gap-2">
+				<div className="flex items-center gap-2 min-w-0 flex-1">
 					{/* Success/Failure Indicator for AUTO entries */}
 					{entry.type === 'AUTO' && entry.success !== undefined && (
 						<span
-							className="flex items-center justify-center w-5 h-5 rounded-full"
+							className="flex items-center justify-center w-5 h-5 rounded-full flex-shrink-0"
 							style={{
 								backgroundColor: entry.success
 									? entry.validated
@@ -610,7 +610,7 @@ const HistoryEntryItem = memo(function HistoryEntryItem({
 
 					{/* Type Pill */}
 					<span
-						className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase"
+						className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase flex-shrink-0"
 						style={{
 							backgroundColor: colors.bg,
 							color: colors.text,
@@ -628,13 +628,13 @@ const HistoryEntryItem = memo(function HistoryEntryItem({
 								e.stopPropagation();
 								onOpenSessionAsTab?.(entry.agentSessionId!);
 							}}
-							className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold transition-colors hover:opacity-80 min-w-0 ${entry.sessionName ? '' : 'font-mono uppercase'}`}
+							className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold transition-colors hover:opacity-80 min-w-0 max-w-[200px] ${entry.sessionName ? '' : 'font-mono uppercase'}`}
 							style={{
 								backgroundColor: theme.colors.accent + '20',
 								color: theme.colors.accent,
 								border: `1px solid ${theme.colors.accent}40`,
 							}}
-							title={`Open session ${entry.sessionName || entry.agentSessionId.split('-')[0]} as new tab`}
+							title={entry.sessionName || entry.agentSessionId}
 						>
 							<span className="truncate">
 								{entry.sessionName || entry.agentSessionId.split('-')[0].toUpperCase()}
@@ -645,7 +645,7 @@ const HistoryEntryItem = memo(function HistoryEntryItem({
 				</div>
 
 				{/* Timestamp */}
-				<span className="text-[10px]" style={{ color: theme.colors.textDim }}>
+				<span className="text-[10px] flex-shrink-0" style={{ color: theme.colors.textDim }}>
 					{formatTime(entry.timestamp)}
 				</span>
 			</div>

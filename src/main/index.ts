@@ -60,11 +60,13 @@ import {
 	setGetSessionsCallback,
 	setGetCustomEnvVarsCallback,
 	setGetAgentConfigCallback,
+	setSshStore,
 	markParticipantResponded,
 	spawnModeratorSynthesis,
 	getGroupChatReadOnlyState,
 	respawnParticipantWithRecovery,
 } from './group-chat/group-chat-router';
+import { createSshRemoteStoreAdapter } from './utils/ssh-remote-resolver';
 import { updateParticipant, loadGroupChat, updateGroupChat } from './group-chat/group-chat-storage';
 import { needsSessionRecovery, initiateSessionRecovery } from './group-chat/session-recovery';
 import { initializeSessionStorages } from './storage';
@@ -553,6 +555,8 @@ function setupIpcHandlers() {
 				customEnvVars: s.customEnvVars,
 				customModel: s.customModel,
 				sshRemoteName,
+				// Pass full SSH config for remote execution support
+				sshRemoteConfig: s.sessionSshRemoteConfig,
 			};
 		});
 	});
@@ -560,6 +564,9 @@ function setupIpcHandlers() {
 	// Set up callback for group chat router to lookup custom env vars for agents
 	setGetCustomEnvVarsCallback(getCustomEnvVarsForAgent);
 	setGetAgentConfigCallback(getAgentConfigForAgent);
+
+	// Set up SSH store for group chat SSH remote execution support
+	setSshStore(createSshRemoteStoreAdapter(store));
 
 	// Setup logger event forwarding to renderer
 	setupLoggerEventForwarding(() => mainWindow);

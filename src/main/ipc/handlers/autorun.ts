@@ -474,11 +474,18 @@ export function registerAutorunHandlers(
 	);
 
 	// Save image to Auto Run folder
+	// Supports SSH remote execution via optional sshRemoteId parameter
 	ipcMain.handle(
 		'autorun:saveImage',
 		createIpcHandler(
 			handlerOpts('saveImage'),
-			async (folderPath: string, docName: string, base64Data: string, extension: string) => {
+			async (
+				folderPath: string,
+				docName: string,
+				base64Data: string,
+				extension: string,
+				sshRemoteId?: string
+			) => {
 				// Sanitize docName to prevent directory traversal
 				const sanitizedDocName = path.basename(docName).replace(/\.md$/i, '');
 				if (sanitizedDocName.includes('..') || sanitizedDocName.includes('/')) {
@@ -492,7 +499,45 @@ export function registerAutorunHandlers(
 					throw new Error('Invalid image extension');
 				}
 
-				// Create images subdirectory if it doesn't exist
+				// Generate filename: {docName}-{timestamp}.{ext}
+				const timestamp = Date.now();
+				const filename = `${sanitizedDocName}-${timestamp}.${sanitizedExtension}`;
+				const relativePath = `images/${filename}`;
+
+				// SSH remote: dispatch to remote operations
+				if (sshRemoteId) {
+					const sshConfig = getSshRemoteById(settingsStore, sshRemoteId);
+					if (!sshConfig) {
+						throw new Error(`SSH remote not found: ${sshRemoteId}`);
+					}
+
+					// Construct remote paths (use forward slashes)
+					const remoteImagesDir = `${folderPath}/images`;
+					const remotePath = `${folderPath}/${relativePath}`;
+
+					// Create images subdirectory on remote if it doesn't exist
+					const dirExists = await existsRemote(remoteImagesDir, sshConfig);
+					if (!dirExists.success || !dirExists.data) {
+						const mkdirResult = await mkdirRemote(remoteImagesDir, sshConfig, true);
+						if (!mkdirResult.success) {
+							throw new Error(mkdirResult.error || 'Failed to create remote images directory');
+						}
+					}
+
+					logger.debug(`${LOG_CONTEXT} saveImage via SSH: ${remotePath}`, LOG_CONTEXT);
+
+					// Decode base64 and write as buffer - writeFileRemote handles binary via Buffer
+					const imageBuffer = Buffer.from(base64Data, 'base64');
+					const result = await writeFileRemote(remotePath, imageBuffer, sshConfig);
+					if (!result.success) {
+						throw new Error(result.error || 'Failed to write remote image file');
+					}
+
+					logger.info(`Saved remote Auto Run image: ${relativePath}`, LOG_CONTEXT);
+					return { relativePath };
+				}
+
+				// Local: Create images subdirectory if it doesn't exist
 				const imagesDir = path.join(folderPath, 'images');
 				try {
 					await fs.mkdir(imagesDir, { recursive: true });
@@ -500,9 +545,6 @@ export function registerAutorunHandlers(
 					// Directory might already exist, that's fine
 				}
 
-				// Generate filename: {docName}-{timestamp}.{ext}
-				const timestamp = Date.now();
-				const filename = `${sanitizedDocName}-${timestamp}.${sanitizedExtension}`;
 				const filePath = path.join(imagesDir, filename);
 
 				// Validate the file is within the folder path (prevent traversal)
@@ -517,7 +559,6 @@ export function registerAutorunHandlers(
 				await fs.writeFile(filePath, buffer);
 
 				// Return the relative path for markdown insertion
-				const relativePath = `images/${filename}`;
 				logger.info(`Saved Auto Run image: ${relativePath}`, LOG_CONTEXT);
 				return { relativePath };
 			}

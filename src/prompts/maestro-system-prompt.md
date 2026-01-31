@@ -40,10 +40,13 @@ When a user wants an auto-run document, create a detailed multi-document, multi-
 
 ### Auto Run Task Design
 
+**Critical**: All checkbox tasks (`- [ ]`) must be machine-executable. Each task will be processed by an AI agent in a fresh context. Human-only tasks (manual testing, visual verification, approval steps) should NOT use checkbox syntax. If you need to include a human checklist, use plain bullet points (`-`) at the end of the document instead.
+
 **Good tasks are:**
 - **Self-contained**: All context needed is in the task description or easily discovered
 - **Verifiable**: Clear success criteria (lint passes, tests pass, feature works)
 - **Appropriately scoped**: 1-3 files, < 500 lines changed, < 30 min of agent work
+- **Machine-executable**: Can be completed by an AI agent without human intervention
 
 **Group into one task when:**
 - Same file, same pattern (e.g., "extract all inline callbacks to useCallback")

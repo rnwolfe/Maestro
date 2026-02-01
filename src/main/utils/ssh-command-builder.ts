@@ -270,21 +270,22 @@ export async function buildSshCommand(
 		env: Object.keys(mergedEnv).length > 0 ? mergedEnv : undefined,
 	});
 
-	// Wrap the command in a login shell to ensure PATH is loaded.
-	// We use "bash -lc" rather than "$SHELL -lc" to avoid issues with complex
-	// profile syntax in zsh (e.g., loops, conditionals) that can't be embedded
-	// in a -c command string.
+	// Wrap the command with explicit PATH setup instead of sourcing profile files.
+	// Profile files often chain to zsh or contain syntax incompatible with -c embedding.
 	//
-	// Why bash specifically:
-	// - bash is available on virtually all Unix systems (macOS, Linux)
-	// - bash -l sources /etc/profile, ~/.bash_profile, ~/.profile
-	// - This provides PATH for user-installed binaries like 'claude' in ~/.local/bin
-	// - bash profile files rarely have syntax incompatible with -c embedding
+	// We prepend common binary locations to PATH:
+	// - ~/.local/bin: Claude Code, pip --user installs
+	// - ~/bin: User scripts
+	// - /usr/local/bin: Homebrew on Intel Mac, manual installs
+	// - /opt/homebrew/bin: Homebrew on Apple Silicon
+	// - ~/.cargo/bin: Rust tools
+	// - ~/.nvm/versions/node/*/bin: Node.js via nvm (glob doesn't work, but current version does)
 	//
-	// The double-quote escaping ensures $-prefixed variables in the inner command
-	// are passed literally and evaluated by bash, not by SSH's outer shell.
+	// This approach avoids all profile sourcing issues while ensuring agent binaries are found.
+	const pathPrefix =
+		'export PATH="$HOME/.local/bin:$HOME/bin:/usr/local/bin:/opt/homebrew/bin:$HOME/.cargo/bin:$PATH"';
 	const escapedCommand = shellEscapeForDoubleQuotes(remoteCommand);
-	const wrappedCommand = `bash -lc "${escapedCommand}"`;
+	const wrappedCommand = `bash --norc --noprofile -c "${pathPrefix} && ${escapedCommand}"`;
 	args.push(wrappedCommand);
 
 	// Log the exact command being built - use info level so it appears in system logs

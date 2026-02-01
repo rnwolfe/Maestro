@@ -319,12 +319,13 @@ describe('ssh-command-builder', () => {
 			});
 
 			const lastArg = result.args[result.args.length - 1];
-			// Command is wrapped in bash -lc for PATH
-			expect(lastArg).toContain('bash -lc');
+			// Command is wrapped in bash with PATH setup (no profile sourcing)
+			expect(lastArg).toContain('bash --norc --noprofile -c');
+			expect(lastArg).toContain('export PATH=');
 			expect(lastArg).toContain('claude');
 			expect(lastArg).toContain('--print');
 			expect(lastArg).toContain('hello');
-			expect(lastArg).not.toContain('cd');
+			expect(lastArg).not.toContain('&& cd'); // cd comes after PATH setup if present
 		});
 
 		it('includes the remote command as the last argument', async () => {
@@ -380,10 +381,9 @@ describe('ssh-command-builder', () => {
 			});
 
 			const wrappedCommand = result.args[result.args.length - 1];
-			// The command is wrapped in bash -lc "..." with double-quote escaping
-			// The inner single quotes become escaped for double-quote context
+			// The command is wrapped in bash --norc --noprofile -c "..." with PATH setup
 			// $ signs are escaped as \$ to prevent expansion by SSH's outer shell
-			expect(wrappedCommand).toContain('bash -lc');
+			expect(wrappedCommand).toContain('bash --norc --noprofile -c');
 			expect(wrappedCommand).toContain('git');
 			expect(wrappedCommand).toContain('commit');
 			expect(wrappedCommand).toContain('fix:');
@@ -637,9 +637,10 @@ describe('ssh-command-builder', () => {
 			});
 
 			const wrappedCommand = result.args[result.args.length - 1];
-			// The prompt is wrapped in bash -lc "..." with double-quote escaping
-			// $PATH should be escaped as \$PATH to prevent expansion
-			expect(wrappedCommand).toContain('\\$PATH');
+			// The prompt is wrapped in bash --norc --noprofile -c "..." with double-quote escaping
+			// $PATH in the PROMPT should be escaped as \$PATH to prevent expansion
+			// (Note: the PATH setup also contains $PATH but that's intentional)
+			expect(wrappedCommand).toContain("'\\\\$PATH variable");
 		});
 
 		it('handles multi-line prompts', async () => {

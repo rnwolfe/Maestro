@@ -8,7 +8,7 @@
  */
 
 import { SshRemoteConfig } from '../../shared/types';
-import { shellEscape, buildShellCommand, shellEscapeForDoubleQuotes } from './shell-escape';
+import { shellEscape, buildShellCommand } from './shell-escape';
 import { expandTilde } from '../../shared/pathUtils';
 import { logger } from './logger';
 import { resolveSshPath } from './cliDetection';
@@ -294,28 +294,24 @@ export async function buildSshCommand(
 	//   Wrapped: $SHELL -lc "source ~/.bashrc 2>/dev/null; cd '/path' && MYVAR='value' claude --print"
 	//   SSH receives this as one argument, passes to remote shell
 	//   The login shell runs with full PATH from /etc/profile, ~/.bash_profile, AND ~/.bashrc
-	const escapedCommand = shellEscapeForDoubleQuotes(remoteCommand);
-	// Use login shell (-l) which sources /etc/profile and user profile files automatically.
-	// The -i flag makes it interactive, which sources ~/.bashrc or ~/.zshrc.
-	// We avoid explicit sourcing since profile files may contain syntax incompatible
-	// with being embedded in a -c command string (loops, conditionals, etc.).
-	const wrappedCommand = `$SHELL -ilc "${escapedCommand}"`;
-	args.push(wrappedCommand);
+	// Pass the command directly to SSH without shell wrapper.
+	// SSH executes commands through the remote's login shell by default,
+	// which provides PATH from /etc/profile. We avoid $SHELL -c wrappers
+	// because profile files may contain syntax incompatible with -c embedding.
+	args.push(remoteCommand);
 
-	// Debug logging to trace the exact command being built
-	logger.debug('Built SSH command', '[ssh-command-builder]', {
+	// Log the exact command being built - use info level so it appears in system logs
+	logger.info('SSH command built for remote execution', '[ssh-command-builder]', {
 		host: config.host,
-		username: config.username,
+		username: config.username || '(using SSH config/system default)',
 		port: config.port,
 		useSshConfig: config.useSshConfig,
-		privateKeyPath: config.privateKeyPath ? '***configured***' : undefined,
+		privateKeyPath: config.privateKeyPath ? '***configured***' : '(using SSH config/agent)',
 		remoteCommand,
-		wrappedCommand,
 		sshPath,
-		sshArgs: args,
-		fullCommand: `${sshPath} ${args.join(' ')}`,
-		// Show the exact command string that will execute on the remote
-		remoteExecutionString: wrappedCommand,
+		sshArgsCount: args.length,
+		// Full command for debugging - escape quotes for readability
+		fullCommand: `${sshPath} ${args.map((a) => (a.includes(' ') ? `"${a}"` : a)).join(' ')}`,
 	});
 
 	return {

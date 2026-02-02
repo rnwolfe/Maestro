@@ -2188,6 +2188,7 @@ export const FilePreview = forwardRef<FilePreviewHandle, FilePreviewProps>(funct
 										minWidth: '200px',
 										maxWidth: '350px',
 									}}
+									onWheel={(e) => e.stopPropagation()}
 								>
 								{/* TOC Header */}
 								<div

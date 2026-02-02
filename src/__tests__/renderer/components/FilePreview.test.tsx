@@ -656,7 +656,7 @@ print("world")
 			expect(screen.getByText('Heading 3')).toBeInTheDocument();
 		});
 
-		it('closes TOC overlay when clicking a heading entry', () => {
+		it('keeps TOC overlay open when clicking a heading entry', () => {
 			const markdownWithHeadings = '# Heading 1\n## Heading 2';
 			render(
 				<FilePreview
@@ -674,8 +674,8 @@ print("world")
 			const headingEntry = screen.getByText('Heading 1');
 			fireEvent.click(headingEntry);
 
-			// TOC overlay should close
-			expect(screen.queryByText('Contents')).not.toBeInTheDocument();
+			// TOC overlay should stay open so user can click multiple items
+			expect(screen.getByText('Contents')).toBeInTheDocument();
 		});
 
 		it('displays Top and Bottom navigation buttons as sticky sash elements', () => {
@@ -709,7 +709,7 @@ print("world")
 			expect(bottomButton).toHaveClass('border-t');
 		});
 
-		it('closes TOC and scrolls when clicking Top button', () => {
+		it('keeps TOC open when clicking Top button', () => {
 			const markdownWithHeadings = '# Heading 1\n## Heading 2';
 			render(
 				<FilePreview
@@ -727,11 +727,11 @@ print("world")
 			const topButton = screen.getByTestId('toc-top-button');
 			fireEvent.click(topButton);
 
-			// TOC overlay should close
-			expect(screen.queryByText('Contents')).not.toBeInTheDocument();
+			// TOC overlay should stay open so user can click multiple items
+			expect(screen.getByText('Contents')).toBeInTheDocument();
 		});
 
-		it('closes TOC and scrolls when clicking Bottom button', () => {
+		it('keeps TOC open when clicking Bottom button', () => {
 			const markdownWithHeadings = '# Heading 1\n## Heading 2';
 			render(
 				<FilePreview
@@ -749,8 +749,41 @@ print("world")
 			const bottomButton = screen.getByTestId('toc-bottom-button');
 			fireEvent.click(bottomButton);
 
-			// TOC overlay should close
-			expect(screen.queryByText('Contents')).not.toBeInTheDocument();
+			// TOC overlay should stay open so user can click multiple items
+			expect(screen.getByText('Contents')).toBeInTheDocument();
+		});
+
+		it('stops wheel event propagation on TOC overlay to isolate scrolling', () => {
+			const markdownWithHeadings = '# Heading 1\n## Heading 2\n## Heading 3';
+			render(
+				<FilePreview
+					{...defaultProps}
+					file={{ name: 'doc.md', content: markdownWithHeadings, path: '/test/doc.md' }}
+					markdownEditMode={false}
+				/>
+			);
+
+			// Open TOC
+			const tocButton = screen.getByTitle('Table of Contents');
+			fireEvent.click(tocButton);
+
+			// Find the TOC container by looking for the element with the heading entries
+			const tocContainer = screen.getByText('Contents').closest('div')?.parentElement;
+			expect(tocContainer).toBeInTheDocument();
+
+			// Create a wheel event and verify it doesn't propagate
+			const wheelEvent = new WheelEvent('wheel', {
+				bubbles: true,
+				cancelable: true,
+				deltaY: 100,
+			});
+			const stopPropagationSpy = vi.spyOn(wheelEvent, 'stopPropagation');
+
+			// Dispatch the wheel event on the TOC container
+			tocContainer?.dispatchEvent(wheelEvent);
+
+			// The onWheel handler should have called stopPropagation
+			expect(stopPropagationSpy).toHaveBeenCalled();
 		});
 	});
 

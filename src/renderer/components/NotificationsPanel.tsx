@@ -45,6 +45,21 @@ export function NotificationsPanel({
 		}
 	}, [testStatus]);
 
+	// Listen for notification command completion to reset the Stop button
+	useEffect(() => {
+		if (testNotificationId === null) return;
+
+		const cleanup = window.maestro.notification.onCommandCompleted((completedId) => {
+			if (completedId === testNotificationId) {
+				console.log('[Notification] Command completed, id:', completedId);
+				setTestNotificationId(null);
+				setTestStatus('success');
+			}
+		});
+
+		return cleanup;
+	}, [testNotificationId]);
+
 	return (
 		<div className="space-y-6">
 			{/* OS Notifications */}
@@ -139,9 +154,10 @@ export function NotificationsPanel({
 										console.log('[Notification] Speak result:', result);
 										if (result.success && result.notificationId) {
 											setTestNotificationId(result.notificationId);
-											setTestStatus('success');
-											// Auto-clear after the message should be done (about 5 seconds for this phrase)
-											setTimeout(() => setTestNotificationId(null), 8000);
+											// Don't change status to 'success' yet - stay in 'running'
+											// and show Stop button while process is active.
+											// The onCommandCompleted listener will clear testNotificationId
+											// when the process exits, which hides the Stop button.
 										} else {
 											setTestStatus('error');
 											setTestError(result.error || 'Command failed');

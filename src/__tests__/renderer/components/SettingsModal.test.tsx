@@ -1623,7 +1623,15 @@ describe('SettingsModal', () => {
 			consoleSpy.mockRestore();
 		});
 
-		it('should auto-clear Command Chain state after timeout', async () => {
+		it('should return to Test button when command completes', async () => {
+			// Set up a mock that captures the onCommandCompleted callback
+			let capturedCallback: ((notificationId: number) => void) | null = null;
+			vi.mocked(window.maestro.notification.onCommandCompleted).mockImplementation((callback) => {
+				capturedCallback = callback;
+				return () => {
+					capturedCallback = null;
+				};
+			});
 			vi.mocked(window.maestro.notification.speak).mockResolvedValue({ success: true, notificationId: 789 });
 
 			render(<SettingsModal {...createDefaultProps({ initialTab: 'notifications' })} />);
@@ -1639,12 +1647,23 @@ describe('SettingsModal', () => {
 				await vi.advanceTimersByTimeAsync(100);
 			});
 
-			// Stop button should be visible
+			// Stop button should be visible while command is running
 			expect(screen.getByText('Stop')).toBeInTheDocument();
 
-			// Advance timer to trigger auto-clear (8000ms)
+			// Simulate the command completing
 			await act(async () => {
-				await vi.advanceTimersByTimeAsync(8000);
+				if (capturedCallback) {
+					capturedCallback(789);
+				}
+				await vi.advanceTimersByTimeAsync(100);
+			});
+
+			// Should show Success state briefly
+			expect(screen.getByText('Success')).toBeInTheDocument();
+
+			// Advance timer to clear success state (3000ms)
+			await act(async () => {
+				await vi.advanceTimersByTimeAsync(3000);
 			});
 
 			// Test button should be back

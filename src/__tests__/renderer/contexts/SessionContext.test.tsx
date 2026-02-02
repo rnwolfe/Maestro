@@ -548,6 +548,130 @@ describe('SessionContext - Session Switching with File Tabs', () => {
 		});
 	});
 
+	describe('same file in multiple sessions', () => {
+		it('allows the same file path to be open in different sessions simultaneously', () => {
+			// Both sessions have the SAME file path open
+			const sharedFilePath = '/shared/config.ts';
+
+			const session1 = makeSession({
+				id: 'session-1',
+				name: 'Session 1',
+				filePreviewTabs: [makeFilePreviewTab({
+					id: 's1-config',
+					path: sharedFilePath,
+					name: 'config',
+					content: 'session 1 content',
+					scrollTop: 100,
+				})],
+				activeFileTabId: 's1-config',
+			});
+			const session2 = makeSession({
+				id: 'session-2',
+				name: 'Session 2',
+				filePreviewTabs: [makeFilePreviewTab({
+					id: 's2-config',
+					path: sharedFilePath, // Same path
+					name: 'config',
+					content: 'session 2 content',
+					scrollTop: 500,
+				})],
+				activeFileTabId: 's2-config',
+			});
+
+			render(<TestAppWrapper initialSessions={[session1, session2]} initialActiveSessionId="session-1" />);
+
+			// Session 1 sees its own tab
+			expect(screen.getByTestId('file-path-s1-config')).toHaveTextContent(sharedFilePath);
+			expect(screen.getByTestId('file-scroll-s1-config')).toHaveTextContent('100');
+			// Session 2's tab not visible
+			expect(screen.queryByTestId('file-path-s2-config')).not.toBeInTheDocument();
+		});
+
+		it('each session maintains independent state for the same file', async () => {
+			const sharedFilePath = '/shared/utils.ts';
+
+			const session1 = makeSession({
+				id: 'session-1',
+				name: 'Session 1',
+				filePreviewTabs: [makeFilePreviewTab({
+					id: 's1-utils',
+					path: sharedFilePath,
+					scrollTop: 0,
+					searchQuery: 'function',
+					editMode: false,
+				})],
+				activeFileTabId: 's1-utils',
+			});
+			const session2 = makeSession({
+				id: 'session-2',
+				name: 'Session 2',
+				filePreviewTabs: [makeFilePreviewTab({
+					id: 's2-utils',
+					path: sharedFilePath, // Same file
+					scrollTop: 2000,
+					searchQuery: 'const',
+					editMode: true,
+				})],
+				activeFileTabId: 's2-utils',
+			});
+
+			render(<TestAppWrapper initialSessions={[session1, session2]} initialActiveSessionId="session-1" />);
+
+			// Session 1: scroll=0, search='function', not editing
+			expect(screen.getByTestId('file-scroll-s1-utils')).toHaveTextContent('0');
+			expect(screen.getByTestId('file-search-s1-utils')).toHaveTextContent('function');
+			expect(screen.getByTestId('file-edit-s1-utils')).toHaveTextContent('viewing');
+
+			// Switch to session 2
+			await act(async () => {
+				screen.getByTestId('switch-to-session-2').click();
+			});
+
+			// Session 2: scroll=2000, search='const', editing
+			expect(screen.getByTestId('file-scroll-s2-utils')).toHaveTextContent('2000');
+			expect(screen.getByTestId('file-search-s2-utils')).toHaveTextContent('const');
+			expect(screen.getByTestId('file-edit-s2-utils')).toHaveTextContent('editing');
+
+			// Switch back to session 1
+			await act(async () => {
+				screen.getByTestId('switch-to-session-1').click();
+			});
+
+			// Session 1's state is still intact
+			expect(screen.getByTestId('file-scroll-s1-utils')).toHaveTextContent('0');
+			expect(screen.getByTestId('file-search-s1-utils')).toHaveTextContent('function');
+			expect(screen.getByTestId('file-edit-s1-utils')).toHaveTextContent('viewing');
+		});
+
+		it('sessions can have different number of tabs for the same files', () => {
+			// Session 1 has 3 files open, session 2 has 2 of the same files
+			const session1 = makeSession({
+				id: 'session-1',
+				name: 'Session 1',
+				filePreviewTabs: [
+					makeFilePreviewTab({ id: 's1-a', path: '/shared/a.ts' }),
+					makeFilePreviewTab({ id: 's1-b', path: '/shared/b.ts' }),
+					makeFilePreviewTab({ id: 's1-c', path: '/shared/c.ts' }),
+				],
+				activeFileTabId: 's1-a',
+			});
+			const session2 = makeSession({
+				id: 'session-2',
+				name: 'Session 2',
+				filePreviewTabs: [
+					makeFilePreviewTab({ id: 's2-a', path: '/shared/a.ts' }),
+					makeFilePreviewTab({ id: 's2-c', path: '/shared/c.ts' }), // Same files, different count
+				],
+				activeFileTabId: 's2-c',
+			});
+
+			render(<TestAppWrapper initialSessions={[session1, session2]} initialActiveSessionId="session-1" />);
+
+			// Session 1 has 3 tabs
+			expect(screen.getByTestId('file-tabs-count')).toHaveTextContent('3');
+		});
+	});
+
 	describe('rapid session switching', () => {
 		it('handles rapid session switching without losing state', async () => {
 			const sessions = Array.from({ length: 5 }, (_, i) =>

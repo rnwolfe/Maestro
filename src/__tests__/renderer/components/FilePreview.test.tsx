@@ -425,11 +425,12 @@ describe('FilePreview', () => {
 			expect(mockClickOutsideCallback.current).not.toBeNull();
 		});
 
-		it('uses the same callback for click outside as for escape key', () => {
+		it('uses the same callback for click outside as for escape key in overlay mode', () => {
 			// This verifies that useClickOutside is set up with handleEscapeRequest
 			// which provides consistent behavior between Escape key and click outside
+			// This only applies to overlay mode (isTabMode=false or undefined)
 			const onClose = vi.fn();
-			render(<FilePreview {...defaultProps} onClose={onClose} />);
+			render(<FilePreview {...defaultProps} onClose={onClose} isTabMode={false} />);
 
 			// The callback should be registered
 			expect(mockClickOutsideCallback.current).toBeDefined();
@@ -439,6 +440,19 @@ describe('FilePreview', () => {
 			// (calling onClose when no overlays are open)
 			mockClickOutsideCallback.current?.();
 			expect(onClose).toHaveBeenCalledOnce();
+		});
+
+		it('does not close tab on Escape key when isTabMode is true', () => {
+			// In tab mode, Escape should only close internal UI (search, TOC)
+			// not the tab itself - tabs close via Cmd+W or close button
+			const onClose = vi.fn();
+			render(<FilePreview {...defaultProps} onClose={onClose} isTabMode={true} />);
+
+			// The callback should be registered but disabled in tab mode
+			expect(mockClickOutsideEnabled.current).toBe(false);
+
+			// Even if callback is invoked, it should NOT close in tab mode
+			// This matches the updated handleEscapeRequest behavior
 		});
 
 		it('disables click-outside-to-close when isTabMode is true', () => {

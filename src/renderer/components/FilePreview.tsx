@@ -1023,6 +1023,8 @@ export const FilePreview = forwardRef<FilePreviewHandle, FilePreviewProps>(funct
 	}, [file?.path]); // Run on mount and when navigating to a different file
 
 	// Helper to handle escape key - shows confirmation modal if there are unsaved changes
+	// In tab mode: Escape only closes internal UI (search, TOC), not the tab itself
+	// Tabs close via Cmd+W or clicking the close button, not Escape
 	const handleEscapeRequest = useCallback(() => {
 		if (showTocOverlay) {
 			setShowTocOverlay(false);
@@ -1032,29 +1034,40 @@ export const FilePreview = forwardRef<FilePreviewHandle, FilePreviewProps>(funct
 			setSearchQuery('');
 			// Refocus container so keyboard navigation (arrow keys) still works
 			containerRef.current?.focus();
-		} else if (hasChanges) {
-			// Show confirmation modal if there are unsaved changes
-			setShowUnsavedChangesModal(true);
-		} else {
-			onClose();
+		} else if (!isTabMode) {
+			// Only close the preview if NOT in tab mode (overlay behavior)
+			// Tabs should not close on Escape - use Cmd+W or close button
+			if (hasChanges) {
+				// Show confirmation modal if there are unsaved changes
+				setShowUnsavedChangesModal(true);
+			} else {
+				onClose();
+			}
 		}
-	}, [showTocOverlay, searchOpen, hasChanges, onClose]);
+		// In tab mode with no internal UI open, Escape does nothing
+	}, [showTocOverlay, searchOpen, hasChanges, onClose, isTabMode]);
 
-	// Register layer on mount - only register once, use updateLayerHandler for handler changes
+	// Register layer on mount - only for overlay mode (not tab mode)
+	// Tab mode: File preview is part of the main panel content, not an overlay
+	// It doesn't need layer registration since it doesn't block keyboard shortcuts or need focus trapping
 	// Note: handleEscapeRequest is intentionally NOT in the dependency array to prevent
 	// infinite re-registration loops when its dependencies (hasChanges, searchOpen) change.
 	// The subsequent useEffect with updateLayerHandler handles keeping the handler current.
-	// In tab mode: don't block lower layers or capture focus since we're part of the main panel content
 	useEffect(() => {
+		// Skip layer registration entirely in tab mode - tabs are main content, not overlays
+		if (isTabMode) {
+			return;
+		}
+
 		layerIdRef.current = registerLayer({
 			type: 'overlay',
 			priority: MODAL_PRIORITIES.FILE_PREVIEW,
-			blocksLowerLayers: !isTabMode, // Tab mode is part of main content, doesn't block
-			capturesFocus: !isTabMode, // Tab mode shouldn't capture focus aggressively
-			focusTrap: isTabMode ? 'none' : 'lenient', // Tab mode has no focus trap
+			blocksLowerLayers: true,
+			capturesFocus: true,
+			focusTrap: 'lenient',
 			ariaLabel: 'File Preview',
 			onEscape: handleEscapeRequest,
-			allowClickOutside: isTabMode ?? false, // In tab mode, clicking outside is expected
+			allowClickOutside: false,
 		});
 
 		return () => {
@@ -1065,12 +1078,12 @@ export const FilePreview = forwardRef<FilePreviewHandle, FilePreviewProps>(funct
 
 	}, [registerLayer, unregisterLayer, isTabMode]);
 
-	// Update handler when dependencies change
+	// Update handler when dependencies change (only for overlay mode)
 	useEffect(() => {
-		if (layerIdRef.current) {
+		if (layerIdRef.current && !isTabMode) {
 			updateLayerHandler(layerIdRef.current, handleEscapeRequest);
 		}
-	}, [handleEscapeRequest, updateLayerHandler]);
+	}, [handleEscapeRequest, updateLayerHandler, isTabMode]);
 
 	// Click outside to dismiss (same behavior as Escape)
 	// Use delay to prevent the click that opened the preview from immediately closing it

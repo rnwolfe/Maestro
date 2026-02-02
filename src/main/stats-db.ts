@@ -39,6 +39,7 @@ import * as path from 'path';
 import * as fs from 'fs';
 import { app } from 'electron';
 import { logger } from './utils/logger';
+import { captureException, captureMessage } from './utils/sentry';
 import {
 	QueryEvent,
 	AutoRunSession,
@@ -414,6 +415,13 @@ export class StatsDB {
 					// This can happen if the native module fails to load
 					const errorMessage = createError instanceof Error ? createError.message : String(createError);
 					logger.error(`Failed to create database: ${errorMessage}`, LOG_CONTEXT);
+
+					// Report to Sentry
+					void captureException(createError, {
+						context: 'initialize:createNewDatabase',
+						dbPath: this.dbPath,
+					});
+
 					return {
 						success: false,
 						wasReset: false,
@@ -451,6 +459,14 @@ export class StatsDB {
 		} catch (error) {
 			const errorMessage = error instanceof Error ? error.message : String(error);
 			logger.error(`Failed to initialize stats database: ${errorMessage}`, LOG_CONTEXT);
+
+			// Report to Sentry
+			void captureException(error, {
+				context: 'initialize:outerCatch',
+				dbPath: this.dbPath,
+				wasReset,
+			});
+
 			return {
 				success: false,
 				wasReset,
@@ -1105,12 +1121,26 @@ export class StatsDB {
 			const errors = result.map((row) => row.integrity_check);
 			logger.error(`Database integrity check failed: ${errors.join(', ')}`, LOG_CONTEXT);
 
+			// Report corruption to Sentry for monitoring
+			void captureMessage('Stats database corruption detected', 'error', {
+				integrityErrors: errors,
+				dbPath: this.dbPath,
+			});
+
 			// Close before recovery
 			db.close();
 		} catch (error) {
 			// Failed to open database - likely severely corrupted, locked, or native module issue
 			const errorMessage = error instanceof Error ? error.message : String(error);
 			logger.error(`Failed to open database: ${errorMessage}`, LOG_CONTEXT);
+
+			// Report failure to Sentry
+			void captureException(error, {
+				context: 'openWithCorruptionHandling',
+				dbPath: this.dbPath,
+				isNativeModuleError:
+					errorMessage.includes('dlopen') || errorMessage.includes('better_sqlite3.node'),
+			});
 
 			// Check if this is a native module loading issue (not recoverable by reset)
 			if (errorMessage.includes('dlopen') || errorMessage.includes('better_sqlite3.node')) {

@@ -12179,8 +12179,21 @@ You are taking over this conversation. Based on the context above, provide a bri
 	const handleUtilityTabSelect = useCallback(
 		(tabId: string) => {
 			if (!activeSession) return;
+			// Clear activeFileTabId when selecting an AI tab
 			setSessions((prev) =>
-				prev.map((s) => (s.id === activeSession.id ? { ...s, activeTabId: tabId } : s))
+				prev.map((s) =>
+					s.id === activeSession.id ? { ...s, activeTabId: tabId, activeFileTabId: null } : s
+				)
+			);
+		},
+		[activeSession]
+	);
+	const handleUtilityFileTabSelect = useCallback(
+		(tabId: string) => {
+			if (!activeSession) return;
+			// Set activeFileTabId, keep activeTabId as-is (for when returning to AI tabs)
+			setSessions((prev) =>
+				prev.map((s) => (s.id === activeSession.id ? { ...s, activeFileTabId: tabId } : s))
 			);
 		},
 		[activeSession]
@@ -13715,6 +13728,7 @@ You are taking over this conversation. Based on the context above, provide a bri
 					tabSwitcherOpen={tabSwitcherOpen}
 					onCloseTabSwitcher={handleCloseTabSwitcher}
 					onTabSelect={handleUtilityTabSelect}
+					onFileTabSelect={handleUtilityFileTabSelect}
 					onNamedSessionSelect={handleNamedSessionSelect}
 					fuzzyFileSearchOpen={fuzzyFileSearchOpen}
 					filteredFileTree={filteredFileTree}

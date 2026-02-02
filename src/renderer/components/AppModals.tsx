@@ -867,6 +867,7 @@ export interface AppUtilityModalsProps {
 	tabSwitcherOpen: boolean;
 	onCloseTabSwitcher: () => void;
 	onTabSelect: (tabId: string) => void;
+	onFileTabSelect?: (tabId: string) => void;
 	onNamedSessionSelect: (
 		agentSessionId: string,
 		projectPath: string,
@@ -1048,6 +1049,7 @@ export function AppUtilityModals({
 	tabSwitcherOpen,
 	onCloseTabSwitcher,
 	onTabSelect,
+	onFileTabSelect,
 	onNamedSessionSelect,
 	// FileSearchModal
 	fuzzyFileSearchOpen,
@@ -1243,11 +1245,14 @@ export function AppUtilityModals({
 				<TabSwitcherModal
 					theme={theme}
 					tabs={activeSession.aiTabs}
+					fileTabs={activeSession.filePreviewTabs}
 					activeTabId={activeSession.activeTabId}
+					activeFileTabId={activeSession.activeFileTabId}
 					projectRoot={activeSession.projectRoot}
 					agentId={activeSession.toolType}
 					shortcut={tabShortcuts.tabSwitcher}
 					onTabSelect={onTabSelect}
+					onFileTabSelect={onFileTabSelect}
 					onNamedSessionSelect={onNamedSessionSelect}
 					onClose={onCloseTabSwitcher}
 				/>
@@ -1928,6 +1933,7 @@ export interface AppModalsProps {
 	tabSwitcherOpen: boolean;
 	onCloseTabSwitcher: () => void;
 	onTabSelect: (tabId: string) => void;
+	onFileTabSelect?: (tabId: string) => void;
 	onNamedSessionSelect: (
 		agentSessionId: string,
 		projectPath: string,

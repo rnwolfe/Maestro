@@ -30,7 +30,7 @@ export interface ExecResult {
  *   to prevent percent-sign escaping issues in arguments
  * - Executables (.exe, .com) can run directly
  */
-function needsWindowsShell(command: string): boolean {
+export function needsWindowsShell(command: string): boolean {
 	const lowerCommand = command.toLowerCase();
 
 	// Batch files always need shell
@@ -45,8 +45,11 @@ function needsWindowsShell(command: string): boolean {
 
 	// Commands without extension: skip shell for known commands that have .exe variants
 	// This prevents issues like % being interpreted as environment variables on Windows
-	const knownExeCommands = ['git', 'node', 'npm', 'yarn', 'python', 'python3'];
-	if (knownExeCommands.includes(lowerCommand)) {
+	// Extract basename to handle full paths like 'C:\Program Files\Git\bin\git'
+	// Use regex to handle both Unix (/) and Windows (\) path separators
+	const knownExeCommands = new Set(['git', 'node', 'npm', 'npx', 'yarn', 'pnpm', 'python', 'python3', 'pip', 'pip3']);
+	const commandBaseName = lowerCommand.split(/[\\/]/).pop() || lowerCommand;
+	if (knownExeCommands.has(commandBaseName)) {
 		return false;
 	}
 

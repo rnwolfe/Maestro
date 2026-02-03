@@ -5971,6 +5971,18 @@ You are taking over this conversation. Based on the context above, provide a bri
 		if (!session) return;
 		const tab = session.aiTabs?.find((t) => t.id === tabId);
 		if (tab) {
+			// Cancel automatic tab naming if in progress (user is manually renaming)
+			if (tab.isGeneratingName) {
+				setSessions((prev) =>
+					prev.map((s) => {
+						if (s.id !== activeSessionIdRef.current) return s;
+						return {
+							...s,
+							aiTabs: s.aiTabs.map((t) => (t.id === tabId ? { ...t, isGeneratingName: false } : t)),
+						};
+					})
+				);
+			}
 			setRenameTabId(tabId);
 			setRenameTabInitialName(getInitialRenameValue(tab));
 			setRenameTabModalOpen(true);
@@ -8752,7 +8764,8 @@ You are taking over this conversation. Based on the context above, provide a bri
 					return {
 						...s,
 						aiTabs: s.aiTabs.map((tab) =>
-							tab.id === renameTabId ? { ...tab, name: newName || null } : tab
+							// Clear isGeneratingName to cancel any in-progress automatic naming
+							tab.id === renameTabId ? { ...tab, name: newName || null, isGeneratingName: false } : tab
 						),
 					};
 				})

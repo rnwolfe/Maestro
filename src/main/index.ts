@@ -49,6 +49,7 @@ import {
 	registerLeaderboardHandlers,
 	registerNotificationsHandlers,
 	registerSymphonyHandlers,
+	registerTabNamingHandlers,
 	setupLoggerEventForwarding,
 	cleanupAllGroomingSessions,
 	getActiveGroomingSessionCount,
@@ -607,6 +608,14 @@ function setupIpcHandlers() {
 	registerSymphonyHandlers({
 		app,
 		getMainWindow: () => mainWindow,
+	});
+
+	// Register tab naming handlers for automatic tab naming
+	registerTabNamingHandlers({
+		getProcessManager: () => processManager,
+		getAgentDetector: () => agentDetector,
+		agentConfigsStore,
+		settingsStore: store,
 	});
 }
 

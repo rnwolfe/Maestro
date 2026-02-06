@@ -54,27 +54,53 @@ export function expandTilde(filePath: string, homeDir?: string): string {
 }
 
 /**
- * Parse version string to comparable array of numbers.
+ * Split a version string into its numeric part and optional pre-release suffix.
  *
- * @param version - Version string (e.g., "v22.10.0" or "0.14.0")
+ * @param version - Cleaned version string (no 'v' prefix), e.g., "0.15.0-rc.1"
+ * @returns Tuple of [numericPart, prereleaseTag | undefined]
+ *
+ * @example
+ * ```typescript
+ * splitVersionParts('0.15.0')       // ['0.15.0', undefined]
+ * splitVersionParts('0.15.0-rc.1')  // ['0.15.0', 'rc.1']
+ * ```
+ */
+function splitVersionParts(version: string): [string, string | undefined] {
+	const dashIndex = version.indexOf('-');
+	if (dashIndex === -1) return [version, undefined];
+	return [version.substring(0, dashIndex), version.substring(dashIndex + 1)];
+}
+
+/**
+ * Parse version string to comparable array of numbers.
+ * Pre-release suffixes (e.g., -rc.1, -beta.2) are stripped before parsing.
+ *
+ * @param version - Version string (e.g., "v22.10.0" or "0.14.0" or "0.15.0-rc.1")
  * @returns Array of version numbers (e.g., [22, 10, 0])
  *
  * @example
  * ```typescript
- * parseVersion('v22.10.0')  // [22, 10, 0]
- * parseVersion('0.14.0')    // [0, 14, 0]
+ * parseVersion('v22.10.0')      // [22, 10, 0]
+ * parseVersion('0.14.0')        // [0, 14, 0]
+ * parseVersion('0.15.0-rc.1')   // [0, 15, 0]
  * ```
  */
 export function parseVersion(version: string): number[] {
 	const cleaned = version.replace(/^v/, '');
-	return cleaned.split('.').map((n) => parseInt(n, 10) || 0);
+	const [numericPart] = splitVersionParts(cleaned);
+	return numericPart.split('.').map((n) => parseInt(n, 10) || 0);
 }
 
 /**
- * Compare two version strings.
+ * Compare two version strings following semver pre-release rules.
  *
  * Returns: 1 if a > b, -1 if a < b, 0 if equal.
- * Handles versions with or without 'v' prefix.
+ * Handles versions with or without 'v' prefix, and pre-release suffixes.
+ *
+ * Per semver: a pre-release version has lower precedence than the same
+ * version without a pre-release suffix (e.g., 0.15.0-rc.1 < 0.15.0).
+ * When both versions have pre-release suffixes with the same numeric base,
+ * they are compared lexically.
  *
  * @param a - First version string
  * @param b - Second version string
@@ -82,9 +108,12 @@ export function parseVersion(version: string): number[] {
  *
  * @example
  * ```typescript
- * compareVersions('v22.0.0', 'v20.0.0')  // 1 (a > b)
- * compareVersions('v18.0.0', 'v20.0.0')  // -1 (a < b)
- * compareVersions('v20.0.0', 'v20.0.0')  // 0 (equal)
+ * compareVersions('v22.0.0', 'v20.0.0')        // 1 (a > b)
+ * compareVersions('v18.0.0', 'v20.0.0')        // -1 (a < b)
+ * compareVersions('v20.0.0', 'v20.0.0')        // 0 (equal)
+ * compareVersions('0.15.0-rc.1', '0.15.0')     // -1 (prerelease < stable)
+ * compareVersions('0.15.0', '0.15.0-rc.1')     // 1 (stable > prerelease)
+ * compareVersions('0.15.0-rc.1', '0.15.0-rc.2') // -1 (rc.1 < rc.2)
  *
  * // For descending sort (highest first):
  * versions.sort((a, b) => compareVersions(b, a))
@@ -94,19 +123,34 @@ export function parseVersion(version: string): number[] {
  * ```
  */
 export function compareVersions(a: string, b: string): number {
-	const partsA = parseVersion(a);
-	const partsB = parseVersion(b);
+	const cleanA = a.replace(/^v/, '');
+	const cleanB = b.replace(/^v/, '');
+
+	const [numA, preA] = splitVersionParts(cleanA);
+	const [numB, preB] = splitVersionParts(cleanB);
+
+	const partsA = numA.split('.').map((n) => parseInt(n, 10) || 0);
+	const partsB = numB.split('.').map((n) => parseInt(n, 10) || 0);
 
 	const maxLength = Math.max(partsA.length, partsB.length);
 
 	for (let i = 0; i < maxLength; i++) {
-		const numA = partsA[i] || 0;
-		const numB = partsB[i] || 0;
+		const na = partsA[i] || 0;
+		const nb = partsB[i] || 0;
 
-		if (numA > numB) return 1;
-		if (numA < numB) return -1;
+		if (na > nb) return 1;
+		if (na < nb) return -1;
 	}
 
+	// Numeric parts are equal — apply semver pre-release rules:
+	// A version without a pre-release suffix has higher precedence
+	if (!preA && preB) return 1; // 0.15.0 > 0.15.0-rc.1
+	if (preA && !preB) return -1; // 0.15.0-rc.1 < 0.15.0
+	if (!preA && !preB) return 0; // both stable, equal
+
+	// Both have pre-release suffixes — compare lexically
+	if (preA! < preB!) return -1;
+	if (preA! > preB!) return 1;
 	return 0;
 }
 

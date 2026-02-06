@@ -102,6 +102,12 @@ describe('parseVersion', () => {
 	it('should handle non-numeric parts as 0', () => {
 		expect(parseVersion('1.beta.3')).toEqual([1, 0, 3]);
 	});
+
+	it('should strip pre-release suffixes before parsing', () => {
+		expect(parseVersion('0.15.0-rc.1')).toEqual([0, 15, 0]);
+		expect(parseVersion('v1.2.0-beta.3')).toEqual([1, 2, 0]);
+		expect(parseVersion('0.15.0-alpha')).toEqual([0, 15, 0]);
+	});
 });
 
 describe('compareVersions', () => {
@@ -169,6 +175,43 @@ describe('compareVersions', () => {
 		it('should handle versions with different part counts', () => {
 			expect(compareVersions('1.0', '1.0.0')).toBe(0);
 			expect(compareVersions('1.0.1', '1.0')).toBe(1);
+		});
+	});
+
+	describe('pre-release version comparison', () => {
+		it('should treat pre-release as less than the same stable version', () => {
+			expect(compareVersions('0.15.0-rc.1', '0.15.0')).toBe(-1);
+			expect(compareVersions('0.15.0', '0.15.0-rc.1')).toBe(1);
+		});
+
+		it('should treat pre-release as less than stable for various suffixes', () => {
+			expect(compareVersions('1.0.0-alpha', '1.0.0')).toBe(-1);
+			expect(compareVersions('1.0.0-beta.1', '1.0.0')).toBe(-1);
+			expect(compareVersions('1.0.0-dev', '1.0.0')).toBe(-1);
+			expect(compareVersions('1.0.0-canary', '1.0.0')).toBe(-1);
+		});
+
+		it('should compare pre-releases with different base versions normally', () => {
+			expect(compareVersions('0.16.0-rc.1', '0.15.0')).toBe(1);
+			expect(compareVersions('0.14.0-rc.1', '0.15.0')).toBe(-1);
+		});
+
+		it('should compare two pre-releases lexically when base is the same', () => {
+			expect(compareVersions('0.15.0-rc.1', '0.15.0-rc.2')).toBe(-1);
+			expect(compareVersions('0.15.0-rc.2', '0.15.0-rc.1')).toBe(1);
+			expect(compareVersions('0.15.0-rc.1', '0.15.0-rc.1')).toBe(0);
+		});
+
+		it('should order alpha < beta < rc lexically', () => {
+			expect(compareVersions('0.15.0-alpha', '0.15.0-beta')).toBe(-1);
+			expect(compareVersions('0.15.0-beta', '0.15.0-rc')).toBe(-1);
+			expect(compareVersions('0.15.0-alpha', '0.15.0-rc')).toBe(-1);
+		});
+
+		it('should sort pre-release versions correctly in descending order', () => {
+			const versions = ['0.15.0-rc.1', '0.15.0', '0.14.0', '0.15.0-beta.1', '0.16.0-rc.1'];
+			const sorted = [...versions].sort((a, b) => compareVersions(b, a));
+			expect(sorted).toEqual(['0.16.0-rc.1', '0.15.0', '0.15.0-rc.1', '0.15.0-beta.1', '0.14.0']);
 		});
 	});
 });

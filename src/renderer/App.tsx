@@ -123,7 +123,7 @@ import { useMainPanelProps, useSessionListProps, useRightPanelProps } from './ho
 // Import contexts
 import { useLayerStack } from './contexts/LayerStackContext';
 import { useToast } from './contexts/ToastContext';
-import { useModalActions, getModalActions } from './stores/modalStore';
+import { useModalActions } from './stores/modalStore';
 import { GitStatusProvider } from './contexts/GitStatusContext';
 import { InputProvider, useInputContext } from './contexts/InputContext';
 import { GroupChatProvider, useGroupChat } from './contexts/GroupChatContext';

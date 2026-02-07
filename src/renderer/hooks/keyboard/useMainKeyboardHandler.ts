@@ -277,7 +277,6 @@ export function useMainKeyboardHandler(): UseMainKeyboardHandlerReturn {
 				// Open agent settings for the current session
 				if (ctx.activeSession) {
 					ctx.setEditAgentSession(ctx.activeSession);
-					ctx.setEditAgentModalOpen(true);
 					trackShortcut('agentSettings');
 				}
 			} else if (ctx.isShortcut(e, 'goToFiles')) {

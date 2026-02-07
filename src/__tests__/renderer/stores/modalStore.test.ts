@@ -932,6 +932,80 @@ describe('modalStore', () => {
 		});
 	});
 
+	describe('compatibility layer: rename setters populate data before open', () => {
+		it('setRenameTabId + setRenameTabInitialName + setRenameTabModalOpen preserves data', () => {
+			const actions = getModalActions();
+
+			// This is the exact call sequence from useMainKeyboardHandler and App.tsx
+			actions.setRenameTabId('tab-123');
+			actions.setRenameTabInitialName('My Tab');
+			actions.setRenameTabModalOpen(true);
+
+			const state = useModalStore.getState();
+			expect(state.isOpen('renameTab')).toBe(true);
+			expect(state.getData('renameTab')?.tabId).toBe('tab-123');
+			expect(state.getData('renameTab')?.initialName).toBe('My Tab');
+		});
+
+		it('setRenameTabId with null is a no-op', () => {
+			const actions = getModalActions();
+			actions.setRenameTabId(null);
+			expect(useModalStore.getState().isOpen('renameTab')).toBe(false);
+		});
+
+		it('setRenameInstanceValue + setRenameInstanceSessionId + setRenameInstanceModalOpen preserves data', () => {
+			const actions = getModalActions();
+
+			// Call sequence from SessionList.tsx context menu
+			actions.setRenameInstanceValue('My Session');
+			actions.setRenameInstanceSessionId('sess-456');
+			actions.setRenameInstanceModalOpen(true);
+
+			const state = useModalStore.getState();
+			expect(state.isOpen('renameInstance')).toBe(true);
+			expect(state.getData('renameInstance')?.sessionId).toBe('sess-456');
+			expect(state.getData('renameInstance')?.value).toBe('My Session');
+		});
+
+		it('setRenameGroupId + setRenameGroupValue + setRenameGroupEmoji + setRenameGroupModalOpen preserves data', () => {
+			const actions = getModalActions();
+
+			// Call sequence from QuickActionsModal.tsx
+			actions.setRenameGroupId('group-789');
+			actions.setRenameGroupValue('Work Projects');
+			actions.setRenameGroupEmoji('💼');
+			actions.setRenameGroupModalOpen(true);
+
+			const state = useModalStore.getState();
+			expect(state.isOpen('renameGroup')).toBe(true);
+			expect(state.getData('renameGroup')?.groupId).toBe('group-789');
+			expect(state.getData('renameGroup')?.value).toBe('Work Projects');
+			expect(state.getData('renameGroup')?.emoji).toBe('💼');
+		});
+
+		it('close then reopen rename tab with new data works correctly', () => {
+			const actions = getModalActions();
+
+			// First open
+			actions.setRenameTabId('tab-1');
+			actions.setRenameTabInitialName('First Tab');
+			actions.setRenameTabModalOpen(true);
+
+			// Close
+			actions.setRenameTabModalOpen(false);
+			expect(useModalStore.getState().isOpen('renameTab')).toBe(false);
+
+			// Reopen with different data
+			actions.setRenameTabId('tab-2');
+			actions.setRenameTabInitialName('Second Tab');
+			actions.setRenameTabModalOpen(true);
+
+			const state = useModalStore.getState();
+			expect(state.getData('renameTab')?.tabId).toBe('tab-2');
+			expect(state.getData('renameTab')?.initialName).toBe('Second Tab');
+		});
+	});
+
 	describe('compatibility layer: getModalActions()', () => {
 		it('returns all expected action methods', () => {
 			const actions = getModalActions();

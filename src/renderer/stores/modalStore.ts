@@ -554,26 +554,72 @@ export function getModalActions() {
 			open ? openModal('quitConfirm') : closeModal('quitConfirm'),
 
 		// Rename Instance Modal
-		setRenameInstanceModalOpen: (open: boolean) =>
-			open ? openModal('renameInstance') : closeModal('renameInstance'),
-		setRenameInstanceValue: (value: string) => updateModalData('renameInstance', { value }),
-		setRenameInstanceSessionId: (sessionId: string | null) =>
-			sessionId ? updateModalData('renameInstance', { sessionId }) : null,
+		setRenameInstanceModalOpen: (open: boolean) => {
+			if (!open) { closeModal('renameInstance'); return; }
+			const current = useModalStore.getState().getData('renameInstance');
+			openModal('renameInstance', current ?? { sessionId: '', value: '' });
+		},
+		setRenameInstanceValue: (value: string) => {
+			const current = useModalStore.getState().getData('renameInstance');
+			if (current) {
+				updateModalData('renameInstance', { value });
+			} else {
+				openModal('renameInstance', { sessionId: '', value });
+			}
+		},
+		setRenameInstanceSessionId: (sessionId: string | null) => {
+			if (!sessionId) return;
+			const current = useModalStore.getState().getData('renameInstance');
+			openModal('renameInstance', { sessionId, value: current?.value ?? '' });
+		},
 
 		// Rename Tab Modal
-		setRenameTabModalOpen: (open: boolean) =>
-			open ? openModal('renameTab') : closeModal('renameTab'),
-		setRenameTabId: (tabId: string | null) =>
-			tabId ? updateModalData('renameTab', { tabId }) : null,
-		setRenameTabInitialName: (initialName: string) => updateModalData('renameTab', { initialName }),
+		setRenameTabModalOpen: (open: boolean) => {
+			if (!open) { closeModal('renameTab'); return; }
+			const current = useModalStore.getState().getData('renameTab');
+			openModal('renameTab', current ?? { tabId: '', initialName: '' });
+		},
+		setRenameTabId: (tabId: string | null) => {
+			if (!tabId) return;
+			const current = useModalStore.getState().getData('renameTab');
+			openModal('renameTab', { tabId, initialName: current?.initialName ?? '' });
+		},
+		setRenameTabInitialName: (initialName: string) => {
+			const current = useModalStore.getState().getData('renameTab');
+			if (current) {
+				updateModalData('renameTab', { initialName });
+			} else {
+				openModal('renameTab', { tabId: '', initialName });
+			}
+		},
 
 		// Rename Group Modal
-		setRenameGroupModalOpen: (open: boolean) =>
-			open ? openModal('renameGroup') : closeModal('renameGroup'),
-		setRenameGroupId: (groupId: string | null) =>
-			groupId ? updateModalData('renameGroup', { groupId }) : null,
-		setRenameGroupValue: (value: string) => updateModalData('renameGroup', { value }),
-		setRenameGroupEmoji: (emoji: string) => updateModalData('renameGroup', { emoji }),
+		setRenameGroupModalOpen: (open: boolean) => {
+			if (!open) { closeModal('renameGroup'); return; }
+			const current = useModalStore.getState().getData('renameGroup');
+			openModal('renameGroup', current ?? { groupId: '', value: '', emoji: '📂' });
+		},
+		setRenameGroupId: (groupId: string | null) => {
+			if (!groupId) return;
+			const current = useModalStore.getState().getData('renameGroup');
+			openModal('renameGroup', { groupId, value: current?.value ?? '', emoji: current?.emoji ?? '📂' });
+		},
+		setRenameGroupValue: (value: string) => {
+			const current = useModalStore.getState().getData('renameGroup');
+			if (current) {
+				updateModalData('renameGroup', { value });
+			} else {
+				openModal('renameGroup', { groupId: '', value, emoji: '📂' });
+			}
+		},
+		setRenameGroupEmoji: (emoji: string) => {
+			const current = useModalStore.getState().getData('renameGroup');
+			if (current) {
+				updateModalData('renameGroup', { emoji });
+			} else {
+				openModal('renameGroup', { groupId: '', value: '', emoji });
+			}
+		},
 
 		// Agent Sessions Browser
 		setAgentSessionsOpen: (open: boolean) =>

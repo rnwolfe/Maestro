@@ -50,16 +50,16 @@ export function DeleteAgentConfirmModal({
 			priority={MODAL_PRIORITIES.CONFIRM}
 			onClose={onClose}
 			headerIcon={<Trash2 className="w-4 h-4" style={{ color: theme.colors.error }} />}
-			width={500}
+			width={540}
 			zIndex={10000}
 			initialFocusRef={confirmButtonRef}
 			footer={
-				<div className="flex justify-end gap-2 w-full">
+				<div className="flex gap-2 w-full flex-nowrap">
 					<button
 						type="button"
 						onClick={onClose}
 						onKeyDown={(e) => handleKeyDown(e, onClose)}
-						className="px-4 py-2 rounded border hover:bg-white/5 transition-colors outline-none focus:ring-2 focus:ring-offset-1"
+						className="px-3 py-1.5 rounded border hover:bg-white/5 transition-colors outline-none focus:ring-2 focus:ring-offset-1 text-xs whitespace-nowrap mr-auto"
 						style={{
 							borderColor: theme.colors.border,
 							color: theme.colors.textMain,
@@ -72,7 +72,7 @@ export function DeleteAgentConfirmModal({
 						type="button"
 						onClick={handleConfirm}
 						onKeyDown={(e) => handleKeyDown(e, handleConfirm)}
-						className="px-4 py-2 rounded transition-colors outline-none focus:ring-2 focus:ring-offset-1"
+						className="px-3 py-1.5 rounded transition-colors outline-none focus:ring-2 focus:ring-offset-1 text-xs whitespace-nowrap"
 						style={{
 							backgroundColor: `${theme.colors.error}99`,
 							color: '#ffffff',
@@ -85,7 +85,7 @@ export function DeleteAgentConfirmModal({
 						onClick={isEraseEnabled ? handleConfirmAndErase : undefined}
 						onKeyDown={isEraseEnabled ? (e) => handleKeyDown(e, handleConfirmAndErase) : undefined}
 						disabled={!isEraseEnabled}
-						className={`px-4 py-2 rounded transition-colors outline-none focus:ring-2 focus:ring-offset-1 ${
+						className={`px-3 py-1.5 rounded transition-colors outline-none focus:ring-2 focus:ring-offset-1 text-xs whitespace-nowrap ${
 							!isEraseEnabled ? 'opacity-50 cursor-not-allowed' : ''
 						}`}
 						style={{
@@ -93,7 +93,7 @@ export function DeleteAgentConfirmModal({
 							color: '#ffffff',
 						}}
 					>
-						Agent + Work Directory
+						Agent + Working Directory
 					</button>
 				</div>
 			}
@@ -111,7 +111,7 @@ export function DeleteAgentConfirmModal({
 						the agent "{agentName}". This action cannot be undone.
 					</p>
 					<p className="text-sm leading-relaxed" style={{ color: theme.colors.textDim }}>
-						<strong>Agent + Work Directory</strong> will also move the working directory to the
+						<strong>Agent + Working Directory</strong> will also move the working directory to the
 						trash:
 					</p>
 					<code
@@ -124,11 +124,14 @@ export function DeleteAgentConfirmModal({
 					>
 						{workingDirectory}
 					</code>
+					<p className="text-xs leading-relaxed" style={{ color: theme.colors.textDim }}>
+						Enter agent name below to enable working directory deletion:
+					</p>
 					<input
 						type="text"
 						value={confirmationText}
 						onChange={(e) => setConfirmationText(e.target.value)}
-						placeholder="Type the agent name here to confirm directory deletion"
+						placeholder=""
 						className="block w-full text-sm px-3 py-2 rounded outline-none focus:ring-2 focus:ring-offset-1"
 						style={{
 							backgroundColor: theme.colors.bgMain,

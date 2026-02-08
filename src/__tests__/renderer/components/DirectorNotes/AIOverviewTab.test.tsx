@@ -65,8 +65,6 @@ const mockTheme: Theme = {
 };
 
 // Mock IPC APIs
-const mockGetUnifiedHistory = vi.fn();
-const mockEstimateTokens = vi.fn();
 const mockGenerateSynopsis = vi.fn();
 
 beforeEach(() => {
@@ -75,14 +73,10 @@ beforeEach(() => {
 
 	(window as any).maestro = {
 		directorNotes: {
-			getUnifiedHistory: mockGetUnifiedHistory,
-			estimateTokens: mockEstimateTokens,
 			generateSynopsis: mockGenerateSynopsis,
 		},
 	};
 
-	mockGetUnifiedHistory.mockResolvedValue([]);
-	mockEstimateTokens.mockResolvedValue(1000);
 	mockGenerateSynopsis.mockResolvedValue({
 		success: true,
 		synopsis: '# Test Synopsis\n\n## Accomplishments\n\n- Test item',
@@ -96,41 +90,31 @@ afterEach(() => {
 describe('AIOverviewTab', () => {
 	it('renders loading state initially', async () => {
 		// Make generation hang to observe loading
-		mockGetUnifiedHistory.mockReturnValue(new Promise(() => {}));
+		mockGenerateSynopsis.mockReturnValue(new Promise(() => {}));
 
 		render(<AIOverviewTab theme={mockTheme} />);
 
 		// Should show generating state - text appears in both progress bar and spinner
 		await waitFor(() => {
-			const elements = screen.getAllByText(/Gathering history data/);
+			const elements = screen.getAllByText(/Generating synopsis/);
 			expect(elements.length).toBeGreaterThan(0);
 		});
 	});
 
-	it('shows empty message when no history entries found', async () => {
-		mockGetUnifiedHistory.mockResolvedValue([]);
+	it('shows empty message when no history files found', async () => {
+		mockGenerateSynopsis.mockResolvedValue({
+			success: true,
+			synopsis: '# Director\'s Notes\n\nNo history files found.',
+		});
 
 		render(<AIOverviewTab theme={mockTheme} />);
 
 		await waitFor(() => {
-			expect(screen.getByText(/No history entries found/)).toBeInTheDocument();
+			expect(screen.getByText(/No history files found/)).toBeInTheDocument();
 		});
 	});
 
-	it('generates and displays synopsis for non-empty history', async () => {
-		const mockEntries = [
-			{
-				id: '1',
-				type: 'USER',
-				timestamp: Date.now(),
-				summary: 'Test work',
-				sourceSessionId: 'session-1',
-				projectPath: '/test',
-			},
-		];
-
-		mockGetUnifiedHistory.mockResolvedValue(mockEntries);
-		mockEstimateTokens.mockResolvedValue(500);
+	it('generates and displays synopsis', async () => {
 		mockGenerateSynopsis.mockResolvedValue({
 			success: true,
 			synopsis: '# Synopsis\n\n## Accomplishments\n\n- Test work completed',
@@ -142,11 +126,6 @@ describe('AIOverviewTab', () => {
 			expect(screen.getByTestId('markdown-renderer')).toBeInTheDocument();
 		});
 
-		expect(mockGetUnifiedHistory).toHaveBeenCalledWith({
-			lookbackDays: 7,
-			filter: null,
-		});
-		expect(mockEstimateTokens).toHaveBeenCalledWith(mockEntries);
 		expect(mockGenerateSynopsis).toHaveBeenCalledWith(expect.objectContaining({
 			lookbackDays: 7,
 			provider: 'claude-code',
@@ -154,18 +133,6 @@ describe('AIOverviewTab', () => {
 	});
 
 	it('calls onSynopsisReady when synopsis is generated', async () => {
-		const mockEntries = [
-			{
-				id: '1',
-				type: 'USER',
-				timestamp: Date.now(),
-				summary: 'Test',
-				sourceSessionId: 'session-1',
-				projectPath: '/test',
-			},
-		];
-
-		mockGetUnifiedHistory.mockResolvedValue(mockEntries);
 		mockGenerateSynopsis.mockResolvedValue({
 			success: true,
 			synopsis: '# Synopsis',
@@ -179,30 +146,7 @@ describe('AIOverviewTab', () => {
 		});
 	});
 
-	it('calls onSynopsisReady for empty history', async () => {
-		mockGetUnifiedHistory.mockResolvedValue([]);
-
-		const onSynopsisReady = vi.fn();
-		render(<AIOverviewTab theme={mockTheme} onSynopsisReady={onSynopsisReady} />);
-
-		await waitFor(() => {
-			expect(onSynopsisReady).toHaveBeenCalled();
-		});
-	});
-
 	it('displays error when generation fails', async () => {
-		const mockEntries = [
-			{
-				id: '1',
-				type: 'USER',
-				timestamp: Date.now(),
-				summary: 'Test',
-				sourceSessionId: 'session-1',
-				projectPath: '/test',
-			},
-		];
-
-		mockGetUnifiedHistory.mockResolvedValue(mockEntries);
 		mockGenerateSynopsis.mockResolvedValue({
 			success: false,
 			synopsis: '',
@@ -217,7 +161,7 @@ describe('AIOverviewTab', () => {
 	});
 
 	it('displays error on exception', async () => {
-		mockGetUnifiedHistory.mockRejectedValue(new Error('Network error'));
+		mockGenerateSynopsis.mockRejectedValue(new Error('Network error'));
 
 		render(<AIOverviewTab theme={mockTheme} />);
 
@@ -227,8 +171,6 @@ describe('AIOverviewTab', () => {
 	});
 
 	it('renders lookback slider with default value', async () => {
-		mockGetUnifiedHistory.mockResolvedValue([]);
-
 		render(<AIOverviewTab theme={mockTheme} />);
 
 		await waitFor(() => {
@@ -240,8 +182,6 @@ describe('AIOverviewTab', () => {
 	});
 
 	it('renders Refresh button', async () => {
-		mockGetUnifiedHistory.mockResolvedValue([]);
-
 		render(<AIOverviewTab theme={mockTheme} />);
 
 		await waitFor(() => {
@@ -250,8 +190,6 @@ describe('AIOverviewTab', () => {
 	});
 
 	it('renders Save button', async () => {
-		mockGetUnifiedHistory.mockResolvedValue([]);
-
 		render(<AIOverviewTab theme={mockTheme} />);
 
 		await waitFor(() => {
@@ -260,18 +198,6 @@ describe('AIOverviewTab', () => {
 	});
 
 	it('refreshes synopsis when Refresh button is clicked', async () => {
-		const mockEntries = [
-			{
-				id: '1',
-				type: 'USER',
-				timestamp: Date.now(),
-				summary: 'Test',
-				sourceSessionId: 'session-1',
-				projectPath: '/test',
-			},
-		];
-
-		mockGetUnifiedHistory.mockResolvedValue(mockEntries);
 		mockGenerateSynopsis.mockResolvedValue({
 			success: true,
 			synopsis: '# Synopsis',
@@ -297,18 +223,6 @@ describe('AIOverviewTab', () => {
 	});
 
 	it('opens save modal when Save button is clicked with synopsis', async () => {
-		const mockEntries = [
-			{
-				id: '1',
-				type: 'USER',
-				timestamp: Date.now(),
-				summary: 'Test',
-				sourceSessionId: 'session-1',
-				projectPath: '/test',
-			},
-		];
-
-		mockGetUnifiedHistory.mockResolvedValue(mockEntries);
 		mockGenerateSynopsis.mockResolvedValue({
 			success: true,
 			synopsis: '# Synopsis',
@@ -328,18 +242,6 @@ describe('AIOverviewTab', () => {
 	});
 
 	it('closes save modal when close button is clicked', async () => {
-		const mockEntries = [
-			{
-				id: '1',
-				type: 'USER',
-				timestamp: Date.now(),
-				summary: 'Test',
-				sourceSessionId: 'session-1',
-				projectPath: '/test',
-			},
-		];
-
-		mockGetUnifiedHistory.mockResolvedValue(mockEntries);
 		mockGenerateSynopsis.mockResolvedValue({
 			success: true,
 			synopsis: '# Synopsis',
@@ -360,34 +262,4 @@ describe('AIOverviewTab', () => {
 		expect(screen.queryByTestId('save-markdown-modal')).not.toBeInTheDocument();
 	});
 
-	it('estimates tokens and proceeds with generation for large datasets', async () => {
-		const mockEntries = [
-			{
-				id: '1',
-				type: 'USER',
-				timestamp: Date.now(),
-				summary: 'Test',
-				sourceSessionId: 'session-1',
-				projectPath: '/test',
-			},
-		];
-
-		mockGetUnifiedHistory.mockResolvedValue(mockEntries);
-		// Return high token count to trigger hierarchical analysis path
-		mockEstimateTokens.mockResolvedValue(200000);
-		mockGenerateSynopsis.mockResolvedValue({
-			success: true,
-			synopsis: '# Large Synopsis',
-		});
-
-		render(<AIOverviewTab theme={mockTheme} />);
-
-		await waitFor(() => {
-			expect(screen.getByTestId('markdown-renderer')).toBeInTheDocument();
-		});
-
-		// Verify token estimation was called and generation still proceeded
-		expect(mockEstimateTokens).toHaveBeenCalledWith(mockEntries);
-		expect(mockGenerateSynopsis).toHaveBeenCalled();
-	});
 });

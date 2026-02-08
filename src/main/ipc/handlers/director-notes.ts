@@ -3,13 +3,18 @@
  *
  * Provides IPC handlers for the Director's Notes feature:
  * - Unified history aggregation across all sessions
- * - Token estimation for synopsis generation
  * - AI synopsis generation via batch-mode agent (groomContext)
+ *
+ * Synopsis generation passes history file paths to the agent rather than
+ * embedding data inline, allowing the agent to read files directly and
+ * drill into fullResponse details as needed.
  */
 
 import { ipcMain } from 'electron';
 import { logger } from '../../utils/logger';
 import { HistoryEntry } from '../../../shared/types';
+import { paginateEntries } from '../../../shared/history';
+import type { PaginatedResult } from '../../../shared/history';
 import { getHistoryManager } from '../../history-manager';
 import { getSessionsStore } from '../../stores';
 import { withIpcErrorLogging, requireDependency, CreateHandlerOptions } from '../../utils/ipcHandler';
@@ -53,6 +58,10 @@ export interface DirectorNotesHandlerDependencies {
 export interface UnifiedHistoryOptions {
 	lookbackDays: number;
 	filter?: 'AUTO' | 'USER' | null; // null = both
+	/** Number of entries to return per page (default: 100) */
+	limit?: number;
+	/** Number of entries to skip for pagination (default: 0) */
+	offset?: number;
 }
 
 export interface UnifiedHistoryEntry extends HistoryEntry {
@@ -80,21 +89,23 @@ export interface SynopsisResult {
  *
  * These handlers provide:
  * - Unified history aggregation across all sessions
- * - Token estimation for synopsis generation strategy
  * - AI synopsis generation via batch-mode agent
  */
 export function registerDirectorNotesHandlers(deps: DirectorNotesHandlerDependencies): void {
 	const { getProcessManager, getAgentDetector } = deps;
 	const historyManager = getHistoryManager();
 
-	// Aggregate history from all sessions within a time range
+	// Aggregate history from all sessions with pagination support
 	ipcMain.handle(
 		'director-notes:getUnifiedHistory',
 		withIpcErrorLogging(
 			handlerOpts('getUnifiedHistory'),
-			async (options: UnifiedHistoryOptions) => {
-				const { lookbackDays, filter } = options;
-				const cutoffTime = Date.now() - lookbackDays * 24 * 60 * 60 * 1000;
+			async (options: UnifiedHistoryOptions): Promise<PaginatedResult<UnifiedHistoryEntry>> => {
+				const { lookbackDays, filter, limit, offset } = options;
+				// lookbackDays <= 0 means "all time" — no cutoff
+				const cutoffTime = lookbackDays > 0
+					? Date.now() - lookbackDays * 24 * 60 * 60 * 1000
+					: 0;
 
 				// Get all session IDs from history manager
 				const sessionIds = historyManager.listSessionsWithHistory();
@@ -107,7 +118,7 @@ export function registerDirectorNotesHandlers(deps: DirectorNotesHandlerDependen
 				for (const sessionId of sessionIds) {
 					const entries = historyManager.getEntries(sessionId);
 					const filtered = entries.filter((e) => {
-						if (e.timestamp < cutoffTime) return false;
+						if (cutoffTime > 0 && e.timestamp < cutoffTime) return false;
 						if (filter && e.type !== filter) return false;
 						return true;
 					});
@@ -128,26 +139,17 @@ export function registerDirectorNotesHandlers(deps: DirectorNotesHandlerDependen
 				// Sort by timestamp (newest first)
 				allEntries.sort((a, b) => b.timestamp - a.timestamp);
 
+				// Apply pagination
+				const result = paginateEntries(allEntries, { limit, offset });
+
 				logger.debug(
-					`Unified history: ${allEntries.length} entries from ${sessionIds.length} sessions (${lookbackDays}d lookback)`,
+					`Unified history: ${result.entries.length}/${result.total} entries from ${sessionIds.length} sessions (offset=${result.offset}, hasMore=${result.hasMore})`,
 					LOG_CONTEXT
 				);
 
-				return allEntries;
+				return result;
 			}
 		)
-	);
-
-	// Estimate tokens for synopsis generation to determine strategy
-	ipcMain.handle(
-		'director-notes:estimateTokens',
-		withIpcErrorLogging(handlerOpts('estimateTokens'), async (entries: HistoryEntry[]) => {
-			// Heuristic: ~4 characters per token
-			const totalChars = entries.reduce((sum, e) => {
-				return sum + (e.summary?.length || 0) + (e.fullResponse?.length || 0);
-			}, 0);
-			return Math.ceil(totalChars / 4);
-		})
 	);
 
 	// Generate AI synopsis via batch-mode agent
@@ -174,53 +176,55 @@ export function registerDirectorNotesHandlers(deps: DirectorNotesHandlerDependen
 					};
 				}
 
-				// Gather history entries for the requested time period
+				// Build file-path manifest so the agent reads history files directly
 				const cutoffTime = Date.now() - options.lookbackDays * 24 * 60 * 60 * 1000;
 				const sessionIds = historyManager.listSessionsWithHistory();
 				const sessionNameMap = buildSessionNameMap();
-				const entries: Array<{
-					summary: string;
-					type: string;
-					timestamp: number;
-					success?: boolean;
-					agentName: string;
+
+				const sessionManifest: Array<{
+					sessionId: string;
+					displayName: string;
+					historyFilePath: string;
 				}> = [];
 
 				for (const sessionId of sessionIds) {
-					const maestroSessionName = sessionNameMap.get(sessionId);
-					const sessionEntries = historyManager.getEntries(sessionId);
-					for (const entry of sessionEntries) {
-						if (entry.timestamp >= cutoffTime) {
-							entries.push({
-								summary: entry.summary,
-								type: entry.type,
-								timestamp: entry.timestamp,
-								success: entry.success,
-								agentName: maestroSessionName || entry.sessionName || sessionId,
-							});
-						}
-					}
+					const filePath = historyManager.getHistoryFilePath(sessionId);
+					if (!filePath) continue;
+					const displayName = sessionNameMap.get(sessionId) || sessionId;
+					sessionManifest.push({ sessionId, displayName, historyFilePath: filePath });
 				}
 
-				if (entries.length === 0) {
+				if (sessionManifest.length === 0) {
 					return {
 						success: true,
-						synopsis: `# Director's Notes\n\n*Generated for the past ${options.lookbackDays} days*\n\nNo history entries found for the selected time period.`,
+						synopsis: `# Director's Notes\n\n*Generated for the past ${options.lookbackDays} days*\n\nNo history files found.`,
 						generatedAt: Date.now(),
 					};
 				}
 
-				// Sort entries by timestamp (newest first)
-				entries.sort((a, b) => b.timestamp - a.timestamp);
+				// Build the prompt with file paths instead of inline data
+				const manifestLines = sessionManifest
+					.map(s => `- Session "${s.displayName}" (ID: ${s.sessionId}): ${s.historyFilePath}`)
+					.join('\n');
 
-				// Build the prompt with the system instructions and history data
-				const historyJson = JSON.stringify(entries, null, 2);
-				const prompt = `${directorNotesPrompt}\n\n---\n\nHistory entries (${entries.length} total, past ${options.lookbackDays} days):\n\n${historyJson}`;
+				const prompt = [
+					directorNotesPrompt,
+					'',
+					'---',
+					'',
+					'## Session History Files',
+					'',
+					`Lookback period: ${options.lookbackDays} days`,
+					`Timestamp cutoff: ${cutoffTime} (only consider entries with timestamp >= this value)`,
+					`Current time: ${Date.now()} (Unix ms)`,
+					'',
+					manifestLines,
+				].join('\n');
 
 				logger.info(
-					`Generating synopsis from ${entries.length} entries across ${sessionIds.length} sessions`,
+					`Generating synopsis from ${sessionManifest.length} session files`,
 					LOG_CONTEXT,
-					{ promptLength: prompt.length }
+					{ promptLength: prompt.length, sessionCount: sessionManifest.length }
 				);
 
 				try {

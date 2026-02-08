@@ -2612,8 +2612,10 @@ interface MaestroAPI {
 		getUnifiedHistory: (options: {
 			lookbackDays: number;
 			filter?: 'AUTO' | 'USER' | null;
-		}) => Promise<
-			Array<{
+			limit?: number;
+			offset?: number;
+		}) => Promise<{
+			entries: Array<{
 				id: string;
 				type: HistoryEntryType;
 				timestamp: number;
@@ -2629,14 +2631,19 @@ interface MaestroAPI {
 				validated?: boolean;
 				agentName?: string;
 				sourceSessionId: string;
-			}>
-		>;
-		estimateTokens: (
-			entries: Array<{
-				summary: string;
-				fullResponse?: string;
-			}>
-		) => Promise<number>;
+				usageStats?: {
+					totalCostUsd: number;
+					inputTokens: number;
+					outputTokens: number;
+					cacheReadTokens: number;
+					cacheWriteTokens: number;
+				};
+			}>;
+			total: number;
+			limit: number;
+			offset: number;
+			hasMore: boolean;
+		}>;
 		generateSynopsis: (options: {
 			lookbackDays: number;
 			provider: string;

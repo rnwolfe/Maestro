@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { RefreshCw, Save, Loader2, Clock } from 'lucide-react';
+import { RefreshCw, Save, Loader2, Clock, Copy, Check } from 'lucide-react';
 import type { Theme } from '../../types';
 import { MarkdownRenderer } from '../MarkdownRenderer';
 import { SaveMarkdownModal } from '../SaveMarkdownModal';
@@ -17,6 +17,11 @@ let cachedSynopsis: { content: string; generatedAt: number; lookbackDays: number
 // Exported for testing only – allows resetting the module-level cache between test runs
 export function _resetCacheForTesting() { cachedSynopsis = null; }
 
+// Check whether a cached synopsis exists for the given lookback window
+export function hasCachedSynopsis(lookbackDays: number): boolean {
+	return cachedSynopsis !== null && cachedSynopsis.lookbackDays === lookbackDays;
+}
+
 export function AIOverviewTab({ theme, onSynopsisReady }: AIOverviewTabProps) {
 	const { directorNotesSettings } = useSettings();
 	const [lookbackDays, setLookbackDays] = useState(directorNotesSettings.defaultLookbackDays);
@@ -25,6 +30,7 @@ export function AIOverviewTab({ theme, onSynopsisReady }: AIOverviewTabProps) {
 	const [isGenerating, setIsGenerating] = useState(false);
 	const [progress, setProgress] = useState({ phase: 'idle', message: '', percent: 0 });
 	const [showSaveModal, setShowSaveModal] = useState(false);
+	const [copied, setCopied] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 	const mountedRef = useRef(true);
 
@@ -43,44 +49,22 @@ export function AIOverviewTab({ theme, onSynopsisReady }: AIOverviewTabProps) {
 		});
 	};
 
-	// Generate synopsis
+	// Copy synopsis markdown to clipboard
+	const copyToClipboard = useCallback(async () => {
+		if (!synopsis) return;
+		await navigator.clipboard.writeText(synopsis);
+		setCopied(true);
+		setTimeout(() => setCopied(false), 2000);
+	}, [synopsis]);
+
+	// Generate synopsis — the handler reads history files directly via file paths,
+	// so the renderer only needs to make a single IPC call.
 	const generateSynopsis = useCallback(async () => {
 		setIsGenerating(true);
 		setError(null);
-		setProgress({ phase: 'gathering', message: 'Gathering history data...', percent: 10 });
+		setProgress({ phase: 'generating', message: 'Generating synopsis...', percent: 20 });
 
 		try {
-			// Get unified history
-			const entries = await window.maestro.directorNotes.getUnifiedHistory({
-				lookbackDays,
-				filter: null,
-			});
-
-			if (entries.length === 0) {
-				const now = Date.now();
-				const emptyMsg = '# Director\'s Notes\n\nNo history entries found for the selected time period.';
-				setSynopsis(emptyMsg);
-				setGeneratedAt(now);
-				cachedSynopsis = { content: emptyMsg, generatedAt: now, lookbackDays };
-				onSynopsisReady?.();
-				setIsGenerating(false);
-				return;
-			}
-
-			setProgress({ phase: 'analyzing', message: 'Estimating context size...', percent: 30 });
-
-			// Estimate tokens to determine strategy
-			const estimatedTokens = await window.maestro.directorNotes.estimateTokens(entries);
-
-			if (estimatedTokens > 100000) {
-				// Hierarchical strategy needed - show progress for each agent
-				// Falls through to standard generation for now; hierarchical generation is a future enhancement
-				setProgress({ phase: 'generating', message: 'Large dataset - using hierarchical analysis...', percent: 40 });
-			}
-
-			setProgress({ phase: 'generating', message: 'Generating synopsis...', percent: 60 });
-
-			// Generate synopsis
 			const result = await window.maestro.directorNotes.generateSynopsis({
 				lookbackDays,
 				provider: directorNotesSettings.provider,
@@ -185,6 +169,26 @@ export function AIOverviewTab({ theme, onSynopsisReady }: AIOverviewTabProps) {
 				>
 					<Save className="w-3.5 h-3.5" />
 					Save
+				</button>
+
+				{/* Copy to clipboard button */}
+				<button
+					onClick={copyToClipboard}
+					disabled={!synopsis || isGenerating}
+					className="flex items-center gap-2 px-3 py-1.5 rounded text-xs font-medium transition-colors"
+					style={{
+						backgroundColor: theme.colors.bgActivity,
+						color: copied ? theme.colors.accent : theme.colors.textMain,
+						border: `1px solid ${copied ? theme.colors.accent : theme.colors.border}`,
+						opacity: synopsis && !isGenerating ? 1 : 0.5,
+					}}
+				>
+					{copied ? (
+						<Check className="w-3.5 h-3.5" />
+					) : (
+						<Copy className="w-3.5 h-3.5" />
+					)}
+					{copied ? 'Copied!' : 'Copy'}
 				</button>
 			</div>
 

@@ -3,11 +3,21 @@
  *
  * Provides the window.maestro.directorNotes namespace for:
  * - Unified history aggregation across all sessions
- * - Token estimation for synopsis generation
  * - AI synopsis generation
  */
 
 import { ipcRenderer } from 'electron';
+
+/**
+ * Paginated result wrapper (mirrors shared/history.ts PaginatedResult)
+ */
+export interface PaginatedUnifiedHistoryResult {
+	entries: UnifiedHistoryEntry[];
+	total: number;
+	limit: number;
+	offset: number;
+	hasMore: boolean;
+}
 
 /**
  * Options for fetching unified history
@@ -15,6 +25,10 @@ import { ipcRenderer } from 'electron';
 export interface UnifiedHistoryOptions {
 	lookbackDays: number;
 	filter?: 'AUTO' | 'USER' | null; // null = both
+	/** Number of entries to return per page (default: 100) */
+	limit?: number;
+	/** Number of entries to skip for pagination (default: 0) */
+	offset?: number;
 }
 
 /**
@@ -64,15 +78,11 @@ export interface SynopsisResult {
  */
 export function createDirectorNotesApi() {
 	return {
-		// Get unified history across all sessions within a time range
-		getUnifiedHistory: (options: UnifiedHistoryOptions): Promise<UnifiedHistoryEntry[]> =>
+		// Get unified history across all sessions with pagination
+		getUnifiedHistory: (options: UnifiedHistoryOptions): Promise<PaginatedUnifiedHistoryResult> =>
 			ipcRenderer.invoke('director-notes:getUnifiedHistory', options),
 
-		// Estimate tokens for a set of history entries
-		estimateTokens: (entries: UnifiedHistoryEntry[]): Promise<number> =>
-			ipcRenderer.invoke('director-notes:estimateTokens', entries),
-
-		// Generate AI synopsis (placeholder until Phase 07)
+		// Generate AI synopsis
 		generateSynopsis: (options: SynopsisOptions): Promise<SynopsisResult> =>
 			ipcRenderer.invoke('director-notes:generateSynopsis', options),
 	};

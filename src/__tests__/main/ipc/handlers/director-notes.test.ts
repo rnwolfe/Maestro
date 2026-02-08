@@ -3,8 +3,7 @@
  *
  * These tests verify:
  * - Unified history aggregation across all sessions
- * - Token estimation for synopsis generation
- * - AI synopsis generation via groomContext
+ * - AI synopsis generation via groomContext (file-path based)
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
@@ -94,6 +93,7 @@ describe('director-notes IPC handlers', () => {
 		mockHistoryManager = {
 			getEntries: vi.fn().mockReturnValue([]),
 			listSessionsWithHistory: vi.fn().mockReturnValue([]),
+			getHistoryFilePath: vi.fn().mockReturnValue(null),
 		};
 
 		vi.mocked(historyManagerModule.getHistoryManager).mockReturnValue(
@@ -126,7 +126,6 @@ describe('director-notes IPC handlers', () => {
 		it('should register all director-notes handlers', () => {
 			const expectedChannels = [
 				'director-notes:getUnifiedHistory',
-				'director-notes:estimateTokens',
 				'director-notes:generateSynopsis',
 			];
 
@@ -155,11 +154,13 @@ describe('director-notes IPC handlers', () => {
 			const handler = handlers.get('director-notes:getUnifiedHistory');
 			const result = await handler!({} as any, { lookbackDays: 7 });
 
-			expect(result).toHaveLength(2);
-			expect(result[0].id).toBe('e1'); // newer first
-			expect(result[1].id).toBe('e2');
-			expect(result[0].sourceSessionId).toBe('session-1');
-			expect(result[1].sourceSessionId).toBe('session-2');
+			expect(result.entries).toHaveLength(2);
+			expect(result.entries[0].id).toBe('e1'); // newer first
+			expect(result.entries[1].id).toBe('e2');
+			expect(result.entries[0].sourceSessionId).toBe('session-1');
+			expect(result.entries[1].sourceSessionId).toBe('session-2');
+			expect(result.total).toBe(2);
+			expect(result.hasMore).toBe(false);
 		});
 
 		it('should filter by lookbackDays', async () => {
@@ -176,8 +177,27 @@ describe('director-notes IPC handlers', () => {
 			const handler = handlers.get('director-notes:getUnifiedHistory');
 			const result = await handler!({} as any, { lookbackDays: 7 });
 
-			expect(result).toHaveLength(1);
-			expect(result[0].id).toBe('recent');
+			expect(result.entries).toHaveLength(1);
+			expect(result.entries[0].id).toBe('recent');
+		});
+
+		it('should return all entries when lookbackDays is 0 (all time)', async () => {
+			const now = Date.now();
+			const twoDaysAgo = now - 2 * 24 * 60 * 60 * 1000;
+			const yearAgo = now - 365 * 24 * 60 * 60 * 1000;
+
+			vi.mocked(mockHistoryManager.listSessionsWithHistory).mockReturnValue(['session-1']);
+			vi.mocked(mockHistoryManager.getEntries).mockReturnValue([
+				createMockEntry({ id: 'recent', timestamp: twoDaysAgo }),
+				createMockEntry({ id: 'ancient', timestamp: yearAgo }),
+			]);
+
+			const handler = handlers.get('director-notes:getUnifiedHistory');
+			const result = await handler!({} as any, { lookbackDays: 0 });
+
+			expect(result.entries).toHaveLength(2);
+			expect(result.entries[0].id).toBe('recent');
+			expect(result.entries[1].id).toBe('ancient');
 		});
 
 		it('should filter by type when filter is provided', async () => {
@@ -191,8 +211,8 @@ describe('director-notes IPC handlers', () => {
 			const handler = handlers.get('director-notes:getUnifiedHistory');
 			const result = await handler!({} as any, { lookbackDays: 7, filter: 'AUTO' });
 
-			expect(result).toHaveLength(1);
-			expect(result[0].id).toBe('auto-entry');
+			expect(result.entries).toHaveLength(1);
+			expect(result.entries[0].id).toBe('auto-entry');
 		});
 
 		it('should return both types when filter is null', async () => {
@@ -206,7 +226,7 @@ describe('director-notes IPC handlers', () => {
 			const handler = handlers.get('director-notes:getUnifiedHistory');
 			const result = await handler!({} as any, { lookbackDays: 7, filter: null });
 
-			expect(result).toHaveLength(2);
+			expect(result.entries).toHaveLength(2);
 		});
 
 		it('should return entries sorted by timestamp descending', async () => {
@@ -229,10 +249,10 @@ describe('director-notes IPC handlers', () => {
 			const handler = handlers.get('director-notes:getUnifiedHistory');
 			const result = await handler!({} as any, { lookbackDays: 7 });
 
-			expect(result).toHaveLength(3);
-			expect(result[0].id).toBe('newest');
-			expect(result[1].id).toBe('middle');
-			expect(result[2].id).toBe('oldest');
+			expect(result.entries).toHaveLength(3);
+			expect(result.entries[0].id).toBe('newest');
+			expect(result.entries[1].id).toBe('middle');
+			expect(result.entries[2].id).toBe('oldest');
 		});
 
 		it('should use Maestro session name when available in sessions store', async () => {
@@ -253,7 +273,7 @@ describe('director-notes IPC handlers', () => {
 			const result = await handler!({} as any, { lookbackDays: 7 });
 
 			// Should use Maestro session name, not tab name
-			expect(result[0].agentName).toBe('🚧 my-feature');
+			expect(result.entries[0].agentName).toBe('🚧 my-feature');
 		});
 
 		it('should set agentName to undefined when Maestro session not found in store', async () => {
@@ -274,9 +294,9 @@ describe('director-notes IPC handlers', () => {
 			const result = await handler!({} as any, { lookbackDays: 7 });
 
 			// agentName is only the Maestro session name; undefined when not found
-			expect(result[0].agentName).toBeUndefined();
+			expect(result.entries[0].agentName).toBeUndefined();
 			// sessionName is still preserved on the entry
-			expect(result[0].sessionName).toBe('My Agent');
+			expect(result.entries[0].sessionName).toBe('My Agent');
 		});
 
 		it('should set agentName to undefined when session is not in store', async () => {
@@ -290,19 +310,21 @@ describe('director-notes IPC handlers', () => {
 			const result = await handler!({} as any, { lookbackDays: 7 });
 
 			// No Maestro session name available
-			expect(result[0].agentName).toBeUndefined();
+			expect(result.entries[0].agentName).toBeUndefined();
 		});
 
-		it('should return empty array when no sessions have history', async () => {
+		it('should return empty entries when no sessions have history', async () => {
 			vi.mocked(mockHistoryManager.listSessionsWithHistory).mockReturnValue([]);
 
 			const handler = handlers.get('director-notes:getUnifiedHistory');
 			const result = await handler!({} as any, { lookbackDays: 7 });
 
-			expect(result).toEqual([]);
+			expect(result.entries).toEqual([]);
+			expect(result.total).toBe(0);
+			expect(result.hasMore).toBe(false);
 		});
 
-		it('should return empty array when all entries are outside lookback window', async () => {
+		it('should return empty entries when all entries are outside lookback window', async () => {
 			const thirtyDaysAgo = Date.now() - 30 * 24 * 60 * 60 * 1000;
 			vi.mocked(mockHistoryManager.listSessionsWithHistory).mockReturnValue(['session-1']);
 			vi.mocked(mockHistoryManager.getEntries).mockReturnValue([
@@ -312,78 +334,46 @@ describe('director-notes IPC handlers', () => {
 			const handler = handlers.get('director-notes:getUnifiedHistory');
 			const result = await handler!({} as any, { lookbackDays: 7 });
 
-			expect(result).toEqual([]);
-		});
-	});
-
-	describe('director-notes:estimateTokens', () => {
-		it('should estimate tokens based on content length', async () => {
-			// 4 characters per token heuristic
-			const entries = [
-				createMockEntry({ summary: 'abcd', fullResponse: undefined }), // 4 chars = 1 token
-			];
-
-			const handler = handlers.get('director-notes:estimateTokens');
-			const result = await handler!({} as any, entries);
-
-			expect(result).toBe(1);
+			expect(result.entries).toEqual([]);
+			expect(result.total).toBe(0);
+			expect(result.hasMore).toBe(false);
 		});
 
-		it('should include both summary and fullResponse in estimation', async () => {
-			// summary: 8 chars + fullResponse: 12 chars = 20 chars / 4 = 5 tokens
-			const entries = [
-				createMockEntry({ summary: 'abcdefgh', fullResponse: 'abcdefghijkl' }),
-			];
+		it('should support pagination with limit and offset', async () => {
+			const now = Date.now();
+			vi.mocked(mockHistoryManager.listSessionsWithHistory).mockReturnValue(['session-1']);
+			vi.mocked(mockHistoryManager.getEntries).mockReturnValue([
+				createMockEntry({ id: 'e1', timestamp: now - 1000 }),
+				createMockEntry({ id: 'e2', timestamp: now - 2000 }),
+				createMockEntry({ id: 'e3', timestamp: now - 3000 }),
+				createMockEntry({ id: 'e4', timestamp: now - 4000 }),
+				createMockEntry({ id: 'e5', timestamp: now - 5000 }),
+			]);
 
-			const handler = handlers.get('director-notes:estimateTokens');
-			const result = await handler!({} as any, entries);
+			const handler = handlers.get('director-notes:getUnifiedHistory');
 
-			expect(result).toBe(5);
-		});
+			// First page: limit 2, offset 0
+			const page1 = await handler!({} as any, { lookbackDays: 7, limit: 2, offset: 0 });
+			expect(page1.entries).toHaveLength(2);
+			expect(page1.entries[0].id).toBe('e1');
+			expect(page1.entries[1].id).toBe('e2');
+			expect(page1.total).toBe(5);
+			expect(page1.hasMore).toBe(true);
 
-		it('should handle entries with no summary or fullResponse', async () => {
-			const entries = [
-				createMockEntry({ summary: '', fullResponse: undefined }),
-			];
+			// Second page: limit 2, offset 2
+			const page2 = await handler!({} as any, { lookbackDays: 7, limit: 2, offset: 2 });
+			expect(page2.entries).toHaveLength(2);
+			expect(page2.entries[0].id).toBe('e3');
+			expect(page2.entries[1].id).toBe('e4');
+			expect(page2.total).toBe(5);
+			expect(page2.hasMore).toBe(true);
 
-			const handler = handlers.get('director-notes:estimateTokens');
-			const result = await handler!({} as any, entries);
-
-			expect(result).toBe(0);
-		});
-
-		it('should aggregate tokens across multiple entries', async () => {
-			// Entry 1: 8 chars summary + 0 response = 8
-			// Entry 2: 4 chars summary + 4 chars response = 8
-			// Total: 16 chars / 4 = 4 tokens
-			const entries = [
-				createMockEntry({ summary: 'abcdefgh', fullResponse: undefined }),
-				createMockEntry({ summary: 'abcd', fullResponse: 'efgh' }),
-			];
-
-			const handler = handlers.get('director-notes:estimateTokens');
-			const result = await handler!({} as any, entries);
-
-			expect(result).toBe(4);
-		});
-
-		it('should ceil the token estimate', async () => {
-			// 5 chars / 4 = 1.25, ceiled to 2
-			const entries = [
-				createMockEntry({ summary: 'abcde', fullResponse: undefined }),
-			];
-
-			const handler = handlers.get('director-notes:estimateTokens');
-			const result = await handler!({} as any, entries);
-
-			expect(result).toBe(2);
-		});
-
-		it('should return 0 for empty entries array', async () => {
-			const handler = handlers.get('director-notes:estimateTokens');
-			const result = await handler!({} as any, []);
-
-			expect(result).toBe(0);
+			// Third page: limit 2, offset 4
+			const page3 = await handler!({} as any, { lookbackDays: 7, limit: 2, offset: 4 });
+			expect(page3.entries).toHaveLength(1);
+			expect(page3.entries[0].id).toBe('e5');
+			expect(page3.total).toBe(5);
+			expect(page3.hasMore).toBe(false);
 		});
 	});
 
@@ -398,20 +388,31 @@ describe('director-notes IPC handlers', () => {
 			expect(result.error).toContain('not available');
 		});
 
-		it('should return empty-history message when no entries exist', async () => {
+		it('should return empty-history message when no sessions have history files', async () => {
 			vi.mocked(mockHistoryManager.listSessionsWithHistory).mockReturnValue([]);
 
 			const handler = handlers.get('director-notes:generateSynopsis');
 			const result = await handler!({} as any, { lookbackDays: 7, provider: 'claude-code' });
 
 			expect(result.success).toBe(true);
-			expect(result.synopsis).toContain('No history entries found');
+			expect(result.synopsis).toContain('No history files found');
 			expect(result.synopsis).toContain('7 days');
 			expect(result.generatedAt).toBeTypeOf('number');
 			expect(result.generatedAt).toBeLessThanOrEqual(Date.now());
 		});
 
-		it('should call groomContext with history entries and return synopsis', async () => {
+		it('should return empty-history message when all file paths are null', async () => {
+			vi.mocked(mockHistoryManager.listSessionsWithHistory).mockReturnValue(['session-1']);
+			vi.mocked(mockHistoryManager.getHistoryFilePath).mockReturnValue(null);
+
+			const handler = handlers.get('director-notes:generateSynopsis');
+			const result = await handler!({} as any, { lookbackDays: 7, provider: 'claude-code' });
+
+			expect(result.success).toBe(true);
+			expect(result.synopsis).toContain('No history files found');
+		});
+
+		it('should call groomContext with file-path manifest and return synopsis', async () => {
 			const { groomContext } = await import('../../../../main/utils/context-groomer');
 			vi.mocked(groomContext).mockResolvedValue({
 				response: '# Synopsis\n\nWork was done.',
@@ -419,11 +420,8 @@ describe('director-notes IPC handlers', () => {
 				completionReason: 'process exited with code 0',
 			});
 
-			const now = Date.now();
 			vi.mocked(mockHistoryManager.listSessionsWithHistory).mockReturnValue(['session-1']);
-			vi.mocked(mockHistoryManager.getEntries).mockReturnValue([
-				createMockEntry({ id: 'e1', timestamp: now - 1000, summary: 'Fixed a bug' }),
-			]);
+			vi.mocked(mockHistoryManager.getHistoryFilePath).mockReturnValue('/data/history/session-1.json');
 
 			const handler = handlers.get('director-notes:generateSynopsis');
 			const result = await handler!({} as any, { lookbackDays: 7, provider: 'claude-code' });
@@ -432,14 +430,42 @@ describe('director-notes IPC handlers', () => {
 			expect(result.synopsis).toBe('# Synopsis\n\nWork was done.');
 			expect(result.generatedAt).toBeTypeOf('number');
 			expect(result.generatedAt).toBeLessThanOrEqual(Date.now());
-			expect(groomContext).toHaveBeenCalledWith(
-				expect.objectContaining({
-					agentType: 'claude-code',
-					readOnlyMode: true,
-				}),
-				mockProcessManager,
-				mockAgentDetector,
-			);
+
+			// Verify groomContext was called with file path in prompt (not inline JSON data)
+			const groomCall = vi.mocked(groomContext).mock.calls[0][0];
+			expect(groomCall.agentType).toBe('claude-code');
+			expect(groomCall.readOnlyMode).toBe(true);
+			expect(groomCall.prompt).toContain('/data/history/session-1.json');
+			expect(groomCall.prompt).toContain('session-1');
+			// Verify no inline entry data (the prompt describes the schema but doesn't embed actual entries)
+			expect(groomCall.prompt).not.toContain('"Fixed a bug"');
+		});
+
+		it('should include all sessions with history files in the prompt manifest', async () => {
+			const { groomContext } = await import('../../../../main/utils/context-groomer');
+			vi.mocked(groomContext).mockResolvedValue({
+				response: '# Synopsis',
+				durationMs: 1000,
+				completionReason: 'process exited with code 0',
+			});
+
+			vi.mocked(mockHistoryManager.listSessionsWithHistory).mockReturnValue([
+				'session-1',
+				'session-2',
+				'session-3',
+			]);
+			vi.mocked(mockHistoryManager.getHistoryFilePath)
+				.mockReturnValueOnce('/data/history/session-1.json')
+				.mockReturnValueOnce('/data/history/session-2.json')
+				.mockReturnValueOnce(null); // session-3 has no file
+
+			const handler = handlers.get('director-notes:generateSynopsis');
+			await handler!({} as any, { lookbackDays: 7, provider: 'claude-code' });
+
+			const promptArg = vi.mocked(groomContext).mock.calls[0][0].prompt;
+			expect(promptArg).toContain('/data/history/session-1.json');
+			expect(promptArg).toContain('/data/history/session-2.json');
+			expect(promptArg).not.toContain('session-3');
 		});
 
 		it('should pass custom agent config to groomContext when provided', async () => {
@@ -450,11 +476,8 @@ describe('director-notes IPC handlers', () => {
 				completionReason: 'process exited with code 0',
 			});
 
-			const now = Date.now();
 			vi.mocked(mockHistoryManager.listSessionsWithHistory).mockReturnValue(['session-1']);
-			vi.mocked(mockHistoryManager.getEntries).mockReturnValue([
-				createMockEntry({ id: 'e1', timestamp: now - 1000, summary: 'Fixed a bug' }),
-			]);
+			vi.mocked(mockHistoryManager.getHistoryFilePath).mockReturnValue('/data/history/session-1.json');
 
 			const handler = handlers.get('director-notes:generateSynopsis');
 			const result = await handler!({} as any, {
@@ -479,7 +502,7 @@ describe('director-notes IPC handlers', () => {
 			);
 		});
 
-		it('should use Maestro session name in synopsis generation entries', async () => {
+		it('should use Maestro session name in file-path manifest', async () => {
 			const { groomContext } = await import('../../../../main/utils/context-groomer');
 			vi.mocked(groomContext).mockResolvedValue({
 				response: '# Synopsis',
@@ -487,11 +510,8 @@ describe('director-notes IPC handlers', () => {
 				completionReason: 'process exited with code 0',
 			});
 
-			const now = Date.now();
 			vi.mocked(mockHistoryManager.listSessionsWithHistory).mockReturnValue(['session-1']);
-			vi.mocked(mockHistoryManager.getEntries).mockReturnValue([
-				createMockEntry({ id: 'e1', timestamp: now - 1000, summary: 'Work done', sessionName: 'Tab Name' }),
-			]);
+			vi.mocked(mockHistoryManager.getHistoryFilePath).mockReturnValue('/data/history/session-1.json');
 
 			// Mock sessions store with Maestro session name
 			mockGetSessionsStore.mockReturnValue({
@@ -503,21 +523,36 @@ describe('director-notes IPC handlers', () => {
 			const handler = handlers.get('director-notes:generateSynopsis');
 			await handler!({} as any, { lookbackDays: 7, provider: 'claude-code' });
 
-			// The prompt passed to groomContext should contain the Maestro session name
+			// The prompt should contain the Maestro session name alongside the file path
 			const promptArg = vi.mocked(groomContext).mock.calls[0][0].prompt;
 			expect(promptArg).toContain('🚧 feature-branch');
-			expect(promptArg).not.toContain('"agentName": "Tab Name"');
+			expect(promptArg).toContain('/data/history/session-1.json');
+		});
+
+		it('should fall back to session ID when no Maestro session name is available', async () => {
+			const { groomContext } = await import('../../../../main/utils/context-groomer');
+			vi.mocked(groomContext).mockResolvedValue({
+				response: '# Synopsis',
+				durationMs: 1000,
+				completionReason: 'process exited with code 0',
+			});
+
+			vi.mocked(mockHistoryManager.listSessionsWithHistory).mockReturnValue(['unknown-session']);
+			vi.mocked(mockHistoryManager.getHistoryFilePath).mockReturnValue('/data/history/unknown-session.json');
+
+			const handler = handlers.get('director-notes:generateSynopsis');
+			await handler!({} as any, { lookbackDays: 7, provider: 'claude-code' });
+
+			const promptArg = vi.mocked(groomContext).mock.calls[0][0].prompt;
+			expect(promptArg).toContain('unknown-session');
 		});
 
 		it('should return error when groomContext fails', async () => {
 			const { groomContext } = await import('../../../../main/utils/context-groomer');
 			vi.mocked(groomContext).mockRejectedValue(new Error('Agent timed out'));
 
-			const now = Date.now();
 			vi.mocked(mockHistoryManager.listSessionsWithHistory).mockReturnValue(['session-1']);
-			vi.mocked(mockHistoryManager.getEntries).mockReturnValue([
-				createMockEntry({ id: 'e1', timestamp: now - 1000, summary: 'Some work' }),
-			]);
+			vi.mocked(mockHistoryManager.getHistoryFilePath).mockReturnValue('/data/history/session-1.json');
 
 			const handler = handlers.get('director-notes:generateSynopsis');
 			const result = await handler!({} as any, { lookbackDays: 7, provider: 'claude-code' });
@@ -534,11 +569,8 @@ describe('director-notes IPC handlers', () => {
 				completionReason: 'process exited with code 0',
 			});
 
-			const now = Date.now();
 			vi.mocked(mockHistoryManager.listSessionsWithHistory).mockReturnValue(['session-1']);
-			vi.mocked(mockHistoryManager.getEntries).mockReturnValue([
-				createMockEntry({ id: 'e1', timestamp: now - 1000, summary: 'Some work' }),
-			]);
+			vi.mocked(mockHistoryManager.getHistoryFilePath).mockReturnValue('/data/history/session-1.json');
 
 			const handler = handlers.get('director-notes:generateSynopsis');
 			const result = await handler!({} as any, { lookbackDays: 7, provider: 'claude-code' });
@@ -547,29 +579,24 @@ describe('director-notes IPC handlers', () => {
 			expect(result.error).toContain('empty response');
 		});
 
-		it('should return synopsis with expected structure', async () => {
+		it('should include lookback and cutoff metadata in prompt', async () => {
 			const { groomContext } = await import('../../../../main/utils/context-groomer');
 			vi.mocked(groomContext).mockResolvedValue({
-				response: '# Director Notes\n\nSynopsis content.',
-				durationMs: 4000,
-				completionReason: 'idle timeout with content',
+				response: '# Synopsis',
+				durationMs: 1000,
+				completionReason: 'process exited with code 0',
 			});
 
-			const now = Date.now();
 			vi.mocked(mockHistoryManager.listSessionsWithHistory).mockReturnValue(['session-1']);
-			vi.mocked(mockHistoryManager.getEntries).mockReturnValue([
-				createMockEntry({ id: 'e1', timestamp: now - 1000, summary: 'Task done' }),
-			]);
+			vi.mocked(mockHistoryManager.getHistoryFilePath).mockReturnValue('/data/history/session-1.json');
 
 			const handler = handlers.get('director-notes:generateSynopsis');
-			const result = await handler!({} as any, { lookbackDays: 7, provider: 'claude-code' });
+			await handler!({} as any, { lookbackDays: 14, provider: 'claude-code' });
 
-			expect(result).toHaveProperty('success');
-			expect(result).toHaveProperty('synopsis');
-			expect(result).toHaveProperty('generatedAt');
-			expect(typeof result.synopsis).toBe('string');
-			expect(typeof result.generatedAt).toBe('number');
-			expect(result.error).toBeUndefined();
+			const promptArg = vi.mocked(groomContext).mock.calls[0][0].prompt;
+			expect(promptArg).toContain('Lookback period: 14 days');
+			expect(promptArg).toContain('Timestamp cutoff:');
+			expect(promptArg).toContain('Current time:');
 		});
 	});
 });

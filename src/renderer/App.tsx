@@ -880,12 +880,6 @@ function MaestroConsoleInner() {
 		window.maestro.app.confirmQuit();
 	}, []);
 
-	const handleConfirmQuitAndDelete = useCallback(() => {
-		setQuitConfirmModalOpen(false);
-		// TODO: Implement working directory deletion before quit
-		window.maestro.app.confirmQuit();
-	}, []);
-
 	const handleCancelQuit = useCallback(() => {
 		setQuitConfirmModalOpen(false);
 		window.maestro.app.cancelQuit();
@@ -13571,7 +13565,6 @@ You are taking over this conversation. Based on the context above, provide a bri
 					onCloseConfirmModal={handleCloseConfirmModal}
 					quitConfirmModalOpen={quitConfirmModalOpen}
 					onConfirmQuit={handleConfirmQuit}
-					onConfirmQuitAndDelete={handleConfirmQuitAndDelete}
 					onCancelQuit={handleCancelQuit}
 					// AppSessionModals props
 					newInstanceModalOpen={newInstanceModalOpen}

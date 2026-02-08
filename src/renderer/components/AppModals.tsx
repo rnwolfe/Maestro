@@ -293,7 +293,6 @@ export interface AppConfirmModalsProps {
 	// Quit Confirm Modal
 	quitConfirmModalOpen: boolean;
 	onConfirmQuit: () => void;
-	onConfirmQuitAndDelete: () => void;
 	onCancelQuit: () => void;
 }
 
@@ -317,7 +316,6 @@ export function AppConfirmModals({
 	// Quit Confirm Modal
 	quitConfirmModalOpen,
 	onConfirmQuit,
-	onConfirmQuitAndDelete,
 	onCancelQuit,
 }: AppConfirmModalsProps) {
 	// Compute busy agents for QuitConfirmModal
@@ -346,7 +344,6 @@ export function AppConfirmModals({
 					busyAgentCount={busyAgents.length}
 					busyAgentNames={busyAgents.map((s) => s.name)}
 					onConfirmQuit={onConfirmQuit}
-					onConfirmQuitAndDelete={onConfirmQuitAndDelete}
 					onCancel={onCancelQuit}
 				/>
 			)}
@@ -1753,7 +1750,6 @@ export interface AppModalsProps {
 	onCloseConfirmModal: () => void;
 	quitConfirmModalOpen: boolean;
 	onConfirmQuit: () => void;
-	onConfirmQuitAndDelete: () => void;
 	onCancelQuit: () => void;
 
 	// --- AppSessionModals props ---
@@ -2111,7 +2107,6 @@ export function AppModals(props: AppModalsProps) {
 		onCloseConfirmModal,
 		quitConfirmModalOpen,
 		onConfirmQuit,
-		onConfirmQuitAndDelete,
 		onCancelQuit,
 		// Session modals
 		newInstanceModalOpen,
@@ -2386,7 +2381,6 @@ export function AppModals(props: AppModalsProps) {
 				onCloseConfirmModal={onCloseConfirmModal}
 				quitConfirmModalOpen={quitConfirmModalOpen}
 				onConfirmQuit={onConfirmQuit}
-				onConfirmQuitAndDelete={onConfirmQuitAndDelete}
 				onCancelQuit={onCancelQuit}
 			/>
 

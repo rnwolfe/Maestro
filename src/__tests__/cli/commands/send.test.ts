@@ -1,8 +1,8 @@
 /**
  * @file send.test.ts
- * @description Tests for the query CLI command
+ * @description Tests for the send CLI command
  *
- * Tests the query command functionality including:
+ * Tests the send command functionality including:
  * - Sending a message to create a new agent session
  * - Resuming an existing agent session
  * - JSON response format with usage stats and context usage
@@ -31,12 +31,12 @@ vi.mock('../../../main/parsers/usage-aggregator', () => ({
 	estimateContextUsage: vi.fn(),
 }));
 
-import { query } from '../../../cli/commands/send';
+import { send } from '../../../cli/commands/send';
 import { spawnAgent, detectClaude, detectCodex } from '../../../cli/services/agent-spawner';
 import { resolveAgentId, getSessionById } from '../../../cli/services/storage';
 import { estimateContextUsage } from '../../../main/parsers/usage-aggregator';
 
-describe('query command', () => {
+describe('send command', () => {
 	let consoleSpy: MockInstance;
 	let processExitSpy: MockInstance;
 
@@ -74,7 +74,7 @@ describe('query command', () => {
 		});
 		vi.mocked(estimateContextUsage).mockReturnValue(1);
 
-		await query('agent-abc', 'Hello world', {});
+		await send('agent-abc', 'Hello world', {});
 
 		expect(resolveAgentId).toHaveBeenCalledWith('agent-abc');
 		expect(spawnAgent).toHaveBeenCalledWith('claude-code', '/path/to/project', 'Hello world', undefined);
@@ -117,7 +117,7 @@ describe('query command', () => {
 		});
 		vi.mocked(estimateContextUsage).mockReturnValue(4);
 
-		await query('agent-abc', 'Continue from before', { session: 'session-xyz-789' });
+		await send('agent-abc', 'Continue from before', { session: 'session-xyz-789' });
 
 		expect(spawnAgent).toHaveBeenCalledWith(
 			'claude-code',
@@ -142,7 +142,7 @@ describe('query command', () => {
 			agentSessionId: 'session-new',
 		});
 
-		await query('agent-abc', 'Do something', {});
+		await send('agent-abc', 'Do something', {});
 
 		expect(spawnAgent).toHaveBeenCalledWith('claude-code', '/custom/project/path', 'Do something', undefined);
 	});
@@ -157,7 +157,7 @@ describe('query command', () => {
 			agentSessionId: 'codex-session',
 		});
 
-		await query('agent-codex', 'Use codex', {});
+		await send('agent-codex', 'Use codex', {});
 
 		expect(detectCodex).toHaveBeenCalled();
 		expect(detectClaude).not.toHaveBeenCalled();
@@ -169,7 +169,7 @@ describe('query command', () => {
 			throw new Error('Agent not found: bad-id');
 		});
 
-		await query('bad-id', 'Hello', {});
+		await send('bad-id', 'Hello', {});
 
 		const output = JSON.parse(consoleSpy.mock.calls[0][0]);
 		expect(output.success).toBe(false);
@@ -183,7 +183,7 @@ describe('query command', () => {
 			mockAgent({ id: 'agent-term-1', toolType: 'terminal' })
 		);
 
-		await query('agent-term', 'Hello', {});
+		await send('agent-term', 'Hello', {});
 
 		const output = JSON.parse(consoleSpy.mock.calls[0][0]);
 		expect(output.success).toBe(false);
@@ -196,7 +196,7 @@ describe('query command', () => {
 		vi.mocked(getSessionById).mockReturnValue(mockAgent());
 		vi.mocked(detectClaude).mockResolvedValue({ available: false });
 
-		await query('agent-abc', 'Hello', {});
+		await send('agent-abc', 'Hello', {});
 
 		const output = JSON.parse(consoleSpy.mock.calls[0][0]);
 		expect(output.success).toBe(false);
@@ -223,7 +223,7 @@ describe('query command', () => {
 		});
 		vi.mocked(estimateContextUsage).mockReturnValue(0);
 
-		await query('agent-abc', 'Bad request', {});
+		await send('agent-abc', 'Bad request', {});
 
 		const output = JSON.parse(consoleSpy.mock.calls[0][0]);
 		expect(output.success).toBe(false);
@@ -245,7 +245,7 @@ describe('query command', () => {
 			agentSessionId: 'session-no-stats',
 		});
 
-		await query('agent-abc', 'Simple message', {});
+		await send('agent-abc', 'Simple message', {});
 
 		const output = JSON.parse(consoleSpy.mock.calls[0][0]);
 		expect(output.success).toBe(true);

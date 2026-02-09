@@ -1,10 +1,10 @@
 ---
 title: Command Line Interface
-description: Query agents, list sessions, run playbooks, and manage Maestro from the command line.
+description: Send messages to agents, list sessions, run playbooks, and manage Maestro from the command line.
 icon: square-terminal
 ---
 
-Maestro includes a CLI tool (`maestro-cli`) for querying agents, browsing sessions, running playbooks, and managing resources from the command line, cron jobs, or CI/CD pipelines. The CLI requires Node.js (which you already have if you're using Claude Code).
+Maestro includes a CLI tool (`maestro-cli`) for sending messages to agents, browsing sessions, running playbooks, and managing resources from the command line, cron jobs, or CI/CD pipelines. The CLI requires Node.js (which you already have if you're using Claude Code).
 
 ## Installation
 
@@ -32,16 +32,16 @@ node "/Applications/Maestro.app/Contents/Resources/maestro-cli.js" list groups
 
 ## Usage
 
-### Querying Agents
+### Sending Messages to Agents
 
 Send a message to an agent and receive a structured JSON response. Supports creating new sessions or resuming existing ones for multi-turn conversations.
 
 ```bash
 # Send a message to an agent (creates a new session)
-maestro-cli query <agent-id> "describe the authentication flow"
+maestro-cli send <agent-id> "describe the authentication flow"
 
 # Resume an existing session for follow-up
-maestro-cli query <agent-id> "now add rate limiting" -s <session-id>
+maestro-cli send <agent-id> "now add rate limiting" -s <session-id>
 ```
 
 The response is always JSON:
@@ -190,8 +190,8 @@ All commands that accept an agent ID or group ID support partial matching. You o
 
 ```bash
 # These are equivalent if "a1b2" uniquely matches one agent
-maestro-cli query a1b2c3d4-e5f6-7890-abcd-ef1234567890 "hello"
-maestro-cli query a1b2 "hello"
+maestro-cli send a1b2c3d4-e5f6-7890-abcd-ef1234567890 "hello"
+maestro-cli send a1b2 "hello"
 ```
 
 If the partial ID is ambiguous, the CLI will show all matches.
@@ -230,7 +230,7 @@ maestro-cli playbook <playbook-id> --json
 {"type":"complete","timestamp":...,"success":true,"totalTasksCompleted":5,"totalElapsedMs":60000,"totalCost":0.05}
 ```
 
-The `query` command always outputs JSON (no `--json` flag needed).
+The `send` command always outputs JSON (no `--json` flag needed).
 
 ## Scheduling with Cron
 

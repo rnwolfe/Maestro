@@ -1,4 +1,4 @@
-// Query command - send a message to an agent and get a JSON response
+// Send command - send a message to an agent and get a JSON response
 // Requires a Maestro agent ID. Optionally resumes an existing agent session.
 
 import { spawnAgent, detectClaude, detectCodex, type AgentResult } from '../services/agent-spawner';
@@ -6,11 +6,11 @@ import { resolveAgentId, getSessionById } from '../services/storage';
 import { estimateContextUsage } from '../../main/parsers/usage-aggregator';
 import type { ToolType } from '../../shared/types';
 
-interface QueryOptions {
+interface SendOptions {
 	session?: string;
 }
 
-interface QueryResponse {
+interface SendResponse {
 	agentId: string;
 	agentName: string;
 	sessionId: string | null;
@@ -37,8 +37,8 @@ function buildResponse(
 	agentName: string,
 	result: AgentResult,
 	agentType: ToolType
-): QueryResponse {
-	let usage: QueryResponse['usage'] = null;
+): SendResponse {
+	let usage: SendResponse['usage'] = null;
 
 	if (result.usageStats) {
 		const stats = result.usageStats;
@@ -66,7 +66,7 @@ function buildResponse(
 	};
 }
 
-export async function query(agentIdArg: string, message: string, options: QueryOptions): Promise<void> {
+export async function send(agentIdArg: string, message: string, options: SendOptions): Promise<void> {
 	// Resolve agent ID (supports partial IDs)
 	let agentId: string;
 	try {
@@ -87,7 +87,7 @@ export async function query(agentIdArg: string, message: string, options: QueryO
 	const supportedTypes: ToolType[] = ['claude-code', 'codex'];
 	if (!supportedTypes.includes(agent.toolType)) {
 		emitErrorJson(
-			`Agent type "${agent.toolType}" is not supported for query mode. Supported: ${supportedTypes.join(', ')}`,
+			`Agent type "${agent.toolType}" is not supported for send mode. Supported: ${supportedTypes.join(', ')}`,
 			'AGENT_UNSUPPORTED'
 		);
 		process.exit(1);

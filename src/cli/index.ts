@@ -11,7 +11,7 @@ import { listPlaybooks } from './commands/list-playbooks';
 import { showPlaybook } from './commands/show-playbook';
 import { showAgent } from './commands/show-agent';
 import { cleanPlaybooks } from './commands/clean-playbooks';
-import { query } from './commands/send';
+import { send } from './commands/send';
 import { listSessions } from './commands/list-sessions';
 
 // Read version from package.json at runtime
@@ -102,11 +102,11 @@ clean
 	.option('--json', 'Output as JSON (for scripting)')
 	.action(cleanPlaybooks);
 
-// Query command - send a message to an agent and get a JSON response
+// Send command - send a message to an agent and get a JSON response
 program
-	.command('query <agent-id> <message>')
+	.command('send <agent-id> <message>')
 	.description('Send a message to an agent and get a JSON response')
 	.option('-s, --session <id>', 'Resume an existing agent session (for multi-turn conversations)')
-	.action(query);
+	.action(send);
 
 program.parse();

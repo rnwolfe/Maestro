@@ -26,7 +26,10 @@ import type {
 	GroupChatMessage,
 	GroupChatState,
 	UsageStats,
+	GlobalStats,
 } from '../../types';
+import type { Toast } from '../../contexts/ToastContext';
+import type { HistoryEntryInput } from './useAgentSessionManagement';
 import { useSessionStore } from '../../stores/sessionStore';
 import { useModalStore } from '../../stores/modalStore';
 import { gitService } from '../../services/git';
@@ -79,9 +82,9 @@ export interface UseAgentListenersDeps {
 	// --- Callback refs (populated after hook call, read in useEffect) ---
 
 	/** Toast notification callback */
-	addToastRef: React.RefObject<((toast: any) => void) | null>;
+	addToastRef: React.RefObject<((toast: Omit<Toast, 'id' | 'timestamp'>) => void) | null>;
 	/** History entry callback (from useAgentSessionManagement) */
-	addHistoryEntryRef: React.RefObject<((entry: any) => void) | null>;
+	addHistoryEntryRef: React.RefObject<((entry: HistoryEntryInput) => Promise<void>) | null>;
 	/** Background synopsis spawner (from useAgentExecution) */
 	spawnBackgroundSynopsisRef: React.RefObject<
 		| ((
@@ -117,7 +120,7 @@ export interface UseAgentListenersDeps {
 		((sessionId: string, error: AgentError, docIndex: number, context?: string) => void) | null
 	>;
 	/** Global stats updater */
-	updateGlobalStatsRef: React.RefObject<((stats: any) => void) | null>;
+	updateGlobalStatsRef: React.RefObject<((stats: Partial<GlobalStats>) => void) | null>;
 	/** Right panel ref for refreshing history */
 	rightPanelRef: React.RefObject<RightPanelHandle | null>;
 	/** Process queued item callback */
@@ -419,7 +422,7 @@ export function useAgentListeners(deps: UseAgentListenersDeps): void {
 						const sessionSizeKB = (sessionSizeBytes / 1024).toFixed(1);
 
 						const sessionGroup = currentSession.groupId
-							? getGroups().find((g: any) => g.id === currentSession.groupId)
+							? getGroups().find((g) => g.id === currentSession.groupId)
 							: null;
 						const groupName = sessionGroup?.name || 'Ungrouped';
 						const projectName =

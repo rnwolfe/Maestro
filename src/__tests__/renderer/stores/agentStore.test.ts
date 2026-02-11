@@ -1658,7 +1658,7 @@ describe('agentStore', () => {
 			expect(updated.pendingAICommandForSynopsis).toBe('/review');
 		});
 
-		it('aborts without spawning when session has no aiTabs (no target tab)', async () => {
+		it('aborts without spawning when target tab was deleted after queueing', async () => {
 			const session = createMockSession({
 				id: 'session-1',
 				aiTabs: [],
@@ -1667,6 +1667,33 @@ describe('agentStore', () => {
 			useSessionStore.getState().setSessions([session]);
 
 			const item = createQueuedItem({ tabId: 'nonexistent-tab', text: 'Hello' });
+			const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+			await useAgentStore.getState().processQueuedItem('session-1', item, defaultDeps);
+
+			expect(mockSpawn).not.toHaveBeenCalled();
+			expect(consoleSpy).toHaveBeenCalledWith(
+				expect.stringContaining('Target tab was deleted after queueing'),
+				expect.objectContaining({ sessionId: 'session-1', itemTabId: 'nonexistent-tab' })
+			);
+
+			// Session should be reset to idle
+			const updated = useSessionStore.getState().sessions[0];
+			expect(updated.state).toBe('idle');
+			expect(updated.busySource).toBeUndefined();
+
+			consoleSpy.mockRestore();
+		});
+
+		it('aborts without spawning when session has no aiTabs and no tabId', async () => {
+			const session = createMockSession({
+				id: 'session-1',
+				aiTabs: [],
+				activeTabId: '',
+			});
+			useSessionStore.getState().setSessions([session]);
+
+			const item = createQueuedItem({ tabId: '', text: 'Hello' });
 			const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
 			await useAgentStore.getState().processQueuedItem('session-1', item, defaultDeps);
@@ -1674,7 +1701,7 @@ describe('agentStore', () => {
 			expect(mockSpawn).not.toHaveBeenCalled();
 			expect(consoleSpy).toHaveBeenCalledWith(
 				expect.stringContaining('No target tab found'),
-				expect.objectContaining({ sessionId: 'session-1', itemTabId: 'nonexistent-tab' })
+				expect.objectContaining({ sessionId: 'session-1', itemTabId: '' })
 			);
 
 			consoleSpy.mockRestore();

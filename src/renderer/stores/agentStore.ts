@@ -239,6 +239,27 @@ export const useAgentStore = create<AgentStore>()((set, get) => ({
 		// Find the TARGET tab for this queued item (NOT the active tab!)
 		// The item carries its intended tabId from when it was queued
 		const tabByItemId = session.aiTabs.find((tab) => tab.id === item.tabId);
+
+		if (!tabByItemId && item.tabId) {
+			console.warn(
+				'[processQueuedItem] Target tab was deleted after queueing. Aborting to prevent executing on wrong tab.',
+				{ sessionId, itemTabId: item.tabId }
+			);
+			// Reset session to idle since we're aborting this queued item
+			useSessionStore.getState().setSessions((prev) =>
+				prev.map((s) => {
+					if (s.id !== sessionId) return s;
+					return {
+						...s,
+						state: 'idle' as SessionState,
+						busySource: undefined,
+						thinkingStartTime: undefined,
+					};
+				})
+			);
+			return;
+		}
+
 		const targetTab = tabByItemId || getActiveTab(session);
 
 		if (!targetTab) {
@@ -472,7 +493,6 @@ export const useAgentStore = create<AgentStore>()((set, get) => ({
 						console.error(
 							'[processQueuedItem error] No active tab found - session has no aiTabs, this should not happen'
 						);
-						return s;
 					}
 
 					return {

@@ -1257,6 +1257,10 @@ export function useInlineWizard(): UseInlineWizardReturn {
 					autoRunFolderPath: effectiveAutoRunFolderPath,
 					sessionId: currentState.sessionId || undefined,
 					sessionSshRemoteConfig: currentState.sessionSshRemoteConfig,
+					sessionCustomPath: currentState.sessionCustomPath,
+					sessionCustomArgs: currentState.sessionCustomArgs,
+					sessionCustomEnvVars: currentState.sessionCustomEnvVars,
+					sessionCustomModel: currentState.sessionCustomModel,
 					conductorProfile: currentState.conductorProfile,
 					callbacks: {
 						onStart: () => {

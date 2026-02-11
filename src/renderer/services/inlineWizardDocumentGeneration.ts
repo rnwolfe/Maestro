@@ -138,6 +138,14 @@ export interface DocumentGenerationConfig {
 	conductorProfile?: string;
 	/** Optional callbacks */
 	callbacks?: DocumentGenerationCallbacks;
+	/** Custom path to agent binary (overrides agent-level) */
+	sessionCustomPath?: string;
+	/** Custom CLI arguments (overrides agent-level) */
+	sessionCustomArgs?: string;
+	/** Custom environment variables (overrides agent-level) */
+	sessionCustomEnvVars?: Record<string, string>;
+	/** Custom model ID (overrides agent-level) */
+	sessionCustomModel?: string;
 }
 
 /**
@@ -958,6 +966,11 @@ export async function generateInlineDocuments(
 						prompt,
 						// Pass SSH config for remote execution
 						sessionSshRemoteConfig: config.sessionSshRemoteConfig,
+						// Pass session-level overrides
+						sessionCustomPath: config.sessionCustomPath,
+						sessionCustomArgs: config.sessionCustomArgs,
+						sessionCustomEnvVars: config.sessionCustomEnvVars,
+						sessionCustomModel: config.sessionCustomModel,
 					})
 					.then(() => {
 						logger.debug('Document generation agent spawned successfully', '[InlineWizardDocGen]', {

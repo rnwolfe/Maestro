@@ -1877,14 +1877,16 @@ export const FilePreview = React.memo(
 									<GitGraph className="w-4 h-4" />
 								</button>
 							)}
-							<button
-								onClick={() => window.maestro?.shell?.openExternal(`file://${file.path}`)}
-								className="p-2 rounded hover:bg-white/10 transition-colors"
-								style={{ color: theme.colors.textDim }}
-								title="Open in Default App"
-							>
-								<ExternalLink className="w-4 h-4" />
-							</button>
+							{!sshRemoteId && (
+								<button
+									onClick={() => window.maestro?.shell?.openExternal(`file://${file.path}`)}
+									className="p-2 rounded hover:bg-white/10 transition-colors"
+									style={{ color: theme.colors.textDim }}
+									title="Open in Default App"
+								>
+									<ExternalLink className="w-4 h-4" />
+								</button>
+							)}
 							<button
 								onClick={copyPathToClipboard}
 								className="p-2 rounded hover:bg-white/10 transition-colors"

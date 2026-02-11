@@ -257,6 +257,17 @@ describe('FilePreview', () => {
 
 			expect(window.maestro?.shell?.openExternal).toHaveBeenCalledWith('file:///test/readme.md');
 		});
+
+		it('hides Open in Default App button for SSH remote sessions', () => {
+			render(
+				<FilePreview
+					{...defaultProps}
+					sshRemoteId="remote-host-1"
+				/>
+			);
+
+			expect(screen.queryByTitle('Open in Default App')).not.toBeInTheDocument();
+		});
 	});
 
 	describe('file changed on disk banner', () => {

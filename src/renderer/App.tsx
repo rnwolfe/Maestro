@@ -5281,6 +5281,37 @@ You are taking over this conversation. Based on the context above, provide a bri
 			defaultShowThinking,
 		});
 
+	// --- DIRECTOR'S NOTES SESSION NAVIGATION ---
+	// Handles cross-agent navigation: close modal → switch agent → resume session
+	const pendingResumeRef = useRef<{ agentSessionId: string; targetSessionId: string } | null>(null);
+
+	const handleDirectorNotesResumeSession = useCallback(
+		(sourceSessionId: string, agentSessionId: string) => {
+			// Close the Director's Notes modal
+			setDirectorNotesOpen(false);
+
+			// If already on the right agent, resume directly
+			if (activeSession?.id === sourceSessionId) {
+				handleResumeSession(agentSessionId);
+				return;
+			}
+
+			// Switch to the target agent and defer resume until activeSession updates
+			pendingResumeRef.current = { agentSessionId, targetSessionId: sourceSessionId };
+			setActiveSessionId(sourceSessionId);
+		},
+		[activeSession?.id, handleResumeSession, setActiveSessionId, setDirectorNotesOpen]
+	);
+
+	// Effect: process pending resume after agent switch completes
+	useEffect(() => {
+		if (pendingResumeRef.current && activeSession?.id === pendingResumeRef.current.targetSessionId) {
+			const { agentSessionId } = pendingResumeRef.current;
+			pendingResumeRef.current = null;
+			handleResumeSession(agentSessionId);
+		}
+	}, [activeSession?.id, handleResumeSession]);
+
 	// PERFORMANCE: Memoized callback for creating new agent sessions
 	// Extracted from inline function to prevent MainPanel re-renders
 	const handleNewAgentSession = useCallback(() => {
@@ -14213,6 +14244,7 @@ You are taking over this conversation. Based on the context above, provide a bri
 						<DirectorNotesModal
 							theme={theme}
 							onClose={() => setDirectorNotesOpen(false)}
+							onResumeSession={handleDirectorNotesResumeSession}
 							fileTree={activeSession?.fileTree}
 							onFileClick={(path: string) => handleFileClick({ name: path.split('/').pop() || path, type: 'file' }, path)}
 						/>

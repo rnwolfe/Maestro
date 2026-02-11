@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef, forwardRef, useImperativeHandle } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Search, X } from 'lucide-react';
 import type { Theme, HistoryEntry, HistoryEntryType } from '../../types';
 import type { FileNode } from '../../types/fileTree';
 import {
@@ -24,9 +24,10 @@ interface UnifiedHistoryEntry extends HistoryEntry {
 
 interface UnifiedHistoryTabProps {
 	theme: Theme;
+	/** Navigate to a session tab — receives (sourceSessionId, agentSessionId) */
+	onResumeSession?: (sourceSessionId: string, agentSessionId: string) => void;
 	fileTree?: FileNode[];
 	onFileClick?: (path: string) => void;
-	searchFilter?: string;
 }
 
 /** Convert lookbackHours to lookbackDays for the IPC call. null => 0 (all time). */
@@ -37,9 +38,9 @@ function lookbackHoursToDays(hours: number | null): number {
 
 export const UnifiedHistoryTab = forwardRef<TabFocusHandle, UnifiedHistoryTabProps>(function UnifiedHistoryTab({
 	theme,
+	onResumeSession,
 	fileTree,
 	onFileClick,
-	searchFilter = '',
 }, ref) {
 	const [entries, setEntries] = useState<UnifiedHistoryEntry[]>([]);
 	const [isLoading, setIsLoading] = useState(true);
@@ -49,12 +50,15 @@ export const UnifiedHistoryTab = forwardRef<TabFocusHandle, UnifiedHistoryTabPro
 	const [activeFilters, setActiveFilters] = useState<Set<HistoryEntryType>>(new Set(['AUTO', 'USER']));
 	const [detailModalEntry, setDetailModalEntry] = useState<HistoryEntry | null>(null);
 	const [lookbackHours, setLookbackHours] = useState<number | null>(null); // null = all time
+	const [searchExpanded, setSearchExpanded] = useState(false);
+	const [searchQuery, setSearchQuery] = useState('');
 
 	// Stable snapshot of entries for the graph — only updated on fresh loads, not scroll-appends
 	const [graphEntries, setGraphEntries] = useState<UnifiedHistoryEntry[]>([]);
 
 	const listRef = useRef<HTMLDivElement>(null);
 	const loadingMoreRef = useRef(false); // Guard against concurrent loads
+	const searchInputRef = useRef<HTMLInputElement>(null);
 
 	useImperativeHandle(ref, () => ({
 		focus: () => listRef.current?.focus(),
@@ -139,8 +143,8 @@ export const UnifiedHistoryTab = forwardRef<TabFocusHandle, UnifiedHistoryTabPro
 	const filteredEntries = useMemo(() => {
 		return entries.filter(entry => {
 			if (!activeFilters.has(entry.type)) return false;
-			if (searchFilter) {
-				const search = searchFilter.toLowerCase();
+			if (searchQuery) {
+				const search = searchQuery.toLowerCase();
 				if (!entry.summary?.toLowerCase().includes(search) &&
 						!entry.agentName?.toLowerCase().includes(search)) {
 					return false;
@@ -148,7 +152,7 @@ export const UnifiedHistoryTab = forwardRef<TabFocusHandle, UnifiedHistoryTabPro
 			}
 			return true;
 		});
-	}, [entries, activeFilters, searchFilter]);
+	}, [entries, activeFilters, searchQuery]);
 
 	// Toggle filter
 	const toggleFilter = useCallback((type: HistoryEntryType) => {
@@ -196,9 +200,57 @@ export const UnifiedHistoryTab = forwardRef<TabFocusHandle, UnifiedHistoryTabPro
 		}
 	}, [selectedIndex, virtualizer]);
 
+	// Search toggle
+	const openSearch = useCallback(() => {
+		setSearchExpanded(true);
+		requestAnimationFrame(() => searchInputRef.current?.focus());
+	}, []);
+
+	const closeSearch = useCallback(() => {
+		setSearchExpanded(false);
+		setSearchQuery('');
+		listRef.current?.focus();
+	}, []);
+
 	const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
+		// Cmd/Ctrl+F to open search
+		if ((e.metaKey || e.ctrlKey) && e.key === 'f' && !e.shiftKey) {
+			e.preventDefault();
+			e.stopPropagation();
+			if (searchExpanded) {
+				searchInputRef.current?.focus();
+				searchInputRef.current?.select();
+			} else {
+				openSearch();
+			}
+			return;
+		}
 		listNavKeyDown(e);
-	}, [listNavKeyDown]);
+	}, [listNavKeyDown, searchExpanded, openSearch]);
+
+	const handleSearchKeyDown = useCallback((e: React.KeyboardEvent) => {
+		if (e.key === 'Escape') {
+			e.preventDefault();
+			e.stopPropagation();
+			closeSearch();
+		}
+	}, [closeSearch]);
+
+	// Navigate to a session tab — looks up sourceSessionId from the unified entry
+	const handleOpenSessionAsTab = useCallback((agentSessionId: string) => {
+		if (!onResumeSession) return;
+		const entry = entries.find(e => e.agentSessionId === agentSessionId) as UnifiedHistoryEntry | undefined;
+		if (entry) {
+			onResumeSession(entry.sourceSessionId, agentSessionId);
+		}
+	}, [onResumeSession, entries]);
+
+	// Navigate to a session from the detail modal
+	const handleDetailResumeSession = useCallback((agentSessionId: string) => {
+		if (!onResumeSession || !detailModalEntry) return;
+		const entry = detailModalEntry as UnifiedHistoryEntry;
+		onResumeSession(entry.sourceSessionId, agentSessionId);
+	}, [onResumeSession, detailModalEntry]);
 
 	const openDetailModal = useCallback((entry: HistoryEntry, index: number) => {
 		setSelectedIndex(index);
@@ -225,37 +277,87 @@ export const UnifiedHistoryTab = forwardRef<TabFocusHandle, UnifiedHistoryTabPro
 
 	return (
 		<div className="flex flex-col h-full p-4">
-			{/* Header: Filters + Activity Graph */}
+			{/* Header: Search + Filters + Activity Graph */}
 			<div className="flex items-start gap-3 mb-4">
-				<HistoryFilterToggle
-					activeFilters={activeFilters}
-					onToggleFilter={toggleFilter}
-					theme={theme}
-				/>
-				<ActivityGraph
-					entries={graphEntries}
-					theme={theme}
-					lookbackHours={lookbackHours}
-					onLookbackChange={handleLookbackChange}
-					onBarClick={(start, end) => {
-						// Find first entry in range and select it
-						const idx = filteredEntries.findIndex(e => e.timestamp >= start && e.timestamp < end);
-						if (idx >= 0) {
-							setSelectedIndex(idx);
-							virtualizer.scrollToIndex(idx, { align: 'center', behavior: 'smooth' });
-						}
-					}}
-				/>
-				{/* Entry count badge */}
-				{!isLoading && totalEntries > 0 && (
-					<span
-						className="text-[10px] font-mono whitespace-nowrap flex-shrink-0 mt-1"
-						style={{ color: theme.colors.textDim }}
+				{searchExpanded ? (
+					/* Expanded search input overlays the pills/graph area */
+					<div
+						className="flex items-center gap-2 flex-1 px-3 py-1.5 rounded-full border"
+						style={{
+							backgroundColor: theme.colors.bgActivity,
+							borderColor: theme.colors.accent + '40',
+						}}
 					>
-						{entries.length < totalEntries
-							? `${entries.length}/${totalEntries}`
-							: `${totalEntries}`}
-					</span>
+						<Search className="w-3.5 h-3.5 flex-shrink-0" style={{ color: theme.colors.accent }} />
+						<input
+							ref={searchInputRef}
+							type="text"
+							value={searchQuery}
+							onChange={(e) => setSearchQuery(e.target.value)}
+							onKeyDown={handleSearchKeyDown}
+							placeholder="Filter by summary or agent name..."
+							className="flex-1 bg-transparent outline-none text-xs"
+							style={{ color: theme.colors.textMain }}
+							autoFocus
+						/>
+						{searchQuery && (
+							<span
+								className="text-[10px] font-mono whitespace-nowrap flex-shrink-0"
+								style={{ color: theme.colors.textDim }}
+							>
+								{filteredEntries.length}
+							</span>
+						)}
+						<button
+							onClick={closeSearch}
+							className="p-0.5 rounded hover:bg-white/10 transition-colors flex-shrink-0"
+							title="Close search (Esc)"
+						>
+							<X className="w-3.5 h-3.5" style={{ color: theme.colors.textDim }} />
+						</button>
+					</div>
+				) : (
+					<>
+						{/* Search icon button */}
+						<button
+							onClick={openSearch}
+							className="flex-shrink-0 p-1.5 rounded-full transition-colors hover:bg-white/10"
+							title="Search entries (⌘F)"
+							style={{ color: theme.colors.textDim }}
+						>
+							<Search className="w-4 h-4" />
+						</button>
+						<HistoryFilterToggle
+							activeFilters={activeFilters}
+							onToggleFilter={toggleFilter}
+							theme={theme}
+						/>
+						<ActivityGraph
+							entries={graphEntries}
+							theme={theme}
+							lookbackHours={lookbackHours}
+							onLookbackChange={handleLookbackChange}
+							onBarClick={(start, end) => {
+								// Find first entry in range and select it
+								const idx = filteredEntries.findIndex(e => e.timestamp >= start && e.timestamp < end);
+								if (idx >= 0) {
+									setSelectedIndex(idx);
+									virtualizer.scrollToIndex(idx, { align: 'center', behavior: 'smooth' });
+								}
+							}}
+						/>
+						{/* Entry count badge */}
+						{!isLoading && totalEntries > 0 && (
+							<span
+								className="text-[10px] font-mono whitespace-nowrap flex-shrink-0 mt-1"
+								style={{ color: theme.colors.textDim }}
+							>
+								{entries.length < totalEntries
+									? `${entries.length}/${totalEntries}`
+									: `${totalEntries}`}
+							</span>
+						)}
+					</>
 				)}
 			</div>
 
@@ -304,6 +406,7 @@ export const UnifiedHistoryTab = forwardRef<TabFocusHandle, UnifiedHistoryTabPro
 										isSelected={virtualItem.index === selectedIndex}
 										theme={theme}
 										onOpenDetailModal={openDetailModal}
+										onOpenSessionAsTab={onResumeSession ? handleOpenSessionAsTab : undefined}
 										showAgentName
 									/>
 								</div>
@@ -332,6 +435,7 @@ export const UnifiedHistoryTab = forwardRef<TabFocusHandle, UnifiedHistoryTabPro
 					theme={theme}
 					entry={detailModalEntry}
 					onClose={closeDetailModal}
+					onResumeSession={onResumeSession ? handleDetailResumeSession : undefined}
 					onUpdate={handleUpdateEntry}
 					filteredEntries={filteredEntries}
 					currentIndex={selectedIndex}

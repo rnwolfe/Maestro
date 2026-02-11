@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback, lazy, Suspense } from 'react';
 import { createPortal } from 'react-dom';
-import { X, History, Sparkles, Loader2, Clapperboard, HelpCircle, Search } from 'lucide-react';
+import { X, History, Sparkles, Loader2, Clapperboard, HelpCircle } from 'lucide-react';
 import type { Theme } from '../../types';
 import { useLayerStack } from '../../contexts/LayerStackContext';
 import { MODAL_PRIORITIES } from '../../constants/modalPriorities';
@@ -15,6 +15,8 @@ const AIOverviewTab = lazy(() => import('./AIOverviewTab').then(m => ({ default:
 interface DirectorNotesModalProps {
 	theme: Theme;
 	onClose: () => void;
+	// Session navigation — jumps to an agent's session tab (closes modal first)
+	onResumeSession?: (sourceSessionId: string, agentSessionId: string) => void;
 	// File linking props passed through to history detail modal
 	fileTree?: any[];
 	onFileClick?: (path: string) => void;
@@ -31,6 +33,7 @@ const TABS: { id: TabId; label: string; icon: React.ElementType; disabledKey?: s
 export function DirectorNotesModal({
 	theme,
 	onClose,
+	onResumeSession,
 	fileTree,
 	onFileClick,
 }: DirectorNotesModalProps) {
@@ -39,14 +42,11 @@ export function DirectorNotesModal({
 	const [activeTab, setActiveTab] = useState<TabId>('history');
 	const [overviewReady, setOverviewReady] = useState(cached);
 	const [overviewGenerating, setOverviewGenerating] = useState(false);
-	const [searchVisible, setSearchVisible] = useState(false);
-	const [searchQuery, setSearchQuery] = useState('');
 
 	// Layer stack registration for Escape handling
 	const { registerLayer, unregisterLayer } = useLayerStack();
 	const layerIdRef = useRef<string>();
 	const modalRef = useRef<HTMLDivElement>(null);
-	const searchInputRef = useRef<HTMLInputElement>(null);
 
 	// Tab content refs for focus management
 	const overviewTabRef = useRef<TabFocusHandle>(null);
@@ -79,31 +79,18 @@ export function DirectorNotesModal({
 			capturesFocus: true,
 			focusTrap: 'lenient',
 			onEscape: () => {
-				if (searchVisible) {
-					setSearchVisible(false);
-					setSearchQuery('');
-					focusActiveTabRef.current();
-				} else {
-					onCloseRef.current();
-				}
+				onCloseRef.current();
 			},
 		});
 		return () => {
 			if (layerIdRef.current) unregisterLayer(layerIdRef.current);
 		};
-	}, [registerLayer, unregisterLayer, searchVisible]);
+	}, [registerLayer, unregisterLayer]);
 
 	// Focus the active tab content when tab changes (including initial mount)
 	useEffect(() => {
 		focusActiveTab(activeTab);
 	}, [activeTab, focusActiveTab]);
-
-	// Focus search input when search becomes visible
-	useEffect(() => {
-		if (searchVisible) {
-			searchInputRef.current?.focus();
-		}
-	}, [searchVisible]);
 
 	// Handle synopsis ready callback from AIOverviewTab
 	const handleSynopsisReady = useCallback(() => {
@@ -139,7 +126,7 @@ export function DirectorNotesModal({
 		setActiveTab(TABS[nextIndex].id);
 	}, [activeTab, isTabEnabled]);
 
-	// Global keyboard handler for Cmd+Shift+[/] and Cmd+F
+	// Global keyboard handler for Cmd+Shift+[/]
 	useEffect(() => {
 		const handleKeyDown = (e: KeyboardEvent) => {
 			// Cmd+Shift+[ / Cmd+Shift+]
@@ -149,41 +136,11 @@ export function DirectorNotesModal({
 				navigateTab(e.key === '[' ? -1 : 1);
 				return;
 			}
-
-			// Cmd+F - toggle search
-			if ((e.metaKey || e.ctrlKey) && e.key === 'f' && !e.shiftKey) {
-				e.preventDefault();
-				e.stopPropagation();
-				if (searchVisible) {
-					// Already visible, focus input
-					searchInputRef.current?.focus();
-					searchInputRef.current?.select();
-				} else {
-					setSearchVisible(true);
-				}
-				return;
-			}
 		};
 
 		window.addEventListener('keydown', handleKeyDown, true);
 		return () => window.removeEventListener('keydown', handleKeyDown, true);
-	}, [navigateTab, searchVisible]);
-
-	// Close search
-	const closeSearch = useCallback(() => {
-		setSearchVisible(false);
-		setSearchQuery('');
-		focusActiveTab();
-	}, [focusActiveTab]);
-
-	// Handle search input keyboard
-	const handleSearchKeyDown = useCallback((e: React.KeyboardEvent) => {
-		if (e.key === 'Escape') {
-			e.preventDefault();
-			e.stopPropagation();
-			closeSearch();
-		}
-	}, [closeSearch]);
+	}, [navigateTab]);
 
 	return createPortal(
 		<div
@@ -267,43 +224,6 @@ export function DirectorNotesModal({
 					})}
 				</div>
 
-				{/* Search bar (visible on Cmd+F, applies to history tab) */}
-				{searchVisible && (
-					<div
-						className="shrink-0 flex items-center gap-2 px-4 py-2 border-b"
-						style={{
-							borderColor: theme.colors.border,
-							backgroundColor: theme.colors.bgMain,
-						}}
-					>
-						<Search className="w-4 h-4 shrink-0" style={{ color: theme.colors.accent }} />
-						<input
-							ref={searchInputRef}
-							type="text"
-							value={searchQuery}
-							onChange={(e) => setSearchQuery(e.target.value)}
-							onKeyDown={handleSearchKeyDown}
-							placeholder="Filter entries by summary or agent name..."
-							className="flex-1 bg-transparent outline-none text-sm"
-							style={{ color: theme.colors.textMain }}
-							autoFocus
-						/>
-						{searchQuery && (
-							<span className="text-xs" style={{ color: theme.colors.textDim }}>
-								filtering
-							</span>
-						)}
-						<button
-							onClick={closeSearch}
-							className="p-1 rounded hover:bg-white/10 transition-colors"
-							style={{ color: theme.colors.textDim }}
-							title="Close search (Esc)"
-						>
-							<X className="w-4 h-4" />
-						</button>
-					</div>
-				)}
-
 				{/* Tab content */}
 				<div className="flex-1 overflow-hidden min-h-0 flex flex-col" style={{ backgroundColor: theme.colors.bgMain }}>
 					<Suspense fallback={
@@ -318,9 +238,9 @@ export function DirectorNotesModal({
 							<UnifiedHistoryTab
 								ref={historyTabRef}
 								theme={theme}
+								onResumeSession={onResumeSession}
 								fileTree={fileTree}
 								onFileClick={onFileClick}
-								searchFilter={searchQuery}
 							/>
 						</div>
 						<div

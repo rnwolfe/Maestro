@@ -24,10 +24,17 @@ vi.mock('../../../../renderer/constants/modalPriorities', () => ({
 
 // Mock lazy-loaded child components (use forwardRef to match real components)
 vi.mock('../../../../renderer/components/DirectorNotes/UnifiedHistoryTab', () => ({
-	UnifiedHistoryTab: React.forwardRef(({ theme, searchFilter }: { theme: Theme; searchFilter?: string }, _ref: any) => (
-		<div data-testid="unified-history-tab" data-search-filter={searchFilter || ''} tabIndex={0}>
+	UnifiedHistoryTab: React.forwardRef(({ theme, onResumeSession }: { theme: Theme; onResumeSession?: (sourceSessionId: string, agentSessionId: string) => void }, _ref: any) => (
+		<div data-testid="unified-history-tab" tabIndex={0}>
 			Unified History Content
-			{searchFilter && <span data-testid="search-active">Filtering: {searchFilter}</span>}
+			{onResumeSession && (
+				<button
+					data-testid="mock-resume-session"
+					onClick={() => onResumeSession('source-session-1', 'agent-session-abc')}
+				>
+					Mock Resume
+				</button>
+			)}
 		</div>
 	)),
 }));
@@ -381,135 +388,6 @@ describe('DirectorNotesModal', () => {
 		});
 	});
 
-	describe('Search', () => {
-		it('shows search bar on Cmd+F', async () => {
-			renderModal();
-
-			await waitFor(() => {
-				expect(screen.getByTestId('unified-history-tab')).toBeInTheDocument();
-			});
-
-			// Trigger Cmd+F
-			await act(async () => {
-				window.dispatchEvent(new KeyboardEvent('keydown', {
-					key: 'f',
-					metaKey: true,
-					bubbles: true,
-				}));
-			});
-
-			expect(screen.getByPlaceholderText('Filter entries by summary or agent name...')).toBeInTheDocument();
-		});
-
-		it('passes search query to UnifiedHistoryTab', async () => {
-			renderModal();
-
-			await waitFor(() => {
-				expect(screen.getByTestId('unified-history-tab')).toBeInTheDocument();
-			});
-
-			// Open search
-			await act(async () => {
-				window.dispatchEvent(new KeyboardEvent('keydown', {
-					key: 'f',
-					metaKey: true,
-					bubbles: true,
-				}));
-			});
-
-			const input = screen.getByPlaceholderText('Filter entries by summary or agent name...');
-			fireEvent.change(input, { target: { value: 'test query' } });
-
-			// The UnifiedHistoryTab mock should receive the searchFilter prop
-			const historyTab = screen.getByTestId('unified-history-tab');
-			expect(historyTab).toHaveAttribute('data-search-filter', 'test query');
-		});
-
-		it('closes search bar on Escape', async () => {
-			renderModal();
-
-			await waitFor(() => {
-				expect(screen.getByTestId('unified-history-tab')).toBeInTheDocument();
-			});
-
-			// Open search
-			await act(async () => {
-				window.dispatchEvent(new KeyboardEvent('keydown', {
-					key: 'f',
-					metaKey: true,
-					bubbles: true,
-				}));
-			});
-
-			expect(screen.getByPlaceholderText('Filter entries by summary or agent name...')).toBeInTheDocument();
-
-			// Press Escape on the search input
-			const input = screen.getByPlaceholderText('Filter entries by summary or agent name...');
-			fireEvent.keyDown(input, { key: 'Escape' });
-
-			expect(screen.queryByPlaceholderText('Filter entries by summary or agent name...')).not.toBeInTheDocument();
-		});
-
-		it('closes search bar on X button click', async () => {
-			renderModal();
-
-			await waitFor(() => {
-				expect(screen.getByTestId('unified-history-tab')).toBeInTheDocument();
-			});
-
-			// Open search
-			await act(async () => {
-				window.dispatchEvent(new KeyboardEvent('keydown', {
-					key: 'f',
-					metaKey: true,
-					bubbles: true,
-				}));
-			});
-
-			// Find the close button for the search bar (has title "Close search (Esc)")
-			const closeSearchButton = screen.getByTitle('Close search (Esc)');
-			fireEvent.click(closeSearchButton);
-
-			expect(screen.queryByPlaceholderText('Filter entries by summary or agent name...')).not.toBeInTheDocument();
-		});
-
-		it('clears search query when search is closed', async () => {
-			renderModal();
-
-			await waitFor(() => {
-				expect(screen.getByTestId('unified-history-tab')).toBeInTheDocument();
-			});
-
-			// Open search and type
-			await act(async () => {
-				window.dispatchEvent(new KeyboardEvent('keydown', {
-					key: 'f',
-					metaKey: true,
-					bubbles: true,
-				}));
-			});
-
-			const input = screen.getByPlaceholderText('Filter entries by summary or agent name...');
-			fireEvent.change(input, { target: { value: 'some search' } });
-
-			// Close search
-			fireEvent.keyDown(input, { key: 'Escape' });
-
-			// Reopen search
-			await act(async () => {
-				window.dispatchEvent(new KeyboardEvent('keydown', {
-					key: 'f',
-					metaKey: true,
-					bubbles: true,
-				}));
-			});
-
-			// Input should be empty
-			const newInput = screen.getByPlaceholderText('Filter entries by summary or agent name...');
-			expect(newInput).toHaveValue('');
-		});
-	});
-
 	describe('Close Behavior', () => {
 		it('calls onClose when close button is clicked', async () => {
 			renderModal();
@@ -576,6 +454,30 @@ describe('DirectorNotesModal', () => {
 			await waitFor(() => {
 				expect(screen.getByTestId('unified-history-tab')).toBeInTheDocument();
 			});
+		});
+
+		it('passes onResumeSession through to UnifiedHistoryTab', async () => {
+			const onResumeSession = vi.fn();
+
+			renderModal({ onResumeSession });
+
+			await waitFor(() => {
+				expect(screen.getByTestId('mock-resume-session')).toBeInTheDocument();
+			});
+
+			fireEvent.click(screen.getByTestId('mock-resume-session'));
+
+			expect(onResumeSession).toHaveBeenCalledWith('source-session-1', 'agent-session-abc');
+		});
+
+		it('does not render resume button when onResumeSession is not provided', async () => {
+			renderModal();
+
+			await waitFor(() => {
+				expect(screen.getByTestId('unified-history-tab')).toBeInTheDocument();
+			});
+
+			expect(screen.queryByTestId('mock-resume-session')).not.toBeInTheDocument();
 		});
 	});
 

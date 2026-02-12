@@ -26,6 +26,8 @@ export interface SaveMarkdownModalProps {
 	sshRemoteId?: string;
 	/** Callback when file is successfully saved (e.g., to refresh file list) */
 	onFileSaved?: () => void;
+	/** Callback to open the saved file in a tab. When provided, shows an "Open in Tab" checkbox. */
+	onOpenInTab?: (file: { path: string; name: string; content: string; sshRemoteId?: string }) => void;
 }
 
 export function SaveMarkdownModal({
@@ -36,11 +38,13 @@ export function SaveMarkdownModal({
 	isRemoteSession = false,
 	sshRemoteId,
 	onFileSaved,
+	onOpenInTab,
 }: SaveMarkdownModalProps) {
 	const [folder, setFolder] = useState(defaultFolder);
 	const [filename, setFilename] = useState('');
 	const [saving, setSaving] = useState(false);
 	const [error, setError] = useState<string | null>(null);
+	const [openInTab, setOpenInTab] = useState(false);
 	const filenameInputRef = useRef<HTMLInputElement>(null);
 
 	// Focus the filename input on mount
@@ -90,6 +94,9 @@ export function SaveMarkdownModal({
 			const result = await window.maestro.fs.writeFile(fullPath, content, sshRemoteId);
 			if (result.success) {
 				onFileSaved?.();
+				if (openInTab && onOpenInTab) {
+					onOpenInTab({ path: fullPath, name: finalFilename, content, sshRemoteId });
+				}
 				onClose();
 			} else {
 				setError('Failed to save file');
@@ -201,6 +208,23 @@ export function SaveMarkdownModal({
 						.md extension will be added automatically if not provided
 					</p>
 				</div>
+
+				{/* Open in Tab checkbox - only shown when onOpenInTab is available */}
+				{onOpenInTab && (
+					<label
+						className="flex items-center gap-2 cursor-pointer select-none"
+						style={{ color: theme.colors.textDim }}
+					>
+						<input
+							type="checkbox"
+							checked={openInTab}
+							onChange={(e) => setOpenInTab(e.target.checked)}
+							className="rounded"
+							style={{ accentColor: theme.colors.accent }}
+						/>
+						<span className="text-xs">Open in Tab</span>
+					</label>
+				)}
 
 				{/* Error message */}
 				{error && (

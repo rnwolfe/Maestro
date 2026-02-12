@@ -126,13 +126,36 @@ export function SaveMarkdownModal({
 			width={480}
 			closeOnBackdropClick
 			footer={
-				<ModalFooter
-					theme={theme}
-					onCancel={onClose}
-					onConfirm={handleSave}
-					confirmLabel={saving ? 'Saving...' : 'Save'}
-					confirmDisabled={!isValid || saving}
-				/>
+				<div className="flex items-center justify-between w-full">
+					{/* Open in Tab checkbox - left side of footer */}
+					{onOpenInTab ? (
+						<label
+							className="flex items-center gap-2 cursor-pointer select-none"
+							style={{ color: theme.colors.textDim }}
+						>
+							<input
+								type="checkbox"
+								checked={openInTab}
+								onChange={(e) => setOpenInTab(e.target.checked)}
+								className="rounded"
+								style={{ accentColor: theme.colors.accent }}
+							/>
+							<span className="text-xs">Open in Tab</span>
+						</label>
+					) : (
+						<div />
+					)}
+					{/* Buttons - right side of footer */}
+					<div className="flex gap-2">
+						<ModalFooter
+							theme={theme}
+							onCancel={onClose}
+							onConfirm={handleSave}
+							confirmLabel={saving ? 'Saving...' : 'Save'}
+							confirmDisabled={!isValid || saving}
+						/>
+					</div>
+				</div>
 			}
 		>
 			<div className="flex flex-col gap-4">
@@ -208,23 +231,6 @@ export function SaveMarkdownModal({
 						.md extension will be added automatically if not provided
 					</p>
 				</div>
-
-				{/* Open in Tab checkbox - only shown when onOpenInTab is available */}
-				{onOpenInTab && (
-					<label
-						className="flex items-center gap-2 cursor-pointer select-none"
-						style={{ color: theme.colors.textDim }}
-					>
-						<input
-							type="checkbox"
-							checked={openInTab}
-							onChange={(e) => setOpenInTab(e.target.checked)}
-							className="rounded"
-							style={{ accentColor: theme.colors.accent }}
-						/>
-						<span className="text-xs">Open in Tab</span>
-					</label>
-				)}
 
 				{/* Error message */}
 				{error && (

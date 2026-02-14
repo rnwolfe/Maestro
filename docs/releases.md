@@ -46,7 +46,7 @@ The major contributions to 0.14.x remain:
 - New setting to prevent system from going to sleep while agents are active 🛏️
 - The tab menu has a new "Publish as GitHub Gist" option  📝
 - The tab menu has options to move the tab to the first or last position 🔀
-- [Maestro-Playbooks](https://github.com/RunMaestro/Maestro-Playbooks) can now contain non-markdown assets 📙
+- [Maestro-Playbooks](https://github.com/pedramamini/Maestro-Playbooks) can now contain non-markdown assets 📙
 - Improved default shell detection 🐚
 - Added logic to prevent overlapping TTS notifications 💬
 - Added "Toggle Bookmark" shortcut (CTRL/CMD+SHIFT+B) ⌨️
@@ -78,7 +78,7 @@ Thanks for the contributions: @t1mmen @aejfager @Crumbgrabber @whglaser @b3nw @d
 
 ### v0.13.0 Changes
 - Added a global usage dashboard, data collection begins with this install 🎛️
-- Added a Playbook Exchange for downloading pre-defined Auto Run playbooks from [Maestro-Playbooks](https://github.com/RunMaestro/Maestro-Playbooks) 📕
+- Added a Playbook Exchange for downloading pre-defined Auto Run playbooks from [Maestro-Playbooks](https://github.com/pedramamini/Maestro-Playbooks) 📕
 - Bundled OpenSpec commands for structured change proposals 📝
 - Added pre-release channel support for beta/RC updates 🧪
 - Implemented global hands-on time tracking across sessions ⏱️

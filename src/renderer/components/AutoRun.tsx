@@ -336,7 +336,7 @@ const AttachmentImage = memo(function AttachmentImage({
 
 	if (loading) {
 		return (
-			<div
+			<span
 				className="inline-flex items-center gap-2 px-3 py-2 rounded"
 				style={{ backgroundColor: theme.colors.bgActivity }}
 			>
@@ -344,13 +344,13 @@ const AttachmentImage = memo(function AttachmentImage({
 				<span className="text-xs" style={{ color: theme.colors.textDim }}>
 					Loading image...
 				</span>
-			</div>
+			</span>
 		);
 	}
 
 	if (error) {
 		return (
-			<div
+			<span
 				className="inline-flex items-center gap-2 px-3 py-2 rounded"
 				style={{
 					backgroundColor: theme.colors.bgActivity,
@@ -362,7 +362,7 @@ const AttachmentImage = memo(function AttachmentImage({
 				<span className="text-xs" style={{ color: theme.colors.error }}>
 					{error}
 				</span>
-			</div>
+			</span>
 		);
 	}
 

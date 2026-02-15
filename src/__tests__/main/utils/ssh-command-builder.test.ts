@@ -959,6 +959,118 @@ describe('ssh-command-builder', () => {
 			expect(result.stdinScript).not.toContain('MAESTRO_IMG');
 		});
 
+		it('embeds image paths in stdinInput when imageResumeMode is prompt-embed', async () => {
+			const testImage = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUg==';
+			const result = await buildSshCommandWithStdin(baseConfig, {
+				command: 'codex',
+				args: ['exec', 'resume'],
+				stdinInput: 'describe this image',
+				images: [testImage],
+				imageArgs: (path: string) => ['-i', path],
+				imageResumeMode: 'prompt-embed',
+			});
+
+			// Should still create remote temp files via heredoc
+			expect(result.stdinScript).toContain('base64 -d >');
+			expect(result.stdinScript).toContain('/tmp/maestro-image-');
+			expect(result.stdinScript).toContain('iVBORw0KGgoAAAANSUhEUg==');
+			// The exec line should NOT have -i flags (prompt-embed mode)
+			const execLine = result.stdinScript
+				?.split('\n')
+				.find((line) => line.startsWith('exec '));
+			expect(execLine).not.toContain("'-i'");
+			// The stdinInput (after the exec line) should have the image prefix prepended
+			const afterExec = result.stdinScript?.split(execLine + '\n')[1];
+			expect(afterExec).toContain('[Attached images: /tmp/maestro-image-');
+			expect(afterExec).toContain('describe this image');
+			// Image prefix should come BEFORE the prompt content
+			const prefixIdx = afterExec?.indexOf('[Attached images:') ?? -1;
+			const promptIdx = afterExec?.indexOf('describe this image') ?? -1;
+			expect(prefixIdx).toBeLessThan(promptIdx);
+		});
+
+		it('embeds multiple image paths in stdinInput when imageResumeMode is prompt-embed', async () => {
+			const images = [
+				'data:image/png;base64,AAAA',
+				'data:image/jpeg;base64,BBBB',
+			];
+			const result = await buildSshCommandWithStdin(baseConfig, {
+				command: 'codex',
+				args: ['exec', 'resume'],
+				stdinInput: 'describe these',
+				images,
+				imageArgs: (path: string) => ['-i', path],
+				imageResumeMode: 'prompt-embed',
+			});
+
+			// Both images should be decoded as temp files
+			expect(result.stdinScript).toContain('MAESTRO_IMG_0_EOF');
+			expect(result.stdinScript).toContain('MAESTRO_IMG_1_EOF');
+			// Exec line should NOT have -i flags
+			const execLine = result.stdinScript
+				?.split('\n')
+				.find((line) => line.startsWith('exec '));
+			expect(execLine).not.toContain("'-i'");
+			// The stdin should contain attached images prefix with both paths
+			const afterExec = result.stdinScript?.split(execLine + '\n')[1];
+			expect(afterExec).toContain('[Attached images: /tmp/maestro-image-');
+			expect(afterExec).toContain('.png');
+			expect(afterExec).toContain('.jpeg');
+			// Both paths separated by comma
+			const attachedLine = afterExec?.split('\n')[0];
+			expect(attachedLine).toContain(', /tmp/maestro-image-');
+		});
+
+		it('embeds image paths in prompt when stdinInput is not set and imageResumeMode is prompt-embed', async () => {
+			const testImage = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUg==';
+			const result = await buildSshCommandWithStdin(baseConfig, {
+				command: 'codex',
+				args: ['exec', 'resume'],
+				prompt: 'describe this image',
+				images: [testImage],
+				imageArgs: (path: string) => ['-i', path],
+				imageResumeMode: 'prompt-embed',
+			});
+
+			// When stdinInput is not set, prompt is added as a CLI arg
+			// The image prefix is prepended to the prompt, which becomes a shell-escaped argument
+			// The prefix contains newlines so it spans multiple lines in the script
+			expect(result.stdinScript).toContain('[Attached images: /tmp/maestro-image-');
+			expect(result.stdinScript).toContain('describe this image');
+			// The exec line starts with the command and the prompt appears as last argument
+			// Since the prefix has newlines, they appear in the script but within the shell-escaped arg
+			const execLineIdx = result.stdinScript
+				?.split('\n')
+				.findIndex((line) => line.startsWith('exec '));
+			expect(execLineIdx).toBeGreaterThan(-1);
+			// Should NOT have -i flags anywhere in the exec portion
+			const execPortion = result.stdinScript?.substring(
+				result.stdinScript.indexOf('exec codex')
+			);
+			expect(execPortion).not.toContain("'-i'");
+		});
+
+		it('does not embed image paths when imageResumeMode is not set (default behavior)', async () => {
+			const testImage = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUg==';
+			const result = await buildSshCommandWithStdin(baseConfig, {
+				command: 'codex',
+				args: ['exec'],
+				stdinInput: 'describe this image',
+				images: [testImage],
+				imageArgs: (path: string) => ['-i', path],
+				// No imageResumeMode - default behavior
+			});
+
+			// Should use -i flags (not prompt-embed)
+			const execLine = result.stdinScript
+				?.split('\n')
+				.find((line) => line.startsWith('exec '));
+			expect(execLine).toContain("'-i'");
+			// Should NOT have [Attached images:] in stdinInput
+			const afterExec = result.stdinScript?.split(execLine + '\n')[1];
+			expect(afterExec).not.toContain('[Attached images:');
+		});
+
 		it('works with Claude Code stream-json format', async () => {
 			// Claude Code uses --input-format stream-json and expects JSON on stdin
 			const streamJsonPrompt =

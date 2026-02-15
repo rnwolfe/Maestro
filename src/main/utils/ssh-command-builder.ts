@@ -181,6 +181,9 @@ export async function buildSshCommandWithStdin(
 		images?: string[];
 		/** Function to build CLI args for each image path (e.g., (path) => ['-i', path]) */
 		imageArgs?: (imagePath: string) => string[];
+		/** When set to 'prompt-embed', embed image paths in the prompt/stdinInput instead of adding -i CLI args.
+		 * Used for resumed Codex sessions where the resume command doesn't support -i flag. */
+		imageResumeMode?: 'prompt-embed';
 	}
 ): Promise<SshCommandResult> {
 	const args: string[] = [];
@@ -244,9 +247,11 @@ export async function buildSshCommandWithStdin(
 	}
 
 	// Decode images into remote temp files for file-based agents (Codex, OpenCode)
-	// This creates temp files on the remote host from base64 data, then adds
-	// the appropriate CLI args (e.g., -i /tmp/image.png for Codex)
+	// This creates temp files on the remote host from base64 data, then either:
+	// - Adds CLI args (e.g., -i /tmp/image.png) for initial spawns
+	// - Embeds paths in the prompt/stdinInput for resumed sessions (imageResumeMode === 'prompt-embed')
 	const imageArgParts: string[] = [];
+	const remoteImagePaths: string[] = [];
 	if (remoteOptions.images && remoteOptions.images.length > 0 && remoteOptions.imageArgs) {
 		const timestamp = Date.now();
 		for (let i = 0; i < remoteOptions.images.length; i++) {
@@ -260,12 +265,29 @@ export async function buildSshCommandWithStdin(
 			scriptLines.push(`base64 -d > ${shellEscape(remoteTempPath)} <<'MAESTRO_IMG_${i}_EOF'`);
 			scriptLines.push(parsed.base64);
 			scriptLines.push(`MAESTRO_IMG_${i}_EOF`);
-			imageArgParts.push(...remoteOptions.imageArgs(remoteTempPath).map((arg) => shellEscape(arg)));
+			if (remoteOptions.imageResumeMode === 'prompt-embed') {
+				// Resume mode: collect paths for prompt embedding instead of CLI args
+				remoteImagePaths.push(remoteTempPath);
+			} else {
+				// Normal mode: add -i (or equivalent) CLI args
+				imageArgParts.push(...remoteOptions.imageArgs(remoteTempPath).map((arg) => shellEscape(arg)));
+			}
 		}
 		logger.info('SSH: embedded remote image decode commands', '[ssh-command-builder]', {
 			imageCount: remoteOptions.images.length,
-			decodedCount: imageArgParts.length / 2,
+			decodedCount: remoteOptions.imageResumeMode === 'prompt-embed' ? remoteImagePaths.length : imageArgParts.length / 2,
+			imageResumeMode: remoteOptions.imageResumeMode || 'default',
 		});
+	}
+
+	// For prompt-embed mode (resumed sessions), prepend image paths to stdinInput/prompt
+	if (remoteImagePaths.length > 0) {
+		const imagePrefix = `[Attached images: ${remoteImagePaths.join(', ')}]\n\n`;
+		if (remoteOptions.stdinInput !== undefined) {
+			remoteOptions.stdinInput = imagePrefix + remoteOptions.stdinInput;
+		} else if (remoteOptions.prompt) {
+			remoteOptions.prompt = imagePrefix + remoteOptions.prompt;
+		}
 	}
 
 	// Build the command line

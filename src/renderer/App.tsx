@@ -12203,6 +12203,8 @@ You are taking over this conversation. Based on the context above, provide a bri
 										branchName: data.branchName || '',
 										totalDocuments: data.issue.documentPaths.length,
 										agentType: data.agentType,
+										draftPrNumber: data.draftPrNumber,
+										draftPrUrl: data.draftPrUrl,
 									})
 									.catch((err: unknown) => {
 										console.error('[Symphony] Failed to register active contribution:', err);
@@ -12224,6 +12226,30 @@ You are taking over this conversation. Based on the context above, provide a bri
 
 								// Switch to Auto Run tab so user sees the documents
 								setActiveRightTab('autorun');
+
+								// Auto-start batch run with all contribution documents
+								if (data.autoRunPath && data.issue.documentPaths.length > 0) {
+									const batchConfig: BatchRunConfig = {
+										documents: data.issue.documentPaths.map((doc) => ({
+											id: generateId(),
+											filename: doc.name.replace(/\.md$/, ''),
+											resetOnCompletion: false,
+											isDuplicate: false,
+										})),
+										prompt: DEFAULT_BATCH_PROMPT,
+										loopEnabled: false,
+									};
+
+									// Small delay to ensure session state is fully propagated
+									setTimeout(() => {
+										console.log(
+											'[Symphony] Auto-starting batch run with',
+											batchConfig.documents.length,
+											'documents'
+										);
+										startBatchRun(newId, batchConfig, data.autoRunPath!);
+									}, 500);
+								}
 							}}
 						/>
 					</Suspense>

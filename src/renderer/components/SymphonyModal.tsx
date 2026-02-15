@@ -68,6 +68,8 @@ export interface SymphonyContributionData {
 	localPath: string;
 	autoRunPath?: string;
 	branchName?: string;
+	draftPrNumber?: number;
+	draftPrUrl?: string;
 	agentType: string;
 	sessionName: string;
 	repo: RegisteredRepository;
@@ -1476,6 +1478,8 @@ export function SymphonyModal({
 					localPath: config.workingDirectory,
 					autoRunPath: result.autoRunPath,
 					branchName: result.branchName,
+					draftPrNumber: result.draftPrNumber,
+					draftPrUrl: result.draftPrUrl,
 					agentType: config.agentType,
 					sessionName: config.sessionName,
 					repo: config.repo,

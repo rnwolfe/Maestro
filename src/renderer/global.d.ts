@@ -2499,6 +2499,8 @@ interface MaestroAPI {
 			sessionId: string;
 			agentType: string;
 			totalDocuments: number;
+			draftPrNumber?: number;
+			draftPrUrl?: string;
 		}) => Promise<{ success: boolean; error?: string }>;
 		updateStatus: (params: {
 			contributionId: string;

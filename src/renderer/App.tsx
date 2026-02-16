@@ -1163,7 +1163,9 @@ function MaestroConsoleInner() {
 
 			// Migration: ensure fileTreeAutoRefreshInterval is set (default 180s for legacy sessions)
 			if (session.fileTreeAutoRefreshInterval == null) {
-				console.warn(`[restoreSession] Session missing fileTreeAutoRefreshInterval, defaulting to 180s`);
+				console.warn(
+					`[restoreSession] Session missing fileTreeAutoRefreshInterval, defaulting to 180s`
+				);
 				session = { ...session, fileTreeAutoRefreshInterval: 180 };
 			}
 
@@ -1270,7 +1272,9 @@ function MaestroConsoleInner() {
 				// we must fall back to sessionSshRemoteConfig.remoteId. See CLAUDE.md "SSH Remote Sessions".
 				const sshRemoteId =
 					correctedSession.sshRemoteId ||
-					correctedSession.sessionSshRemoteConfig?.remoteId ||
+					(correctedSession.sessionSshRemoteConfig?.enabled
+						? correctedSession.sessionSshRemoteConfig.remoteId
+						: undefined) ||
 					undefined;
 
 				// For SSH remote sessions, defer git operations to background to avoid blocking
@@ -1398,7 +1402,11 @@ function MaestroConsoleInner() {
 					// For remote (SSH) sessions, fetch git info in background to avoid blocking
 					// startup on SSH connection timeouts. This runs after UI is shown.
 					for (const session of restoredSessions) {
-						const sshRemoteId = session.sshRemoteId || session.sessionSshRemoteConfig?.remoteId;
+						const sshRemoteId =
+							session.sshRemoteId ||
+							(session.sessionSshRemoteConfig?.enabled
+								? session.sessionSshRemoteConfig.remoteId
+								: undefined);
 						if (sshRemoteId) {
 							// Fire and forget - don't await, let it update sessions when done
 							fetchGitInfoInBackground(session.id, session.cwd, sshRemoteId);
@@ -1668,7 +1676,9 @@ function MaestroConsoleInner() {
 					// Get SSH remote ID for remote git operations
 					const sshRemoteId =
 						parentSession.sshRemoteId ||
-						parentSession.sessionSshRemoteConfig?.remoteId ||
+						(parentSession.sessionSshRemoteConfig?.enabled
+							? parentSession.sessionSshRemoteConfig.remoteId
+							: undefined) ||
 						undefined;
 					const scanResult = await window.maestro.git.scanWorktreeDirectory(
 						parentSession.worktreeConfig!.basePath,
@@ -3612,7 +3622,10 @@ You are taking over this conversation. Based on the context above, provide a bri
 
 	// Effect: process pending resume after agent switch completes
 	useEffect(() => {
-		if (pendingResumeRef.current && activeSession?.id === pendingResumeRef.current.targetSessionId) {
+		if (
+			pendingResumeRef.current &&
+			activeSession?.id === pendingResumeRef.current.targetSessionId
+		) {
 			const { agentSessionId } = pendingResumeRef.current;
 			pendingResumeRef.current = null;
 			handleResumeSession(agentSessionId);
@@ -8328,7 +8341,9 @@ You are taking over this conversation. Based on the context above, provide a bri
 			activeSession.inputMode === 'terminal'
 				? activeSession.shellCwd || activeSession.cwd
 				: activeSession.cwd;
-		const diff = await gitService.getDiff(cwd);
+		const sshRemoteId =
+			activeSession.sshRemoteId || activeSession.sessionSshRemoteConfig?.remoteId || undefined;
+		const diff = await gitService.getDiff(cwd, undefined, sshRemoteId);
 
 		if (diff.diff) {
 			setGitDiffPreview(diff.diff);
@@ -12263,7 +12278,9 @@ You are taking over this conversation. Based on the context above, provide a bri
 							onClose={() => setDirectorNotesOpen(false)}
 							onResumeSession={handleDirectorNotesResumeSession}
 							fileTree={activeSession?.fileTree}
-							onFileClick={(path: string) => handleFileClick({ name: path.split('/').pop() || path, type: 'file' }, path)}
+							onFileClick={(path: string) =>
+								handleFileClick({ name: path.split('/').pop() || path, type: 'file' }, path)
+							}
 						/>
 					</Suspense>
 				)}

@@ -228,7 +228,7 @@ function RepositoryTile({
 				...(isSelected && { boxShadow: `0 0 0 2px ${theme.colors.accent}` }),
 			}}
 		>
-			<div className="flex items-center gap-2 mb-2">
+			<div className="flex items-center justify-between mb-2">
 				<span
 					className="px-2 py-0.5 rounded text-xs flex items-center gap-1"
 					style={{ backgroundColor: `${theme.colors.accent}20`, color: theme.colors.accent }}
@@ -1633,12 +1633,14 @@ export function SymphonyModal({
 					e.preventDefault();
 					setSelectedTileIndex((i) => Math.max(0, i - gridColumns));
 					break;
-				case 'Enter':
+				case 'Enter': {
 					e.preventDefault();
-					if (filteredRepositories[selectedTileIndex]) {
-						handleSelectRepo(filteredRepositories[selectedTileIndex]);
+					const repo = filteredRepositories[selectedTileIndex];
+					if (repo) {
+						handleSelectRepo(repo);
 					}
 					break;
+				}
 			}
 		};
 

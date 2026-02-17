@@ -30,7 +30,7 @@ See [Performance Guidelines](#performance-guidelines) for specific practices.
 - [Performance Guidelines](#performance-guidelines)
 - [Debugging Guide](#debugging-guide)
 - [Commit Messages](#commit-messages)
-- [Pull Request Process](#pull-request-process)
+- [Pull Request Process](#pull-request-process) (includes [CodeRabbit automated review](#automated-code-review-coderabbit))
 - [Building for Release](#building-for-release)
 - [Documentation](#documentation)
 
@@ -802,6 +802,25 @@ Example: `feat: add context usage visualization`
 
 ## Pull Request Process
 
+### Automated Code Review (CodeRabbit)
+
+All PRs are automatically reviewed by [CodeRabbit](https://coderabbit.ai), an AI-powered code review tool. When you open or update a PR, CodeRabbit will:
+
+- Post a **PR summary** with a walkthrough of changes
+- Leave **inline review comments** on potential issues
+- Provide a **sequence diagram** for complex changes
+
+**Interacting with CodeRabbit:**
+
+| Command | Effect |
+|---------|--------|
+| `@coderabbitai review` | Trigger a full review (useful for existing PRs) |
+| `@coderabbitai summary` | Regenerate the PR summary |
+| `@coderabbitai resolve` | Resolve all CodeRabbit review comments |
+| `@coderabbitai configuration` | Show current repo settings |
+
+You can also reply to any CodeRabbit comment to ask follow-up questions or request clarification — it responds conversationally.
+
 ### Before Opening a PR
 
 All PRs must pass these checks before review:
@@ -847,7 +866,8 @@ All PRs must pass these checks before review:
    - Why it's needed
    - How to test it
    - Screenshots for UI changes
-5. Wait for review — maintainers may request changes
+5. CodeRabbit will automatically review your PR
+6. Address any CodeRabbit and maintainer feedback
 
 ## Building for Release
 

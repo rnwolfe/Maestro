@@ -108,6 +108,11 @@ export interface AgentErrorModalData {
 	sessionId: string;
 }
 
+/** Delete agent modal data */
+export interface DeleteAgentModalData {
+	session: Session;
+}
+
 /** Worktree modal data (create/delete/PR) */
 export interface WorktreeModalData {
 	session: Session;
@@ -153,6 +158,7 @@ export type ModalId =
 	// Instance Management
 	| 'newInstance'
 	| 'editAgent'
+	| 'deleteAgent'
 	| 'renameInstance'
 	| 'agentError'
 	// Quick Actions
@@ -230,6 +236,7 @@ export interface ModalDataMap {
 	agentSessions: AgentSessionsModalData;
 	wizardResume: WizardResumeModalData;
 	agentError: AgentErrorModalData;
+	deleteAgent: DeleteAgentModalData;
 	createWorktree: WorktreeModalData;
 	createPR: WorktreeModalData;
 	deleteWorktree: WorktreeModalData;
@@ -456,6 +463,12 @@ export function getModalActions() {
 			open ? openModal('editAgent') : closeModal('editAgent'),
 		setEditAgentSession: (session: Session | null) =>
 			session ? openModal('editAgent', { session }) : closeModal('editAgent'),
+
+		// Delete Agent Modal
+		setDeleteAgentModalOpen: (open: boolean) =>
+			open ? openModal('deleteAgent') : closeModal('deleteAgent'),
+		setDeleteAgentSession: (session: Session | null) =>
+			session ? openModal('deleteAgent', { session }) : closeModal('deleteAgent'),
 
 		// Shortcuts Help Modal
 		setShortcutsHelpOpen: (open: boolean) =>
@@ -773,6 +786,8 @@ export function useModalActions() {
 	const newInstanceData = useModalStore(selectModalData('newInstance'));
 	const editAgentModalOpen = useModalStore(selectModalOpen('editAgent'));
 	const editAgentData = useModalStore(selectModalData('editAgent'));
+	const deleteAgentModalOpen = useModalStore(selectModalOpen('deleteAgent'));
+	const deleteAgentData = useModalStore(selectModalData('deleteAgent'));
 	const shortcutsHelpOpen = useModalStore(selectModalOpen('shortcutsHelp'));
 	const quickActionOpen = useModalStore(selectModalOpen('quickAction'));
 	const quickActionData = useModalStore(selectModalData('quickAction'));
@@ -848,6 +863,10 @@ export function useModalActions() {
 		// Edit Agent Modal
 		editAgentModalOpen,
 		editAgentSession: editAgentData?.session ?? null,
+
+		// Delete Agent Modal
+		deleteAgentModalOpen,
+		deleteAgentSession: deleteAgentData?.session ?? null,
 
 		// Shortcuts Help Modal
 		shortcutsHelpOpen,

@@ -30,6 +30,10 @@ const createInputRef = () => ({
 	current: { focus: vi.fn() } as unknown as HTMLTextAreaElement,
 });
 
+const createTerminalOutputRef = () => ({
+	current: { focus: vi.fn() } as unknown as HTMLDivElement,
+});
+
 function createMockSession(overrides: Partial<Session> = {}): Session {
 	return {
 		id: overrides.id ?? 'session-1',
@@ -118,6 +122,7 @@ beforeEach(() => {
 
 afterEach(() => {
 	vi.useRealTimers();
+	vi.restoreAllMocks();
 });
 
 // ============================================================================
@@ -131,7 +136,9 @@ describe('useModalHandlers', () => {
 
 	describe('derived state', () => {
 		it('errorSession is null when no agentErrorModalSessionId is set', () => {
-			const { result } = renderHook(() => useModalHandlers(createInputRef()));
+			const { result } = renderHook(() =>
+				useModalHandlers(createInputRef(), createTerminalOutputRef())
+			);
 			expect(result.current.errorSession).toBeNull();
 		});
 
@@ -140,7 +147,9 @@ describe('useModalHandlers', () => {
 			useSessionStore.setState({ sessions: [session] });
 			getModalActions().setAgentErrorModalSessionId('err-session');
 
-			const { result } = renderHook(() => useModalHandlers(createInputRef()));
+			const { result } = renderHook(() =>
+				useModalHandlers(createInputRef(), createTerminalOutputRef())
+			);
 			expect(result.current.errorSession).toEqual(session);
 		});
 
@@ -148,7 +157,9 @@ describe('useModalHandlers', () => {
 			useSessionStore.setState({ sessions: [createMockSession({ id: 'other' })] });
 			getModalActions().setAgentErrorModalSessionId('nonexistent');
 
-			const { result } = renderHook(() => useModalHandlers(createInputRef()));
+			const { result } = renderHook(() =>
+				useModalHandlers(createInputRef(), createTerminalOutputRef())
+			);
 			expect(result.current.errorSession).toBeNull();
 		});
 
@@ -158,7 +169,9 @@ describe('useModalHandlers', () => {
 				recoveryActions: mockActions,
 			});
 
-			const { result } = renderHook(() => useModalHandlers(createInputRef()));
+			const { result } = renderHook(() =>
+				useModalHandlers(createInputRef(), createTerminalOutputRef())
+			);
 			expect(result.current.recoveryActions).toBe(mockActions);
 		});
 	});
@@ -241,7 +254,9 @@ describe('useModalHandlers', () => {
 				openAction();
 				expect(useModalStore.getState().isOpen(modalId as any)).toBe(true);
 
-				const { result } = renderHook(() => useModalHandlers(createInputRef()));
+				const { result } = renderHook(() =>
+					useModalHandlers(createInputRef(), createTerminalOutputRef())
+				);
 				act(() => {
 					(result.current[handler] as () => void)();
 				});
@@ -261,7 +276,9 @@ describe('useModalHandlers', () => {
 			getModalActions().setDeleteAgentSession(session);
 			expect(useModalStore.getState().isOpen('deleteAgent')).toBe(true);
 
-			const { result } = renderHook(() => useModalHandlers(createInputRef()));
+			const { result } = renderHook(() =>
+				useModalHandlers(createInputRef(), createTerminalOutputRef())
+			);
 			act(() => {
 				result.current.handleCloseDeleteAgentModal();
 			});
@@ -274,7 +291,9 @@ describe('useModalHandlers', () => {
 			getModalActions().setNewInstanceModalOpen(true);
 			expect(useModalStore.getState().isOpen('newInstance')).toBe(true);
 
-			const { result } = renderHook(() => useModalHandlers(createInputRef()));
+			const { result } = renderHook(() =>
+				useModalHandlers(createInputRef(), createTerminalOutputRef())
+			);
 			act(() => {
 				result.current.handleCloseNewInstanceModal();
 			});
@@ -287,7 +306,9 @@ describe('useModalHandlers', () => {
 			getModalActions().setEditAgentSession(session);
 			expect(useModalStore.getState().isOpen('editAgent')).toBe(true);
 
-			const { result } = renderHook(() => useModalHandlers(createInputRef()));
+			const { result } = renderHook(() =>
+				useModalHandlers(createInputRef(), createTerminalOutputRef())
+			);
 			act(() => {
 				result.current.handleCloseEditAgentModal();
 			});
@@ -300,7 +321,9 @@ describe('useModalHandlers', () => {
 			getModalActions().setRenameInstanceModalOpen(true);
 			expect(useModalStore.getState().isOpen('renameInstance')).toBe(true);
 
-			const { result } = renderHook(() => useModalHandlers(createInputRef()));
+			const { result } = renderHook(() =>
+				useModalHandlers(createInputRef(), createTerminalOutputRef())
+			);
 			act(() => {
 				result.current.handleCloseRenameSessionModal();
 			});
@@ -312,7 +335,9 @@ describe('useModalHandlers', () => {
 			getModalActions().setRenameTabModalOpen(true);
 			expect(useModalStore.getState().isOpen('renameTab')).toBe(true);
 
-			const { result } = renderHook(() => useModalHandlers(createInputRef()));
+			const { result } = renderHook(() =>
+				useModalHandlers(createInputRef(), createTerminalOutputRef())
+			);
 			act(() => {
 				result.current.handleCloseRenameTabModal();
 			});
@@ -330,7 +355,9 @@ describe('useModalHandlers', () => {
 			getModalActions().setQuitConfirmModalOpen(true);
 			expect(useModalStore.getState().isOpen('quitConfirm')).toBe(true);
 
-			const { result } = renderHook(() => useModalHandlers(createInputRef()));
+			const { result } = renderHook(() =>
+				useModalHandlers(createInputRef(), createTerminalOutputRef())
+			);
 			act(() => {
 				result.current.handleConfirmQuit();
 			});
@@ -343,7 +370,9 @@ describe('useModalHandlers', () => {
 			getModalActions().setQuitConfirmModalOpen(true);
 			expect(useModalStore.getState().isOpen('quitConfirm')).toBe(true);
 
-			const { result } = renderHook(() => useModalHandlers(createInputRef()));
+			const { result } = renderHook(() =>
+				useModalHandlers(createInputRef(), createTerminalOutputRef())
+			);
 			act(() => {
 				result.current.handleCancelQuit();
 			});
@@ -359,7 +388,9 @@ describe('useModalHandlers', () => {
 
 	describe('Group D: Celebration Handlers', () => {
 		it('onKeyboardMasteryLevelUp sets pending keyboard mastery level', () => {
-			const { result } = renderHook(() => useModalHandlers(createInputRef()));
+			const { result } = renderHook(() =>
+				useModalHandlers(createInputRef(), createTerminalOutputRef())
+			);
 			act(() => {
 				result.current.onKeyboardMasteryLevelUp(3);
 			});
@@ -380,7 +411,9 @@ describe('useModalHandlers', () => {
 			getModalActions().setPendingKeyboardMasteryLevel(5);
 			expect(useModalStore.getState().getData('keyboardMastery')).toEqual({ level: 5 });
 
-			const { result } = renderHook(() => useModalHandlers(createInputRef()));
+			const { result } = renderHook(() =>
+				useModalHandlers(createInputRef(), createTerminalOutputRef())
+			);
 			act(() => {
 				result.current.handleKeyboardMasteryCelebrationClose();
 			});
@@ -396,7 +429,9 @@ describe('useModalHandlers', () => {
 				acknowledgeKeyboardMasteryLevel: mockAcknowledge,
 			});
 
-			const { result } = renderHook(() => useModalHandlers(createInputRef()));
+			const { result } = renderHook(() =>
+				useModalHandlers(createInputRef(), createTerminalOutputRef())
+			);
 			act(() => {
 				result.current.handleKeyboardMasteryCelebrationClose();
 			});
@@ -417,7 +452,9 @@ describe('useModalHandlers', () => {
 			});
 			expect(useModalStore.getState().isOpen('standingOvation')).toBe(true);
 
-			const { result } = renderHook(() => useModalHandlers(createInputRef()));
+			const { result } = renderHook(() =>
+				useModalHandlers(createInputRef(), createTerminalOutputRef())
+			);
 			act(() => {
 				result.current.handleStandingOvationClose();
 			});
@@ -433,7 +470,9 @@ describe('useModalHandlers', () => {
 				acknowledgeBadge: mockAcknowledgeBadge,
 			});
 
-			const { result } = renderHook(() => useModalHandlers(createInputRef()));
+			const { result } = renderHook(() =>
+				useModalHandlers(createInputRef(), createTerminalOutputRef())
+			);
 			act(() => {
 				result.current.handleStandingOvationClose();
 			});
@@ -449,7 +488,9 @@ describe('useModalHandlers', () => {
 			});
 			expect(useModalStore.getState().isOpen('firstRunCelebration')).toBe(true);
 
-			const { result } = renderHook(() => useModalHandlers(createInputRef()));
+			const { result } = renderHook(() =>
+				useModalHandlers(createInputRef(), createTerminalOutputRef())
+			);
 			act(() => {
 				result.current.handleFirstRunCelebrationClose();
 			});
@@ -464,7 +505,9 @@ describe('useModalHandlers', () => {
 
 	describe('Group E: Leaderboard Handlers', () => {
 		it('handleOpenLeaderboardRegistration opens leaderboard modal', () => {
-			const { result } = renderHook(() => useModalHandlers(createInputRef()));
+			const { result } = renderHook(() =>
+				useModalHandlers(createInputRef(), createTerminalOutputRef())
+			);
 			act(() => {
 				result.current.handleOpenLeaderboardRegistration();
 			});
@@ -476,7 +519,9 @@ describe('useModalHandlers', () => {
 			getModalActions().setAboutModalOpen(true);
 			expect(useModalStore.getState().isOpen('about')).toBe(true);
 
-			const { result } = renderHook(() => useModalHandlers(createInputRef()));
+			const { result } = renderHook(() =>
+				useModalHandlers(createInputRef(), createTerminalOutputRef())
+			);
 			act(() => {
 				result.current.handleOpenLeaderboardRegistrationFromAbout();
 			});
@@ -489,7 +534,9 @@ describe('useModalHandlers', () => {
 			getModalActions().setLeaderboardRegistrationOpen(true);
 			expect(useModalStore.getState().isOpen('leaderboard')).toBe(true);
 
-			const { result } = renderHook(() => useModalHandlers(createInputRef()));
+			const { result } = renderHook(() =>
+				useModalHandlers(createInputRef(), createTerminalOutputRef())
+			);
 			act(() => {
 				result.current.handleCloseLeaderboardRegistration();
 			});
@@ -505,7 +552,9 @@ describe('useModalHandlers', () => {
 			});
 
 			const registration = { email: 'test@example.com', name: 'Test' };
-			const { result } = renderHook(() => useModalHandlers(createInputRef()));
+			const { result } = renderHook(() =>
+				useModalHandlers(createInputRef(), createTerminalOutputRef())
+			);
 			act(() => {
 				result.current.handleSaveLeaderboardRegistration(registration as any);
 			});
@@ -520,7 +569,9 @@ describe('useModalHandlers', () => {
 				setLeaderboardRegistration: mockSetRegistration,
 			});
 
-			const { result } = renderHook(() => useModalHandlers(createInputRef()));
+			const { result } = renderHook(() =>
+				useModalHandlers(createInputRef(), createTerminalOutputRef())
+			);
 			act(() => {
 				result.current.handleLeaderboardOptOut();
 			});
@@ -538,7 +589,9 @@ describe('useModalHandlers', () => {
 			getModalActions().setAgentErrorModalSessionId('session-1');
 			expect(useModalStore.getState().isOpen('agentError')).toBe(true);
 
-			const { result } = renderHook(() => useModalHandlers(createInputRef()));
+			const { result } = renderHook(() =>
+				useModalHandlers(createInputRef(), createTerminalOutputRef())
+			);
 			act(() => {
 				result.current.handleCloseAgentErrorModal();
 			});
@@ -559,7 +612,9 @@ describe('useModalHandlers', () => {
 			});
 			useSessionStore.setState({ sessions: [session], activeSessionId: 'session-1' });
 
-			const { result } = renderHook(() => useModalHandlers(createInputRef()));
+			const { result } = renderHook(() =>
+				useModalHandlers(createInputRef(), createTerminalOutputRef())
+			);
 			act(() => {
 				result.current.handleShowAgentErrorModal();
 			});
@@ -573,7 +628,9 @@ describe('useModalHandlers', () => {
 		it('handleShowAgentErrorModal does nothing when no active session', () => {
 			useSessionStore.setState({ sessions: [], activeSessionId: '' });
 
-			const { result } = renderHook(() => useModalHandlers(createInputRef()));
+			const { result } = renderHook(() =>
+				useModalHandlers(createInputRef(), createTerminalOutputRef())
+			);
 			act(() => {
 				result.current.handleShowAgentErrorModal();
 			});
@@ -590,7 +647,9 @@ describe('useModalHandlers', () => {
 			});
 			useSessionStore.setState({ sessions: [session], activeSessionId: 'session-1' });
 
-			const { result } = renderHook(() => useModalHandlers(createInputRef()));
+			const { result } = renderHook(() =>
+				useModalHandlers(createInputRef(), createTerminalOutputRef())
+			);
 			act(() => {
 				result.current.handleShowAgentErrorModal();
 			});
@@ -606,7 +665,9 @@ describe('useModalHandlers', () => {
 			});
 			getModalActions().setAgentErrorModalSessionId('session-1');
 
-			const { result } = renderHook(() => useModalHandlers(createInputRef()));
+			const { result } = renderHook(() =>
+				useModalHandlers(createInputRef(), createTerminalOutputRef())
+			);
 			act(() => {
 				result.current.handleClearAgentError('session-1', 'tab-1');
 			});
@@ -629,7 +690,7 @@ describe('useModalHandlers', () => {
 			getModalActions().setAgentErrorModalSessionId('session-1');
 
 			const inputRef = createInputRef();
-			const { result } = renderHook(() => useModalHandlers(inputRef));
+			const { result } = renderHook(() => useModalHandlers(inputRef, createTerminalOutputRef()));
 			act(() => {
 				result.current.handleStartNewSessionAfterError('session-1');
 			});
@@ -656,7 +717,7 @@ describe('useModalHandlers', () => {
 			getModalActions().setAgentErrorModalSessionId('session-1');
 
 			const inputRef = createInputRef();
-			const { result } = renderHook(() => useModalHandlers(inputRef));
+			const { result } = renderHook(() => useModalHandlers(inputRef, createTerminalOutputRef()));
 			act(() => {
 				result.current.handleRetryAfterError('session-1');
 			});
@@ -679,7 +740,7 @@ describe('useModalHandlers', () => {
 			getModalActions().setAgentErrorModalSessionId('session-1');
 
 			const inputRef = createInputRef();
-			const { result } = renderHook(() => useModalHandlers(inputRef));
+			const { result } = renderHook(() => useModalHandlers(inputRef, createTerminalOutputRef()));
 
 			await act(async () => {
 				await result.current.handleRestartAgentAfterError('session-1');
@@ -703,7 +764,7 @@ describe('useModalHandlers', () => {
 			getModalActions().setAgentErrorModalSessionId('session-1');
 
 			const inputRef = createInputRef();
-			const { result } = renderHook(() => useModalHandlers(inputRef));
+			const { result } = renderHook(() => useModalHandlers(inputRef, createTerminalOutputRef()));
 			act(() => {
 				result.current.handleAuthenticateAfterError('session-1');
 			});
@@ -754,7 +815,9 @@ describe('useModalHandlers', () => {
 			it(`${name} opens the ${modalId} modal`, () => {
 				expect(useModalStore.getState().isOpen(modalId as any)).toBe(false);
 
-				const { result } = renderHook(() => useModalHandlers(createInputRef()));
+				const { result } = renderHook(() =>
+					useModalHandlers(createInputRef(), createTerminalOutputRef())
+				);
 				act(() => {
 					(result.current[handler] as () => void)();
 				});
@@ -772,7 +835,9 @@ describe('useModalHandlers', () => {
 		it('handleEditAgent opens edit agent modal with session data', () => {
 			const session = createMockSession({ id: 'edit-session' });
 
-			const { result } = renderHook(() => useModalHandlers(createInputRef()));
+			const { result } = renderHook(() =>
+				useModalHandlers(createInputRef(), createTerminalOutputRef())
+			);
 			act(() => {
 				result.current.handleEditAgent(session);
 			});
@@ -784,7 +849,9 @@ describe('useModalHandlers', () => {
 		it('handleOpenCreatePRSession opens createPR modal with session data', () => {
 			const session = createMockSession({ id: 'pr-session' });
 
-			const { result } = renderHook(() => useModalHandlers(createInputRef()));
+			const { result } = renderHook(() =>
+				useModalHandlers(createInputRef(), createTerminalOutputRef())
+			);
 			act(() => {
 				result.current.handleOpenCreatePRSession(session);
 			});
@@ -800,7 +867,9 @@ describe('useModalHandlers', () => {
 
 	describe('Group I: Tour Handler', () => {
 		it('handleStartTour sets tourFromWizard to false and opens tour', () => {
-			const { result } = renderHook(() => useModalHandlers(createInputRef()));
+			const { result } = renderHook(() =>
+				useModalHandlers(createInputRef(), createTerminalOutputRef())
+			);
 			act(() => {
 				result.current.handleStartTour();
 			});
@@ -820,7 +889,9 @@ describe('useModalHandlers', () => {
 		it('handleSetLightboxImage sets image, images, and source fields', () => {
 			useGroupChatStore.setState({ activeGroupChatId: null });
 
-			const { result } = renderHook(() => useModalHandlers(createInputRef()));
+			const { result } = renderHook(() =>
+				useModalHandlers(createInputRef(), createTerminalOutputRef())
+			);
 			act(() => {
 				result.current.handleSetLightboxImage('img1.png', ['img1.png', 'img2.png'], 'staged');
 			});
@@ -838,7 +909,9 @@ describe('useModalHandlers', () => {
 			// Pre-open lightbox so updateModalData works
 			getModalActions().setLightboxImage('pre.png');
 
-			const { result } = renderHook(() => useModalHandlers(createInputRef()));
+			const { result } = renderHook(() =>
+				useModalHandlers(createInputRef(), createTerminalOutputRef())
+			);
 			act(() => {
 				result.current.handleSetLightboxImage('img.png', ['img.png'], 'staged');
 			});
@@ -849,7 +922,9 @@ describe('useModalHandlers', () => {
 		});
 
 		it('handleSetLightboxImage defaults to history source and no allowDelete', () => {
-			const { result } = renderHook(() => useModalHandlers(createInputRef()));
+			const { result } = renderHook(() =>
+				useModalHandlers(createInputRef(), createTerminalOutputRef())
+			);
 			act(() => {
 				result.current.handleSetLightboxImage('img.png', ['img.png']);
 			});
@@ -869,7 +944,7 @@ describe('useModalHandlers', () => {
 			actions.setLightboxAllowDelete(true);
 
 			const inputRef = createInputRef();
-			const { result } = renderHook(() => useModalHandlers(inputRef));
+			const { result } = renderHook(() => useModalHandlers(inputRef, createTerminalOutputRef()));
 			act(() => {
 				result.current.handleCloseLightbox();
 			});
@@ -888,7 +963,9 @@ describe('useModalHandlers', () => {
 			actions.setLightboxImage('img1.png');
 			actions.setLightboxImages(['img1.png', 'img2.png']);
 
-			const { result } = renderHook(() => useModalHandlers(createInputRef()));
+			const { result } = renderHook(() =>
+				useModalHandlers(createInputRef(), createTerminalOutputRef())
+			);
 			act(() => {
 				result.current.handleNavigateLightbox('img2.png');
 			});
@@ -909,7 +986,9 @@ describe('useModalHandlers', () => {
 			actions.setLightboxImages(['img1.png', 'img2.png', 'img3.png']);
 			actions.setLightboxIsGroupChat(true);
 
-			const { result } = renderHook(() => useModalHandlers(createInputRef()));
+			const { result } = renderHook(() =>
+				useModalHandlers(createInputRef(), createTerminalOutputRef())
+			);
 			act(() => {
 				result.current.handleDeleteLightboxImage('img2.png');
 			});
@@ -937,7 +1016,9 @@ describe('useModalHandlers', () => {
 			actions.setLightboxImages(['img1.png', 'img2.png']);
 			actions.setLightboxIsGroupChat(false);
 
-			const { result } = renderHook(() => useModalHandlers(createInputRef()));
+			const { result } = renderHook(() =>
+				useModalHandlers(createInputRef(), createTerminalOutputRef())
+			);
 			act(() => {
 				result.current.handleDeleteLightboxImage('img1.png');
 			});
@@ -961,7 +1042,9 @@ describe('useModalHandlers', () => {
 		it('handleCloseAutoRunSetup closes autoRunSetup modal', () => {
 			getModalActions().setAutoRunSetupModalOpen(true);
 
-			const { result } = renderHook(() => useModalHandlers(createInputRef()));
+			const { result } = renderHook(() =>
+				useModalHandlers(createInputRef(), createTerminalOutputRef())
+			);
 			act(() => {
 				result.current.handleCloseAutoRunSetup();
 			});
@@ -972,7 +1055,9 @@ describe('useModalHandlers', () => {
 		it('handleCloseBatchRunner closes batchRunner modal', () => {
 			getModalActions().setBatchRunnerModalOpen(true);
 
-			const { result } = renderHook(() => useModalHandlers(createInputRef()));
+			const { result } = renderHook(() =>
+				useModalHandlers(createInputRef(), createTerminalOutputRef())
+			);
 			act(() => {
 				result.current.handleCloseBatchRunner();
 			});
@@ -983,7 +1068,9 @@ describe('useModalHandlers', () => {
 		it('handleCloseTabSwitcher closes tabSwitcher modal', () => {
 			getModalActions().setTabSwitcherOpen(true);
 
-			const { result } = renderHook(() => useModalHandlers(createInputRef()));
+			const { result } = renderHook(() =>
+				useModalHandlers(createInputRef(), createTerminalOutputRef())
+			);
 			act(() => {
 				result.current.handleCloseTabSwitcher();
 			});
@@ -994,7 +1081,9 @@ describe('useModalHandlers', () => {
 		it('handleCloseFileSearch closes fuzzyFileSearch modal', () => {
 			getModalActions().setFuzzyFileSearchOpen(true);
 
-			const { result } = renderHook(() => useModalHandlers(createInputRef()));
+			const { result } = renderHook(() =>
+				useModalHandlers(createInputRef(), createTerminalOutputRef())
+			);
 			act(() => {
 				result.current.handleCloseFileSearch();
 			});
@@ -1006,7 +1095,7 @@ describe('useModalHandlers', () => {
 			getModalActions().setPromptComposerOpen(true);
 
 			const inputRef = createInputRef();
-			const { result } = renderHook(() => useModalHandlers(inputRef));
+			const { result } = renderHook(() => useModalHandlers(inputRef, createTerminalOutputRef()));
 			act(() => {
 				result.current.handleClosePromptComposer();
 			});
@@ -1024,7 +1113,9 @@ describe('useModalHandlers', () => {
 			getModalActions().setCreatePRSession(session);
 			expect(useModalStore.getState().isOpen('createPR')).toBe(true);
 
-			const { result } = renderHook(() => useModalHandlers(createInputRef()));
+			const { result } = renderHook(() =>
+				useModalHandlers(createInputRef(), createTerminalOutputRef())
+			);
 			act(() => {
 				result.current.handleCloseCreatePRModal();
 			});
@@ -1035,7 +1126,9 @@ describe('useModalHandlers', () => {
 		it('handleCloseSendToAgent closes sendToAgent modal', () => {
 			getModalActions().setSendToAgentModalOpen(true);
 
-			const { result } = renderHook(() => useModalHandlers(createInputRef()));
+			const { result } = renderHook(() =>
+				useModalHandlers(createInputRef(), createTerminalOutputRef())
+			);
 			act(() => {
 				result.current.handleCloseSendToAgent();
 			});
@@ -1046,7 +1139,9 @@ describe('useModalHandlers', () => {
 		it('handleCloseQueueBrowser closes queueBrowser modal', () => {
 			getModalActions().setQueueBrowserOpen(true);
 
-			const { result } = renderHook(() => useModalHandlers(createInputRef()));
+			const { result } = renderHook(() =>
+				useModalHandlers(createInputRef(), createTerminalOutputRef())
+			);
 			act(() => {
 				result.current.handleCloseQueueBrowser();
 			});
@@ -1057,7 +1152,9 @@ describe('useModalHandlers', () => {
 		it('handleCloseRenameGroupModal closes renameGroup modal', () => {
 			getModalActions().setRenameGroupModalOpen(true);
 
-			const { result } = renderHook(() => useModalHandlers(createInputRef()));
+			const { result } = renderHook(() =>
+				useModalHandlers(createInputRef(), createTerminalOutputRef())
+			);
 			act(() => {
 				result.current.handleCloseRenameGroupModal();
 			});
@@ -1085,7 +1182,9 @@ describe('useModalHandlers', () => {
 			});
 			useSessionStore.setState({ sessions: [session], activeSessionId: 'session-1' });
 
-			const { result } = renderHook(() => useModalHandlers(createInputRef()));
+			const { result } = renderHook(() =>
+				useModalHandlers(createInputRef(), createTerminalOutputRef())
+			);
 			act(() => {
 				result.current.handleQuickActionsRenameTab();
 			});
@@ -1104,7 +1203,9 @@ describe('useModalHandlers', () => {
 			});
 			useSessionStore.setState({ sessions: [session], activeSessionId: 'session-1' });
 
-			const { result } = renderHook(() => useModalHandlers(createInputRef()));
+			const { result } = renderHook(() =>
+				useModalHandlers(createInputRef(), createTerminalOutputRef())
+			);
 			act(() => {
 				result.current.handleQuickActionsRenameTab();
 			});
@@ -1122,7 +1223,9 @@ describe('useModalHandlers', () => {
 			});
 			useSessionStore.setState({ sessions: [session], activeSessionId: 'session-1' });
 
-			const { result } = renderHook(() => useModalHandlers(createInputRef()));
+			const { result } = renderHook(() =>
+				useModalHandlers(createInputRef(), createTerminalOutputRef())
+			);
 			act(() => {
 				result.current.handleQuickActionsRenameTab();
 			});
@@ -1139,7 +1242,9 @@ describe('useModalHandlers', () => {
 			});
 			useSessionStore.setState({ sessions: [session], activeSessionId: 'session-1' });
 
-			const { result } = renderHook(() => useModalHandlers(createInputRef()));
+			const { result } = renderHook(() =>
+				useModalHandlers(createInputRef(), createTerminalOutputRef())
+			);
 			act(() => {
 				result.current.handleQuickActionsOpenTabSwitcher();
 			});
@@ -1155,7 +1260,9 @@ describe('useModalHandlers', () => {
 			});
 			useSessionStore.setState({ sessions: [session], activeSessionId: 'session-1' });
 
-			const { result } = renderHook(() => useModalHandlers(createInputRef()));
+			const { result } = renderHook(() =>
+				useModalHandlers(createInputRef(), createTerminalOutputRef())
+			);
 			act(() => {
 				result.current.handleQuickActionsOpenTabSwitcher();
 			});
@@ -1164,7 +1271,9 @@ describe('useModalHandlers', () => {
 		});
 
 		it('handleQuickActionsStartTour sets tourFromWizard false and opens tour', () => {
-			const { result } = renderHook(() => useModalHandlers(createInputRef()));
+			const { result } = renderHook(() =>
+				useModalHandlers(createInputRef(), createTerminalOutputRef())
+			);
 			act(() => {
 				result.current.handleQuickActionsStartTour();
 			});
@@ -1177,7 +1286,9 @@ describe('useModalHandlers', () => {
 		it('handleQuickActionsEditAgent opens edit agent modal with session', () => {
 			const session = createMockSession({ id: 'qa-edit-session' });
 
-			const { result } = renderHook(() => useModalHandlers(createInputRef()));
+			const { result } = renderHook(() =>
+				useModalHandlers(createInputRef(), createTerminalOutputRef())
+			);
 			act(() => {
 				result.current.handleQuickActionsEditAgent(session);
 			});
@@ -1187,7 +1298,9 @@ describe('useModalHandlers', () => {
 		});
 
 		it('handleQuickActionsOpenMergeSession opens merge session modal', () => {
-			const { result } = renderHook(() => useModalHandlers(createInputRef()));
+			const { result } = renderHook(() =>
+				useModalHandlers(createInputRef(), createTerminalOutputRef())
+			);
 			act(() => {
 				result.current.handleQuickActionsOpenMergeSession();
 			});
@@ -1196,7 +1309,9 @@ describe('useModalHandlers', () => {
 		});
 
 		it('handleQuickActionsOpenSendToAgent opens send to agent modal', () => {
-			const { result } = renderHook(() => useModalHandlers(createInputRef()));
+			const { result } = renderHook(() =>
+				useModalHandlers(createInputRef(), createTerminalOutputRef())
+			);
 			act(() => {
 				result.current.handleQuickActionsOpenSendToAgent();
 			});
@@ -1207,13 +1322,76 @@ describe('useModalHandlers', () => {
 		it('handleQuickActionsOpenCreatePR opens create PR modal with session', () => {
 			const session = createMockSession({ id: 'qa-pr-session' });
 
-			const { result } = renderHook(() => useModalHandlers(createInputRef()));
+			const { result } = renderHook(() =>
+				useModalHandlers(createInputRef(), createTerminalOutputRef())
+			);
 			act(() => {
 				result.current.handleQuickActionsOpenCreatePR(session);
 			});
 
 			expect(useModalStore.getState().isOpen('createPR')).toBe(true);
 			expect(useModalStore.getState().getData('createPR')).toEqual({ session });
+		});
+	});
+
+	// ======================================================================
+	// Group L: handleLogViewerShortcutUsed
+	// ======================================================================
+
+	describe('Group L: handleLogViewerShortcutUsed', () => {
+		it('records shortcut usage and does NOT trigger level-up when no new level', () => {
+			const mockRecordShortcutUsage = vi.fn().mockReturnValue({ newLevel: null });
+			vi.spyOn(useSettingsStore, 'getState').mockReturnValue({
+				...useSettingsStore.getState(),
+				recordShortcutUsage: mockRecordShortcutUsage,
+			});
+
+			const { result } = renderHook(() =>
+				useModalHandlers(createInputRef(), createTerminalOutputRef())
+			);
+			act(() => {
+				result.current.handleLogViewerShortcutUsed('open-log-viewer');
+			});
+
+			expect(mockRecordShortcutUsage).toHaveBeenCalledWith('open-log-viewer');
+			expect(useModalStore.getState().isOpen('keyboardMastery')).toBe(false);
+		});
+
+		it('triggers onKeyboardMasteryLevelUp when recordShortcutUsage returns a new level', () => {
+			const mockRecordShortcutUsage = vi.fn().mockReturnValue({ newLevel: 2 });
+			vi.spyOn(useSettingsStore, 'getState').mockReturnValue({
+				...useSettingsStore.getState(),
+				recordShortcutUsage: mockRecordShortcutUsage,
+			});
+
+			const { result } = renderHook(() =>
+				useModalHandlers(createInputRef(), createTerminalOutputRef())
+			);
+			act(() => {
+				result.current.handleLogViewerShortcutUsed('open-log-viewer');
+			});
+
+			expect(mockRecordShortcutUsage).toHaveBeenCalledWith('open-log-viewer');
+			expect(useModalStore.getState().isOpen('keyboardMastery')).toBe(true);
+			expect(useModalStore.getState().getData('keyboardMastery')).toEqual({ level: 2 });
+		});
+
+		it('does not trigger level-up callback when result.newLevel is null', () => {
+			const mockRecordShortcutUsage = vi.fn().mockReturnValue({ newLevel: null });
+			vi.spyOn(useSettingsStore, 'getState').mockReturnValue({
+				...useSettingsStore.getState(),
+				recordShortcutUsage: mockRecordShortcutUsage,
+			});
+
+			const { result } = renderHook(() =>
+				useModalHandlers(createInputRef(), createTerminalOutputRef())
+			);
+			act(() => {
+				result.current.handleLogViewerShortcutUsed('some-shortcut');
+			});
+
+			expect(useModalStore.getState().isOpen('keyboardMastery')).toBe(false);
+			expect(useModalStore.getState().getData('keyboardMastery')).toBeUndefined();
 		});
 	});
 
@@ -1227,7 +1405,7 @@ describe('useModalHandlers', () => {
 			getModalActions().setLogViewerOpen(true);
 
 			const inputRef = createInputRef();
-			const { rerender } = renderHook(() => useModalHandlers(inputRef));
+			const { rerender } = renderHook(() => useModalHandlers(inputRef, createTerminalOutputRef()));
 
 			// Close the log viewer
 			act(() => {
@@ -1243,10 +1421,31 @@ describe('useModalHandlers', () => {
 			expect(inputRef.current!.focus).toHaveBeenCalled();
 		});
 
-		it('LogViewer close effect falls back to document.body.focus when inputRef is null', () => {
+		it('LogViewer close effect falls back to terminalOutputRef when inputRef is null', () => {
 			getModalActions().setLogViewerOpen(true);
 
 			const inputRef = { current: null };
+			const terminalOutputRef = createTerminalOutputRef();
+
+			const { rerender } = renderHook(() => useModalHandlers(inputRef, terminalOutputRef));
+
+			act(() => {
+				getModalActions().setLogViewerOpen(false);
+			});
+			rerender();
+
+			act(() => {
+				vi.advanceTimersByTime(60);
+			});
+
+			expect(terminalOutputRef.current!.focus).toHaveBeenCalled();
+		});
+
+		it('LogViewer close effect falls back to document.body.focus when both refs are null', () => {
+			getModalActions().setLogViewerOpen(true);
+
+			const inputRef = { current: null };
+			const terminalOutputRef = { current: null };
 			const blurSpy = vi.fn();
 			const focusSpy = vi.fn();
 
@@ -1257,7 +1456,7 @@ describe('useModalHandlers', () => {
 			});
 			document.body.focus = focusSpy;
 
-			const { rerender } = renderHook(() => useModalHandlers(inputRef));
+			const { rerender } = renderHook(() => useModalHandlers(inputRef, terminalOutputRef));
 
 			act(() => {
 				getModalActions().setLogViewerOpen(false);
@@ -1276,7 +1475,9 @@ describe('useModalHandlers', () => {
 			// Open shortcuts help
 			getModalActions().setShortcutsHelpOpen(true);
 
-			const { rerender } = renderHook(() => useModalHandlers(createInputRef()));
+			const { rerender } = renderHook(() =>
+				useModalHandlers(createInputRef(), createTerminalOutputRef())
+			);
 
 			// Close shortcuts help - effect should call setShortcutsSearchQuery('')
 			act(() => {
@@ -1287,6 +1488,224 @@ describe('useModalHandlers', () => {
 			// The effect calls getModalActions().setShortcutsSearchQuery('') which is a no-op
 			// in the store, but we can verify the shortcutsHelp modal is closed
 			expect(useModalStore.getState().isOpen('shortcutsHelp')).toBe(false);
+		});
+
+		// ====================================================================
+		// Standing ovation startup check effect
+		// ====================================================================
+
+		it('shows standing ovation overlay when unacknowledged badge exists on startup', () => {
+			// Set up store state before rendering so the effect fires on mount
+			useSettingsStore.setState({
+				settingsLoaded: true,
+				getUnacknowledgedBadgeLevel: () => 1,
+				autoRunStats: {
+					longestRunMs: 50000,
+					totalRuns: 10,
+					cumulativeTimeMs: 100000,
+					currentBadgeLevel: 1,
+					lastBadgeUnlockLevel: 1,
+					lastAcknowledgedBadgeLevel: 0,
+					longestRunTimestamp: 0,
+					badgeHistory: [],
+				},
+			});
+			useSessionStore.setState({ sessionsLoaded: true, sessions: [] });
+
+			renderHook(() => useModalHandlers(createInputRef(), createTerminalOutputRef()));
+
+			// Advance past the 1000ms delay used in the startup effect
+			act(() => {
+				vi.advanceTimersByTime(1100);
+			});
+
+			expect(useModalStore.getState().isOpen('standingOvation')).toBe(true);
+			const ovationData = useModalStore.getState().getData('standingOvation');
+			expect(ovationData).toBeDefined();
+			expect(ovationData?.badge.level).toBe(1);
+		});
+
+		it('does NOT show ovation when no unacknowledged badge on startup', () => {
+			useSettingsStore.setState({
+				settingsLoaded: true,
+				getUnacknowledgedBadgeLevel: () => null,
+				autoRunStats: {
+					longestRunMs: 0,
+					totalRuns: 0,
+					cumulativeTimeMs: 0,
+					currentBadgeLevel: 0,
+					lastBadgeUnlockLevel: 0,
+					lastAcknowledgedBadgeLevel: 0,
+					longestRunTimestamp: 0,
+					badgeHistory: [],
+				},
+			});
+			useSessionStore.setState({ sessionsLoaded: true, sessions: [] });
+
+			renderHook(() => useModalHandlers(createInputRef(), createTerminalOutputRef()));
+
+			act(() => {
+				vi.advanceTimersByTime(1100);
+			});
+
+			expect(useModalStore.getState().isOpen('standingOvation')).toBe(false);
+		});
+
+		it('does NOT run startup badge check when settings/sessions not loaded', () => {
+			// settingsLoaded: false and sessionsLoaded: false (left at defaults from beforeEach)
+			// We make the badge level non-null so that IF the effect ran, it would show the ovation
+			useSettingsStore.setState({
+				settingsLoaded: false,
+				getUnacknowledgedBadgeLevel: () => 1,
+				autoRunStats: {
+					longestRunMs: 50000,
+					totalRuns: 10,
+					cumulativeTimeMs: 100000,
+					currentBadgeLevel: 1,
+					lastBadgeUnlockLevel: 1,
+					lastAcknowledgedBadgeLevel: 0,
+					longestRunTimestamp: 0,
+					badgeHistory: [],
+				},
+			});
+			// sessionsLoaded stays false (set by beforeEach)
+
+			renderHook(() => useModalHandlers(createInputRef(), createTerminalOutputRef()));
+
+			act(() => {
+				vi.advanceTimersByTime(1100);
+			});
+
+			expect(useModalStore.getState().isOpen('standingOvation')).toBe(false);
+		});
+
+		// ====================================================================
+		// Standing ovation return-to-app check
+		// ====================================================================
+
+		it('triggers badge check on visibility change when becoming visible', () => {
+			useSettingsStore.setState({
+				settingsLoaded: true,
+				getUnacknowledgedBadgeLevel: () => 1,
+				autoRunStats: {
+					longestRunMs: 50000,
+					totalRuns: 10,
+					cumulativeTimeMs: 100000,
+					currentBadgeLevel: 1,
+					lastBadgeUnlockLevel: 1,
+					lastAcknowledgedBadgeLevel: 0,
+					longestRunTimestamp: 0,
+					badgeHistory: [],
+				},
+			});
+			useSessionStore.setState({ sessionsLoaded: true, sessions: [] });
+
+			renderHook(() => useModalHandlers(createInputRef(), createTerminalOutputRef()));
+
+			// Advance past startup delay so any startup ovation would have already fired
+			act(() => {
+				vi.advanceTimersByTime(1100);
+			});
+
+			// Dismiss any ovation shown on startup so we can test the visibility path
+			getModalActions().setStandingOvationData(null);
+
+			// Simulate user switching back to the app (document becomes visible)
+			Object.defineProperty(document, 'hidden', { value: false, configurable: true });
+			act(() => {
+				document.dispatchEvent(new Event('visibilitychange'));
+			});
+
+			// Advance past the 500ms delay in checkForUnacknowledgedBadge
+			act(() => {
+				vi.advanceTimersByTime(600);
+			});
+
+			expect(useModalStore.getState().isOpen('standingOvation')).toBe(true);
+		});
+
+		it('does NOT show ovation on visibility change if ovation is already displayed', () => {
+			useSettingsStore.setState({
+				settingsLoaded: true,
+				getUnacknowledgedBadgeLevel: () => 1,
+				autoRunStats: {
+					longestRunMs: 50000,
+					totalRuns: 10,
+					cumulativeTimeMs: 100000,
+					currentBadgeLevel: 1,
+					lastBadgeUnlockLevel: 1,
+					lastAcknowledgedBadgeLevel: 0,
+					longestRunTimestamp: 0,
+					badgeHistory: [],
+				},
+			});
+			useSessionStore.setState({ sessionsLoaded: true, sessions: [] });
+
+			renderHook(() => useModalHandlers(createInputRef(), createTerminalOutputRef()));
+
+			// Advance past startup delay so the startup ovation fires first
+			act(() => {
+				vi.advanceTimersByTime(1100);
+			});
+
+			// Ovation should now be displayed from startup; record the data
+			const ovationDataBefore = useModalStore.getState().getData('standingOvation');
+			expect(useModalStore.getState().isOpen('standingOvation')).toBe(true);
+
+			// Simulate becoming visible while ovation is already shown
+			Object.defineProperty(document, 'hidden', { value: false, configurable: true });
+			act(() => {
+				document.dispatchEvent(new Event('visibilitychange'));
+			});
+
+			act(() => {
+				vi.advanceTimersByTime(600);
+			});
+
+			// Ovation modal should still be open and data unchanged
+			expect(useModalStore.getState().isOpen('standingOvation')).toBe(true);
+			expect(useModalStore.getState().getData('standingOvation')).toEqual(ovationDataBefore);
+		});
+
+		// ====================================================================
+		// Keyboard mastery startup check effect
+		// ====================================================================
+
+		it('shows keyboard mastery celebration when unacknowledged level exists on startup', () => {
+			useSettingsStore.setState({
+				settingsLoaded: true,
+				getUnacknowledgedKeyboardMasteryLevel: () => 3,
+				// Also suppress badge ovation so only keyboard mastery fires
+				getUnacknowledgedBadgeLevel: () => null,
+			});
+			useSessionStore.setState({ sessionsLoaded: true, sessions: [] });
+
+			renderHook(() => useModalHandlers(createInputRef(), createTerminalOutputRef()));
+
+			// Advance past the 1200ms delay used in the keyboard mastery effect
+			act(() => {
+				vi.advanceTimersByTime(1300);
+			});
+
+			expect(useModalStore.getState().isOpen('keyboardMastery')).toBe(true);
+			expect(useModalStore.getState().getData('keyboardMastery')).toEqual({ level: 3 });
+		});
+
+		it('does NOT show keyboard mastery celebration when no unacknowledged level on startup', () => {
+			useSettingsStore.setState({
+				settingsLoaded: true,
+				getUnacknowledgedKeyboardMasteryLevel: () => null,
+				getUnacknowledgedBadgeLevel: () => null,
+			});
+			useSessionStore.setState({ sessionsLoaded: true, sessions: [] });
+
+			renderHook(() => useModalHandlers(createInputRef(), createTerminalOutputRef()));
+
+			act(() => {
+				vi.advanceTimersByTime(1300);
+			});
+
+			expect(useModalStore.getState().isOpen('keyboardMastery')).toBe(false);
 		});
 	});
 });

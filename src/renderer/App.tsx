@@ -263,7 +263,6 @@ function MaestroConsoleInner() {
 		setUsageDashboardOpen,
 		// Keyboard Mastery Celebration
 		pendingKeyboardMasteryLevel,
-		setPendingKeyboardMasteryLevel,
 		// Playground Panel
 		playgroundOpen,
 		setPlaygroundOpen,
@@ -486,7 +485,6 @@ function MaestroConsoleInner() {
 		setAutoRunStats,
 		recordAutoRunComplete,
 		updateAutoRunProgress,
-		getUnacknowledgedBadgeLevel,
 		usageStats,
 		updateUsageStats,
 		tourCompleted: _tourCompleted,
@@ -509,7 +507,6 @@ function MaestroConsoleInner() {
 
 		keyboardMasteryStats,
 		recordShortcutUsage,
-		getUnacknowledgedKeyboardMasteryLevel,
 
 		// Document Graph & Stats settings
 		colorBlindMode,
@@ -1367,118 +1364,7 @@ function MaestroConsoleInner() {
 		openSettings: () => setSettingsModalOpen(true),
 	};
 
-	// Check for unacknowledged badges on startup (show missed standing ovations)
-	useEffect(() => {
-		if (settingsLoaded && sessionsLoaded) {
-			const unacknowledgedLevel = getUnacknowledgedBadgeLevel();
-			if (unacknowledgedLevel !== null) {
-				const badge = CONDUCTOR_BADGES.find((b) => b.level === unacknowledgedLevel);
-				if (badge) {
-					// Show the standing ovation overlay for the missed badge
-					// Small delay to ensure UI is fully rendered
-					setTimeout(() => {
-						setStandingOvationData({
-							badge,
-							isNewRecord: false, // We don't know if it was a record, so default to false
-							recordTimeMs: autoRunStats.longestRunMs,
-						});
-					}, 1000);
-				}
-			}
-		}
-		// autoRunStats.longestRunMs and getUnacknowledgedBadgeLevel intentionally omitted -
-		// this effect runs once on startup to check for missed badges, not on every stats update
-	}, [settingsLoaded, sessionsLoaded]);
-
-	// Check for unacknowledged badges when user returns to the app
-	// Uses multiple triggers: visibility change, window focus, and mouse activity
-	// This catches badges earned during overnight Auto Runs when display was off
-	useEffect(() => {
-		if (!settingsLoaded || !sessionsLoaded) return;
-
-		// Debounce to avoid showing multiple times
-		let checkPending = false;
-
-		const checkForUnacknowledgedBadge = () => {
-			// Don't show if there's already an ovation displayed
-			if (standingOvationData) return;
-			if (checkPending) return;
-
-			const unacknowledgedLevel = getUnacknowledgedBadgeLevel();
-			if (unacknowledgedLevel !== null) {
-				const badge = CONDUCTOR_BADGES.find((b) => b.level === unacknowledgedLevel);
-				if (badge) {
-					checkPending = true;
-					// Small delay to let the UI stabilize
-					setTimeout(() => {
-						// Double-check in case it was acknowledged in the meantime
-						if (!standingOvationData) {
-							setStandingOvationData({
-								badge,
-								isNewRecord: false,
-								recordTimeMs: autoRunStats.longestRunMs,
-							});
-						}
-						checkPending = false;
-					}, 500);
-				}
-			}
-		};
-
-		const handleVisibilityChange = () => {
-			// Only check when becoming visible
-			if (!document.hidden) {
-				checkForUnacknowledgedBadge();
-			}
-		};
-
-		const handleWindowFocus = () => {
-			// Window gained focus - user is actively looking at the app
-			checkForUnacknowledgedBadge();
-		};
-
-		// Mouse move handler with heavy debounce - only triggers once per 30 seconds
-		let lastMouseCheck = 0;
-		const handleMouseMove = () => {
-			const now = Date.now();
-			if (now - lastMouseCheck > 30000) {
-				// 30 second debounce
-				lastMouseCheck = now;
-				checkForUnacknowledgedBadge();
-			}
-		};
-
-		document.addEventListener('visibilitychange', handleVisibilityChange);
-		window.addEventListener('focus', handleWindowFocus);
-		document.addEventListener('mousemove', handleMouseMove, { passive: true });
-
-		return () => {
-			document.removeEventListener('visibilitychange', handleVisibilityChange);
-			window.removeEventListener('focus', handleWindowFocus);
-			document.removeEventListener('mousemove', handleMouseMove);
-		};
-	}, [
-		settingsLoaded,
-		sessionsLoaded,
-		standingOvationData,
-		getUnacknowledgedBadgeLevel,
-		autoRunStats.longestRunMs,
-	]);
-
-	// Check for unacknowledged keyboard mastery levels on startup
-	useEffect(() => {
-		if (settingsLoaded && sessionsLoaded) {
-			const unacknowledgedLevel = getUnacknowledgedKeyboardMasteryLevel();
-			if (unacknowledgedLevel !== null) {
-				// Show the keyboard mastery level-up celebration after a short delay
-				setTimeout(() => {
-					setPendingKeyboardMasteryLevel(unacknowledgedLevel);
-				}, 1200); // Slightly longer delay than badge to avoid overlap
-			}
-		}
-		// getUnacknowledgedKeyboardMasteryLevel intentionally omitted -
-		// this effect runs once on startup to check for unacknowledged levels, not on function changes
-	}, [settingsLoaded, sessionsLoaded]);
+	// Note: Standing ovation and keyboard mastery startup checks are now in useModalHandlers
 
 	// Sync beta updates setting to electron-updater when it changes
 	useEffect(() => {
@@ -1907,7 +1793,8 @@ function MaestroConsoleInner() {
 		handleQuickActionsOpenMergeSession,
 		handleQuickActionsOpenSendToAgent,
 		handleQuickActionsOpenCreatePR,
-	} = useModalHandlers(inputRef);
+		handleLogViewerShortcutUsed,
+	} = useModalHandlers(inputRef, terminalOutputRef);
 
 	const {
 		handleOpenWorktreeConfig,
@@ -1925,17 +1812,6 @@ function MaestroConsoleInner() {
 		handleConfirmDeleteWorktree,
 		handleConfirmAndDeleteWorktreeOnDisk,
 	} = useWorktreeHandlers();
-
-	// LogViewer shortcut handler (must be after useModalHandlers which provides onKeyboardMasteryLevelUp)
-	const handleLogViewerShortcutUsed = useCallback(
-		(shortcutId: string) => {
-			const result = recordShortcutUsage(shortcutId);
-			if (result.newLevel !== null) {
-				onKeyboardMasteryLevelUp(result.newLevel);
-			}
-		},
-		[recordShortcutUsage, onKeyboardMasteryLevelUp]
-	);
 
 	// --- APP HANDLERS (drag, file, folder operations) ---
 	const {
@@ -8749,7 +8625,9 @@ You are taking over this conversation. Based on the context above, provide a bri
 					onAutoRunRefresh={handleAutoRunRefresh}
 					onOpenMarketplace={handleOpenMarketplace}
 					onOpenSymphony={() => setSymphonyModalOpen(true)}
-					onOpenDirectorNotes={encoreFeatures.directorNotes ? () => setDirectorNotesOpen(true) : undefined}
+					onOpenDirectorNotes={
+						encoreFeatures.directorNotes ? () => setDirectorNotesOpen(true) : undefined
+					}
 					autoScrollAiMode={autoScrollAiMode}
 					setAutoScrollAiMode={setAutoScrollAiMode}
 					tabSwitcherOpen={tabSwitcherOpen}

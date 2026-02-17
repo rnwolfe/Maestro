@@ -19,6 +19,7 @@ import { useGroupChatStore } from '../../stores/groupChatStore';
 import { useAgentStore } from '../../stores/agentStore';
 import { useAgentErrorRecovery } from '../agent/useAgentErrorRecovery';
 import { getInitialRenameValue } from '../../utils/tabHelpers';
+import { CONDUCTOR_BADGES } from '../../constants/conductorBadges';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -120,6 +121,9 @@ export interface ModalHandlersReturn {
 	handleQuickActionsOpenMergeSession: () => void;
 	handleQuickActionsOpenSendToAgent: () => void;
 	handleQuickActionsOpenCreatePR: (session: Session) => void;
+
+	// LogViewer shortcut handler
+	handleLogViewerShortcutUsed: (shortcutId: string) => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -137,13 +141,16 @@ const selectShortcutsHelpOpen = (s: ReturnType<typeof useModalStore.getState>) =
 // ---------------------------------------------------------------------------
 
 export function useModalHandlers(
-	inputRef: React.RefObject<HTMLTextAreaElement | null>
+	inputRef: React.RefObject<HTMLTextAreaElement | null>,
+	terminalOutputRef: React.RefObject<HTMLDivElement | null>
 ): ModalHandlersReturn {
 	// --- Reactive subscriptions (for derived state & effects) ---
 	const agentErrorModalSessionId = useModalStore(selectAgentErrorSessionId);
 	const sessions = useSessionStore((s) => s.sessions);
 	const logViewerOpen = useModalStore(selectLogViewerOpen);
 	const shortcutsHelpOpen = useModalStore(selectShortcutsHelpOpen);
+	const settingsLoaded = useSettingsStore((s) => s.settingsLoaded);
+	const sessionsLoaded = useSessionStore((s) => s.sessionsLoaded);
 
 	// ====================================================================
 	// Derived State
@@ -271,6 +278,16 @@ export function useModalHandlers(
 	const handleFirstRunCelebrationClose = useCallback(() => {
 		getModalActions().setFirstRunCelebrationData(null);
 	}, []);
+
+	const handleLogViewerShortcutUsed = useCallback(
+		(shortcutId: string) => {
+			const result = useSettingsStore.getState().recordShortcutUsage(shortcutId);
+			if (result.newLevel !== null) {
+				onKeyboardMasteryLevelUp(result.newLevel);
+			}
+		},
+		[onKeyboardMasteryLevelUp]
+	);
 
 	// ====================================================================
 	// Group E: Leaderboard Handlers
@@ -594,13 +611,15 @@ export function useModalHandlers(
 			setTimeout(() => {
 				if (inputRef.current) {
 					inputRef.current.focus();
+				} else if (terminalOutputRef.current) {
+					terminalOutputRef.current.focus();
 				} else {
 					(document.activeElement as HTMLElement)?.blur();
 					document.body.focus();
 				}
 			}, 50);
 		}
-	}, [logViewerOpen, inputRef]);
+	}, [logViewerOpen, inputRef, terminalOutputRef]);
 
 	// Reset shortcuts search when modal closes
 	useEffect(() => {
@@ -608,6 +627,118 @@ export function useModalHandlers(
 			getModalActions().setShortcutsSearchQuery('');
 		}
 	}, [shortcutsHelpOpen]);
+
+	// Check for unacknowledged badges on startup (show missed standing ovations)
+	useEffect(() => {
+		if (settingsLoaded && sessionsLoaded) {
+			const { getUnacknowledgedBadgeLevel, autoRunStats } = useSettingsStore.getState();
+			const unacknowledgedLevel = getUnacknowledgedBadgeLevel();
+			if (unacknowledgedLevel !== null) {
+				const badge = CONDUCTOR_BADGES.find((b) => b.level === unacknowledgedLevel);
+				if (badge) {
+					// Show the standing ovation overlay for the missed badge
+					// Small delay to ensure UI is fully rendered
+					setTimeout(() => {
+						getModalActions().setStandingOvationData({
+							badge,
+							isNewRecord: false, // We don't know if it was a record, so default to false
+							recordTimeMs: autoRunStats.longestRunMs,
+						});
+					}, 1000);
+				}
+			}
+		}
+		// autoRunStats.longestRunMs and getUnacknowledgedBadgeLevel intentionally omitted -
+		// this effect runs once on startup to check for missed badges, not on every stats update
+	}, [settingsLoaded, sessionsLoaded]);
+
+	// Check for unacknowledged badges when user returns to the app
+	// Uses multiple triggers: visibility change, window focus, and mouse activity
+	// This catches badges earned during overnight Auto Runs when display was off
+	useEffect(() => {
+		if (!settingsLoaded || !sessionsLoaded) return;
+
+		// Debounce to avoid showing multiple times
+		let checkPending = false;
+
+		const checkForUnacknowledgedBadge = () => {
+			// Don't show if there's already an ovation displayed
+			const currentOvation = useModalStore.getState().getData('standingOvation');
+			if (currentOvation) return;
+			if (checkPending) return;
+
+			const { getUnacknowledgedBadgeLevel, autoRunStats } = useSettingsStore.getState();
+			const unacknowledgedLevel = getUnacknowledgedBadgeLevel();
+			if (unacknowledgedLevel !== null) {
+				const badge = CONDUCTOR_BADGES.find((b) => b.level === unacknowledgedLevel);
+				if (badge) {
+					checkPending = true;
+					// Small delay to let the UI stabilize
+					setTimeout(() => {
+						// Double-check in case it was acknowledged in the meantime
+						if (!useModalStore.getState().getData('standingOvation')) {
+							getModalActions().setStandingOvationData({
+								badge,
+								isNewRecord: false,
+								recordTimeMs: autoRunStats.longestRunMs,
+							});
+						}
+						checkPending = false;
+					}, 500);
+				}
+			}
+		};
+
+		const handleVisibilityChange = () => {
+			// Only check when becoming visible
+			if (!document.hidden) {
+				checkForUnacknowledgedBadge();
+			}
+		};
+
+		const handleWindowFocus = () => {
+			// Window gained focus - user is actively looking at the app
+			checkForUnacknowledgedBadge();
+		};
+
+		// Mouse move handler with heavy debounce - only triggers once per 30 seconds
+		let lastMouseCheck = 0;
+		const handleMouseMove = () => {
+			const now = Date.now();
+			if (now - lastMouseCheck > 30000) {
+				// 30 second debounce
+				lastMouseCheck = now;
+				checkForUnacknowledgedBadge();
+			}
+		};
+
+		document.addEventListener('visibilitychange', handleVisibilityChange);
+		window.addEventListener('focus', handleWindowFocus);
+		document.addEventListener('mousemove', handleMouseMove, { passive: true });
+
+		return () => {
+			document.removeEventListener('visibilitychange', handleVisibilityChange);
+			window.removeEventListener('focus', handleWindowFocus);
+			document.removeEventListener('mousemove', handleMouseMove);
+		};
+	}, [settingsLoaded, sessionsLoaded]);
+
+	// Check for unacknowledged keyboard mastery levels on startup
+	useEffect(() => {
+		if (settingsLoaded && sessionsLoaded) {
+			const unacknowledgedLevel = useSettingsStore
+				.getState()
+				.getUnacknowledgedKeyboardMasteryLevel();
+			if (unacknowledgedLevel !== null) {
+				// Show the keyboard mastery level-up celebration after a short delay
+				setTimeout(() => {
+					getModalActions().setPendingKeyboardMasteryLevel(unacknowledgedLevel);
+				}, 1200); // Slightly longer delay than badge to avoid overlap
+			}
+		}
+		// getUnacknowledgedKeyboardMasteryLevel intentionally omitted -
+		// this effect runs once on startup to check for unacknowledged levels, not on function changes
+	}, [settingsLoaded, sessionsLoaded]);
 
 	// ====================================================================
 	// Return
@@ -705,5 +836,8 @@ export function useModalHandlers(
 		handleQuickActionsOpenMergeSession,
 		handleQuickActionsOpenSendToAgent,
 		handleQuickActionsOpenCreatePR,
+
+		// LogViewer shortcut handler
+		handleLogViewerShortcutUsed,
 	};
 }

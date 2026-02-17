@@ -222,7 +222,6 @@ function MaestroConsoleInner() {
 		setEditAgentSession,
 		// Delete Agent Modal
 		deleteAgentModalOpen,
-		setDeleteAgentModalOpen,
 		deleteAgentSession,
 		setDeleteAgentSession,
 		// Shortcuts Help Modal
@@ -5707,9 +5706,8 @@ You are taking over this conversation. Based on the context above, provide a bri
 		const session = sessions.find((s) => s.id === id);
 		if (!session) return;
 
-		// Open the delete agent modal
+		// Open the delete agent modal (setDeleteAgentSession opens the modal with session data)
 		setDeleteAgentSession(session);
-		setDeleteAgentModalOpen(true);
 	};
 
 	// Internal function to perform the actual session deletion
